@@ -30,9 +30,17 @@ export const quizService = {
   ): Promise<{ success: boolean; score?: number; error?: string }> {
     // Note: This endpoint would need to be implemented in the backend
     // For now, returning a placeholder response
-    return {
-      success: false,
-      error: 'Quiz submission endpoint not yet implemented',
+    try {
+      const response = await apiClient.post(`/quizzes/${quizId}/submit`, {
+        answers: _answers,
+      })
+      return response.data
+    }
+    catch (error: any) {
+      return {
+        success: false,
+        error: 'Quiz submission endpoint not yet implemented',
+      }
     }
   },
 }
