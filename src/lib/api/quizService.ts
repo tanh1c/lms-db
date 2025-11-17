@@ -1,41 +1,38 @@
 import type { Quiz } from '@/types'
-import { mockQuizzes } from '@/data/mock/quizzes'
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+import apiClient from './client'
 
 export const quizService = {
   async getQuizzes(userId: number): Promise<Quiz[]> {
-    await delay(500)
-    return mockQuizzes.filter(q => q.University_ID === userId)
+    const response = await apiClient.get(`/quizzes/user/${userId}`)
+    return response.data
   },
 
   async getQuizById(quizId: number): Promise<Quiz | null> {
-    await delay(300)
-    return mockQuizzes.find(q => q.Assessment_ID === quizId) || null
+    try {
+      const response = await apiClient.get(`/quizzes/${quizId}`)
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
   },
 
-  async getQuizzesByCourse(userId: number, courseId: number): Promise<Quiz[]> {
-    await delay(300)
-    return mockQuizzes.filter(q => q.University_ID === userId && q.Course_ID === courseId)
+  async getQuizzesByCourse(userId: number, courseId: string | number): Promise<Quiz[]> {
+    const allQuizzes = await this.getQuizzes(userId)
+    return allQuizzes.filter(q => q.Course_ID === courseId)
   },
 
   async submitQuiz(
     quizId: number,
     _answers: Record<string, string>
   ): Promise<{ success: boolean; score?: number; error?: string }> {
-    await delay(1000)
-    
-    const quiz = mockQuizzes.find(q => q.Assessment_ID === quizId)
-    if (!quiz) {
-      return { success: false, error: 'Quiz not found' }
-    }
-
-    // Simple scoring (in real app, this would be more complex)
-    const score = Math.random() * 10 // Mock score
-
+    // Note: This endpoint would need to be implemented in the backend
+    // For now, returning a placeholder response
     return {
-      success: true,
-      score: parseFloat(score.toFixed(2)),
+      success: false,
+      error: 'Quiz submission endpoint not yet implemented',
     }
   },
 }

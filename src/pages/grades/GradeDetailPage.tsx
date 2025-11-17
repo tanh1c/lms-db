@@ -29,7 +29,7 @@ export default function GradeDetailPage() {
       if (!courseId) return
       
       try {
-        const courseData = await courseService.getCourseById(parseInt(courseId))
+        const courseData = await courseService.getCourseById(courseId)
         setCourse(courseData)
         
         // In real app, get grades for this course

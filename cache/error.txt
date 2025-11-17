@@ -1,0 +1,536 @@
+[vite:css][postcss] @import must precede all other statements (besides @charset or empty @layer)
+3  |  @tailwind utilities;
+4  |  
+5  |  @import './animations.css';
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6  |  
+7  |  @layer base {
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV(
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x2)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x3)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x4)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x5)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x6)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x7)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x8)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x9)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x10)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x11)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x12)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x13)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x14)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x15)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x16)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV( (x17)
+9:47:30 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV(
+      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 2)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/label.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/label.tsx:5:19
+  3  |  import * as LabelPrimitive from "@radix-ui/react-label";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const labelVariants = cva(
+  7  |    "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro...9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x2)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x3)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x4)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x5)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x6)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x7)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x8)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x9)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x10)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro... (x11)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n...
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n... (x2)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n... (x3)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n... (x4)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n... (x5)
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/card.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/card.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Card = React.forwardRef(
+  5  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV(
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/input.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/input.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Input = React.forwardRef(
+  5  |    _c = ({ className, type, ...props }, ref) => {
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/avatar.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/avatar.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import * as AvatarPrimitive from "@radix-ui/react-avatar";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const Avatar = React.forwardRef(
+  6  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV(
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/label.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/label.tsx:5:19
+  3  |  import * as LabelPrimitive from "@radix-ui/react-label";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const labelVariants = cva(
+  7  |    "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/radio-group.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/radio-group.tsx:5:19
+  3  |  import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
+  4  |  import { Circle } from "lucide-react";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const RadioGroup = React.forwardRef(_c = ({ className, ...props }, ref) => {
+  7  |    return /* @__PURE__ */ jsxDEV(
+9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro...9:47:30 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does 
+the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n...9:47:31 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/avatar.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/avatar.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import * as AvatarPrimitive from "@radix-ui/react-avatar";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const Avatar = React.forwardRef(
+  6  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV(
+9:47:31 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro...      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 4)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+9:47:31 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/avatar.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/avatar.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import * as AvatarPrimitive from "@radix-ui/react-avatar";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const Avatar = React.forwardRef(
+  6  |    _c = ({ className, ...props }, ref) => /* @__PURE__ */ jsxDEV(
+      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 3)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+9:47:31 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/button.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/button.tsx:5:19
+  3  |  import { Slot } from "@radix-ui/react-slot";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const buttonVariants = cva(
+  7  |    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-backgro...9:47:31 AM [vite] (client) Pre-transform error: Failed to resolve import "@/lib/utils" from "src/components/ui/dropdown-menu.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/dropdown-menu.tsx:7:19
+  4  |  import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+  5  |  import { Check, ChevronRight, Circle } from "lucide-react";
+  6  |  import { cn } from "@/lib/utils";
+     |                      ^
+  7  |  const DropdownMenu = DropdownMenuPrimitive.Root;
+  8  |  const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+9:47:31 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/badge.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/badge.tsx:4:19
+  2  |  import * as React from "react";
+  3  |  import { cva } from "class-variance-authority";
+  4  |  import { cn } from "@/lib/utils";
+     |                      ^
+  5  |  const badgeVariants = cva(
+  6  |    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-n...      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 3)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+      at async viteTransformMiddleware (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:25159:20)
+9:47:31 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/label.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/label.tsx:5:19
+  3  |  import * as LabelPrimitive from "@radix-ui/react-label";
+  4  |  import { cva } from "class-variance-authority";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const labelVariants = cva(
+  7  |    "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 4)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+      at async viteTransformMiddleware (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:25159:20)
+9:47:31 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/input.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/input.tsx:3:19
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import * as React from "react";
+  3  |  import { cn } from "@/lib/utils";
+     |                      ^
+  4  |  const Input = React.forwardRef(
+  5  |    _c = ({ className, type, ...props }, ref) => {
+      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 2)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+      at async viteTransformMiddleware (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:25159:20)
+9:47:31 AM [vite] Internal server error: Failed to resolve import "@/lib/utils" from "src/components/ui/radio-group.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/LG/Desktop/Study Material/DB/BTL/Frontend/src/components/ui/radio-group.tsx:5:19
+  3  |  import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
+  4  |  import { Circle } from "lucide-react";
+  5  |  import { cn } from "@/lib/utils";
+     |                      ^
+  6  |  const RadioGroup = React.forwardRef(_c = ({ className, ...props }, ref) => {
+  7  |    return /* @__PURE__ */ jsxDEV(
+      at TransformPluginContext._formatLog (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29618:43)
+      at TransformPluginContext.error (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29615:14)
+      at normalizeUrl (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27738:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27796:32
+      at async Promise.all (index 4)
+      at async TransformPluginContext.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:27764:4)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:29416:14)
+      at async loadAndTransform (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:23287:26)
+      at async viteTransformMiddleware (file:///C:/Users/LG/Desktop/Study%20Material/DB/BTL/Frontend/node_modules/vite/dist/node/chunks/config.js:25159:20)

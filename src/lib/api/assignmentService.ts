@@ -1,48 +1,41 @@
 import type { Assignment, Submission } from '@/types'
-import { mockAssignments } from '@/data/mock/assignments'
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+import apiClient from './client'
 
 export const assignmentService = {
   async getAssignments(userId: number): Promise<Assignment[]> {
-    await delay(500)
-    return mockAssignments.filter(a => a.University_ID === userId)
+    const response = await apiClient.get(`/assignments/user/${userId}`)
+    return response.data
   },
 
   async getAssignmentById(assignmentId: number): Promise<Assignment | null> {
-    await delay(300)
-    return mockAssignments.find(a => a.Assessment_ID === assignmentId) || null
+    try {
+      const response = await apiClient.get(`/assignments/${assignmentId}`)
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
   },
 
   async submitAssignment(
     assignmentId: number,
-    file: File
+    file: File,
+    userId: number
   ): Promise<{ success: boolean; submission?: Submission; error?: string }> {
-    await delay(1000)
-    
-    const assignment = mockAssignments.find(a => a.Assessment_ID === assignmentId)
-    if (!assignment) {
-      return { success: false, error: 'Assignment not found' }
+    try {
+      const response = await apiClient.post(`/assignments/${assignmentId}/submit`, {
+        userId,
+        fileName: file.name,
+      })
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to submit assignment',
+      }
     }
-
-    const now = new Date()
-    const deadline = new Date(assignment.submission_deadline)
-    const isLate = now > deadline
-
-    const submission: Submission = {
-      Submission_No: Math.floor(Math.random() * 10000),
-      University_ID: assignment.University_ID,
-      Section_ID: assignment.Section_ID,
-      Course_ID: assignment.Course_ID,
-      Assessment_ID: assignment.Assessment_ID,
-      accepted_specification: assignment.accepted_specification,
-      late_flag_indicator: isLate,
-      SubmitDate: now.toISOString(),
-      attached_files: file.name,
-      status: 'Submitted',
-    }
-
-    return { success: true, submission }
   },
 }
 

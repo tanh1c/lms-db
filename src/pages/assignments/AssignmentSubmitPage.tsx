@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { assignmentService } from '@/lib/api/assignmentService'
+import { useAuthStore } from '@/store/authStore'
 import { ROUTES } from '@/constants/routes'
 import { ArrowLeft, Upload, CheckCircle2 } from 'lucide-react'
 
 export default function AssignmentSubmitPage() {
   const { assignmentId } = useParams<{ assignmentId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -24,19 +26,26 @@ export default function AssignmentSubmitPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file || !assignmentId) return
+    if (!file || !assignmentId || !user) return
 
     setSubmitting(true)
     try {
-      const result = await assignmentService.submitAssignment(parseInt(assignmentId), file)
+      const result = await assignmentService.submitAssignment(
+        parseInt(assignmentId),
+        file,
+        user.University_ID
+      )
       if (result.success) {
         setSubmitted(true)
         setTimeout(() => {
           navigate(ROUTES.ASSIGNMENTS)
         }, 2000)
+      } else {
+        alert(result.error || 'Failed to submit assignment')
       }
     } catch (error) {
       console.error('Error submitting assignment:', error)
+      alert('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.')
     } finally {
       setSubmitting(false)
     }

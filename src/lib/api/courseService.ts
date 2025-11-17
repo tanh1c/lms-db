@@ -1,28 +1,39 @@
 import type { Course, Section } from '@/types'
-import { mockCourses } from '@/data/mock/courses'
-import { mockSections } from '@/data/mock/sections'
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+import apiClient from './client'
 
 export const courseService = {
   async getCourses(): Promise<Course[]> {
-    await delay(500)
-    return mockCourses
+    const response = await apiClient.get('/courses')
+    return response.data
   },
 
-  async getCourseById(courseId: number): Promise<Course | null> {
-    await delay(300)
-    return mockCourses.find(c => c.Course_ID === courseId) || null
+  async getCourseById(courseId: string | number): Promise<Course | null> {
+    try {
+      const response = await apiClient.get(`/courses/${courseId}`)
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
   },
 
-  async getSectionsByCourse(courseId: number): Promise<Section[]> {
-    await delay(300)
-    return mockSections.filter(s => s.Course_ID === courseId)
+  async getSectionsByCourse(courseId: string | number): Promise<Section[]> {
+    const response = await apiClient.get(`/courses/${courseId}/sections`)
+    return response.data
   },
 
-  async getSectionById(sectionId: number, courseId: number): Promise<Section | null> {
-    await delay(300)
-    return mockSections.find(s => s.Section_ID === sectionId && s.Course_ID === courseId) || null
+  async getSectionById(sectionId: string | number, courseId: string | number): Promise<Section | null> {
+    try {
+      const response = await apiClient.get(`/courses/${courseId}/sections/${sectionId}`)
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
   },
 }
 

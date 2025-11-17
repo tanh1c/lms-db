@@ -21,8 +21,8 @@ export default function SectionPage() {
       
       try {
         const [sectionData, courseData] = await Promise.all([
-          courseService.getSectionById(parseInt(sectionId), parseInt(courseId)),
-          courseService.getCourseById(parseInt(courseId)),
+          courseService.getSectionById(sectionId, courseId),
+          courseService.getCourseById(courseId),
         ])
         
         setSection(sectionData)
