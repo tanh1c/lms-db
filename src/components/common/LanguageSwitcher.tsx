@@ -10,7 +10,7 @@ interface LanguageSwitcherProps {
 }
 
 export default function LanguageSwitcher({ variant = 'default' }: LanguageSwitcherProps) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { language, setLanguage } = useLanguageStore()
   const neoBrutalismMode = useNeoBrutalismMode()
   const glassmorphismMode = useGlassmorphismMode()
