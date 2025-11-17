@@ -1,4 +1,4 @@
-from config_py.database import get_db_connection
+from config.database import get_db_connection
 
 print('Testing SQL Server connection with Python...')
 print('=' * 50)

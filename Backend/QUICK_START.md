@@ -17,16 +17,17 @@
 
 ### Step 2: Configure and Start Backend
 ```bash
-cd server
-npm install
-cp .env.example .env
+cd Backend/server
+pip install -r requirements.txt
+# Create .env file with your SQL Server credentials
 # Edit .env with your SQL Server credentials
-npm run dev
+python app.py
 ```
 
 ### Step 3: Configure and Start Frontend
 ```bash
-# In project root, create .env file:
+# In Frontend directory, create .env file:
+cd Frontend
 echo "VITE_API_BASE_URL=http://localhost:3001/api" > .env
 
 # Start frontend:
@@ -50,8 +51,9 @@ npm run dev
 
 **Backend won't connect?**
 - Check SQL Server is running
-- Verify credentials in `server/.env`
+- Verify credentials in `Backend/server/.env`
 - Check TCP/IP is enabled in SQL Server Configuration Manager
+- Verify Python dependencies: `pip install -r requirements.txt`
 
 **Frontend shows errors?**
 - Make sure backend is running

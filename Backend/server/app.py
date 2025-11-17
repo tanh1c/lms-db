@@ -4,17 +4,17 @@ from dotenv import load_dotenv
 import os
 
 # Import routes
-from routes_py.auth import auth_bp
-from routes_py.users import users_bp
-from routes_py.courses import courses_bp
-from routes_py.assignments import assignments_bp
-from routes_py.students import students_bp
-from routes_py.quizzes import quizzes_bp
-from routes_py.grades import grades_bp
-from routes_py.schedule import schedule_bp
+from routes.auth import auth_bp
+from routes.users import users_bp
+from routes.courses import courses_bp
+from routes.assignments import assignments_bp
+from routes.students import students_bp
+from routes.quizzes import quizzes_bp
+from routes.grades import grades_bp
+from routes.schedule import schedule_bp
 
 # Import database config
-from config_py.database import get_db_connection
+from config.database import get_db_connection
 
 load_dotenv()
 

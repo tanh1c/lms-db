@@ -4,7 +4,7 @@ Backend API server for the LMS (Learning Management System) that connects to Mic
 
 ## Prerequisites
 
-- Node.js 18+ 
+- Python 3.8+ 
 - Microsoft SQL Server 2019 or later
 - SQL Server database `lms_system` (see `/db` folder for setup)
 
@@ -12,17 +12,17 @@ Backend API server for the LMS (Learning Management System) that connects to Mic
 
 1. Navigate to the server directory:
 ```bash
-cd server
+cd Backend/server
 ```
 
 2. Install dependencies:
 ```bash
-npm install
+pip install -r requirements.txt
 ```
 
-3. Create a `.env` file (copy from `.env.example`):
+3. Create a `.env` file with your SQL Server credentials:
 ```bash
-cp .env.example .env
+# Create .env file manually or copy from .env.example if available
 ```
 
 4. Update `.env` with your SQL Server credentials:
@@ -43,12 +43,13 @@ NODE_ENV=development
 
 ### Development Mode
 ```bash
-npm run dev
+python app.py
 ```
 
 ### Production Mode
 ```bash
-npm start
+# Use a production WSGI server like gunicorn
+gunicorn -w 4 -b 0.0.0.0:3001 app:app
 ```
 
 The server will start on `http://localhost:3001` (or the port specified in `.env`).

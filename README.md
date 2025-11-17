@@ -1,87 +1,91 @@
-# LMS Frontend
+# LMS (Learning Management System)
 
-Frontend application for Learning Management System built with React, TypeScript, and Vite.
+Hệ thống quản lý học tập với Frontend (React + TypeScript) và Backend (Flask + Python).
 
-## Features
+## 📁 Cấu trúc Project
 
-- Authentication with role-based access control (Student, Tutor, Admin)
-- Role-specific dashboards with analytics
-- Course management and enrollment
-- Assignment submission and tracking
-- Quiz system with timer
-- Grade management and viewing
-- Schedule calendar with notes
-- Profile management and theme customization
-- Dark mode support
-- Responsive design
-
-## Tech Stack
-
-- React 18 with TypeScript
-- Vite for build tooling
-- Tailwind CSS for styling
-- shadcn/ui for component library
-- React Router v7 for routing
-- Zustand for state management
-- GSAP for animations
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm
-
-### Installation
-
-```bash
-npm install
+```
+BTL/
+├── Backend/          # Backend API Server (Flask + Python)
+│   ├── server/       # Flask application
+│   │   ├── app.py    # Main application file
+│   │   ├── config/   # Database configuration
+│   │   └── routes/   # API routes
+│   ├── README_BACKEND_SETUP.md
+│   └── QUICK_START.md
+│
+└── Frontend/         # Frontend Application (React + TypeScript)
+    ├── src/          # Source code
+    ├── public/       # Static assets
+    ├── package.json
+    └── README.md
 ```
 
-### Development
+## 🚀 Quick Start
+
+### Backend Setup
 
 ```bash
+cd Backend/server
+pip install -r requirements.txt
+# Tạo .env file với SQL Server credentials
+python app.py
+```
+
+Xem chi tiết: [Backend/README_BACKEND_SETUP.md](Backend/README_BACKEND_SETUP.md)
+
+### Frontend Setup
+
+```bash
+cd Frontend
+npm install
 npm run dev
 ```
 
-### Build
+Xem chi tiết: [Frontend/README.md](Frontend/README.md)
 
-```bash
-npm run build
+## 🛠️ Tech Stack
+
+### Backend
+- Python 3.8+
+- Flask
+- SQL Server
+- pymssql
+
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- React Router v7
+- Zustand
+- GSAP
+
+## 📝 Environment Variables
+
+### Backend (.env trong Backend/server/)
+```env
+DB_SERVER=localhost
+DB_PORT=1433
+DB_DATABASE=lms_system
+DB_USER=sa
+DB_PASSWORD=YourPassword123
+PORT=3001
 ```
 
-### Preview
-
-```bash
-npm run preview
+### Frontend (.env trong Frontend/)
+```env
+VITE_API_BASE_URL=http://localhost:3001/api
 ```
 
-## Project Structure
+## 📚 Documentation
 
-```
-src/
-├── components/     # Reusable components
-│   ├── ui/        # shadcn/ui components
-│   ├── layout/    # Layout components
-│   └── theme/     # Theme customization
-├── pages/         # Page components
-├── lib/           # Utilities and API services
-├── store/         # Zustand state management
-├── context/       # React contexts
-└── styles/        # Global styles
-```
+- [Backend Setup Guide](Backend/README_BACKEND_SETUP.md)
+- [Quick Start Guide](Backend/QUICK_START.md)
+- [Frontend Documentation](Frontend/README.md)
 
-## Mock Accounts
-
-- Student: University_ID `100001` or `100002` (any password)
-- Tutor: University_ID `200001` (any password)
-- Admin: University_ID `3000001` (any password)
-
-## Notes
-
-- Current implementation uses mock data with simulated API delays
-- Theme preferences are stored in localStorage
-- Authentication state persists in localStorage
-
-## License
+## 📄 License
 
 MIT
+

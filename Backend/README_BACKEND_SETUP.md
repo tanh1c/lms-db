@@ -49,12 +49,12 @@ See `db/README.md` for detailed database setup instructions.
 
 1. **Navigate to server directory:**
    ```bash
-   cd server
+   cd Backend/server
    ```
 
 2. **Install dependencies:**
    ```bash
-   npm install
+   pip install -r requirements.txt
    ```
 
 3. **Configure environment:**
@@ -150,8 +150,9 @@ See `db/README.md` for detailed database setup instructions.
 
 ### Backend won't start
 - Check if port 3001 is available
-- Verify Node.js version (18+)
+- Verify Python version (3.8+)
 - Check `.env` file exists and has correct values
+- Verify all dependencies are installed: `pip install -r requirements.txt`
 
 ### Database connection fails
 - Verify SQL Server is running
@@ -172,8 +173,8 @@ See `db/README.md` for detailed database setup instructions.
 ## Development Workflow
 
 1. **Start SQL Server** (if not running as service)
-2. **Start backend:** `cd server && npm run dev`
-3. **Start frontend:** `npm run dev`
+2. **Start backend:** `cd Backend/server && python app.py`
+3. **Start frontend:** `cd Frontend && npm run dev`
 4. **Access frontend:** `http://localhost:5173` (or your Vite port)
 
 ## Production Deployment
@@ -197,9 +198,9 @@ For production:
 ## Files Changed
 
 ### New Backend Files:
-- `server/` - Complete backend API server
-  - `index.js` - Main server file
-  - `config/database.js` - Database connection
+- `Backend/server/` - Complete backend API server
+  - `app.py` - Main server file
+  - `config/database.py` - Database connection
   - `routes/` - API route handlers
 
 ### Updated Frontend Files:
