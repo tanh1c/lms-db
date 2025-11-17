@@ -6,12 +6,15 @@ interface ThemeState {
   fontFamily: string
   darkMode: boolean
   neoBrutalismMode: boolean
+  glassmorphismMode: boolean
   setPrimaryColor: (color: string) => void
   setFontFamily: (font: string) => void
   setDarkMode: (dark: boolean) => void
   toggleDarkMode: () => void
   setNeoBrutalismMode: (enabled: boolean) => void
   toggleNeoBrutalismMode: () => void
+  setGlassmorphismMode: (enabled: boolean) => void
+  toggleGlassmorphismMode: () => void
   resetTheme: () => void
 }
 
@@ -20,6 +23,7 @@ const defaultTheme = {
   fontFamily: "'Inter', system-ui, sans-serif",
   darkMode: false,
   neoBrutalismMode: false,
+  glassmorphismMode: false,
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -32,6 +36,8 @@ export const useThemeStore = create<ThemeState>()(
       toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
       setNeoBrutalismMode: (enabled: boolean) => set({ neoBrutalismMode: enabled }),
       toggleNeoBrutalismMode: () => set((state) => ({ neoBrutalismMode: !state.neoBrutalismMode })),
+      setGlassmorphismMode: (enabled: boolean) => set({ glassmorphismMode: enabled }),
+      toggleGlassmorphismMode: () => set((state) => ({ glassmorphismMode: !state.glassmorphismMode })),
       resetTheme: () => set(defaultTheme),
     }),
     {

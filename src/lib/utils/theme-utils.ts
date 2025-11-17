@@ -126,3 +126,78 @@ export const getNeoBrutalismTextClasses = (neoBrutalismMode: boolean, variant: '
   return "font-semibold"
 }
 
+/**
+ * Hook to check if glassmorphism mode is enabled
+ */
+export const useGlassmorphismMode = () => {
+  const glassmorphismMode = useThemeStore((state) => state.glassmorphismMode)
+  return glassmorphismMode
+}
+
+/**
+ * Generate glassmorphism classes for cards
+ */
+export const getGlassmorphismCardClasses = (glassmorphismMode: boolean, additionalClasses?: string) => {
+  if (!glassmorphismMode) {
+    return cn("border border-[#e5e7e7] dark:border-[#333] rounded-xl", additionalClasses)
+  }
+  return cn(
+    "glass-card",
+    "bg-white/15 dark:bg-black/15",
+    "backdrop-blur-[20px]",
+    "border border-white/30 dark:border-white/20",
+    "rounded-[20px]",
+    "shadow-[0_8px_32px_rgba(0,0,0,0.1)]",
+    "relative overflow-hidden",
+    additionalClasses
+  )
+}
+
+/**
+ * Generate glassmorphism classes for buttons
+ */
+export const getGlassmorphismButtonClasses = (glassmorphismMode: boolean, variant: 'primary' | 'secondary' | 'outline' = 'primary', additionalClasses?: string) => {
+  if (!glassmorphismMode) {
+    return additionalClasses
+  }
+  
+  const baseClasses = "glass-button rounded-[20px] border backdrop-blur-[20px] transition-all hover:scale-105"
+  
+  if (variant === 'primary') {
+    return cn(
+      baseClasses,
+      "bg-white/20 dark:bg-white/10",
+      "border-white/40 dark:border-white/30",
+      "text-white dark:text-white",
+      "shadow-[0_8px_32px_rgba(0,0,0,0.2)]",
+      "hover:bg-white/30 dark:hover:bg-white/20",
+      "hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]",
+      additionalClasses
+    )
+  }
+  
+  return additionalClasses
+}
+
+/**
+ * Generate glassmorphism classes for inputs
+ */
+export const getGlassmorphismInputClasses = (glassmorphismMode: boolean, additionalClasses?: string) => {
+  if (!glassmorphismMode) {
+    return cn("border border-[#e5e7e7] dark:border-[#333] rounded-xl", additionalClasses)
+  }
+  return cn(
+    "glass-input",
+    "bg-white/10 dark:bg-black/10",
+    "backdrop-blur-[20px]",
+    "border border-white/30 dark:border-white/20",
+    "rounded-[20px]",
+    "text-white dark:text-white",
+    "placeholder:text-white/60 dark:placeholder:text-white/40",
+    "focus:bg-white/20 dark:focus:bg-black/20",
+    "focus:border-white/50 dark:focus:border-white/40",
+    "focus:shadow-[0_8px_32px_rgba(0,0,0,0.2)]",
+    additionalClasses
+  )
+}
+

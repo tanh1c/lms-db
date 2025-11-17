@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import {
 import { ArrowLeft, BarChart3, Calendar } from 'lucide-react'
 
 export default function GradeDetailPage() {
+  const { t } = useTranslation()
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
   const [grades, setGrades] = useState<Assessment[]>([])
@@ -29,7 +31,7 @@ export default function GradeDetailPage() {
       if (!courseId) return
       
       try {
-        const courseData = await courseService.getCourseById(courseId)
+        const courseData = await courseService.getCourseById(parseInt(courseId))
         setCourse(courseData)
         
         // In real app, get grades for this course
@@ -51,7 +53,7 @@ export default function GradeDetailPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-[#1f1d39] dark:text-white">Đang tải...</div>
+          <div className="text-lg text-[#1f1d39] dark:text-white">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -64,7 +66,7 @@ export default function GradeDetailPage() {
   return (
     <DashboardLayout 
       title={course?.Name || `Course ${courseId}`}
-      subtitle="Grade details"
+      subtitle={t('grades.gradeDetails')}
     >
       <div className="space-y-6">
         <Button
@@ -78,7 +80,7 @@ export default function GradeDetailPage() {
           )}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Back to Grades</span>
+          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('grades.backToGrades')}</span>
         </Button>
 
         <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
@@ -102,7 +104,7 @@ export default function GradeDetailPage() {
                 <CardDescription className={cn(
                   "text-[#85878d] dark:text-gray-400",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                )}>Grade Details</CardDescription>
+                )}>{t('grades.gradeDetails')}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -116,7 +118,7 @@ export default function GradeDetailPage() {
               <span className={cn(
                 "text-lg font-medium text-[#676767] dark:text-gray-300",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-              )}>Average Grade:</span>
+              )}>{t('grades.averageGradeLabel')}:</span>
               <span className={cn(
                 "text-2xl font-bold text-[#1f1d39] dark:text-white",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
@@ -133,7 +135,7 @@ export default function GradeDetailPage() {
                           <p className={cn(
                             "font-semibold text-[#1f1d39] dark:text-white",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                          )}>Assessment {grade.Assessment_ID}</p>
+                          )}>{t('grades.assessment')} {grade.Assessment_ID}</p>
                           <Badge
                             className={cn(
                               grade.Status === 'Approved'
@@ -167,7 +169,7 @@ export default function GradeDetailPage() {
                         <p className={cn(
                           "text-sm text-[#85878d] dark:text-gray-400",
                           getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                        )}>points</p>
+                        )}>{t('grades.points')}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -178,7 +180,7 @@ export default function GradeDetailPage() {
             {grades.length === 0 && (
               <div className="text-center py-8 text-[#85878d] dark:text-gray-400">
                 <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No grades available for this course</p>
+                <p>{t('grades.noGradesForCourse')}</p>
               </div>
             )}
           </CardContent>
@@ -187,4 +189,3 @@ export default function GradeDetailPage() {
     </DashboardLayout>
   )
 }
-

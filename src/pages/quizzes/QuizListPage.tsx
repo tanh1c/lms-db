@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
@@ -27,6 +28,7 @@ interface QuizWithCourse extends Quiz {
 }
 
 export default function QuizListPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [quizzes, setQuizzes] = useState<QuizWithCourse[]>([])
@@ -84,22 +86,22 @@ export default function QuizListPage() {
     const endDate = new Date(quiz.End_Date)
 
     if (now < startDate) {
-      return { text: 'Chưa bắt đầu', variant: 'secondary' as const, icon: Clock }
+      return { text: t('quizzes.notStarted'), variant: 'secondary' as const, icon: Clock }
     }
     if (now > endDate) {
-      return { text: 'Đã kết thúc', variant: 'secondary' as const, icon: XCircle }
+      return { text: t('quizzes.ended'), variant: 'secondary' as const, icon: XCircle }
     }
 
     switch (quiz.completion_status) {
       case 'Passed':
-        return { text: 'Đã đạt', variant: 'default' as const, icon: CheckCircle2 }
+        return { text: t('quizzes.passed'), variant: 'default' as const, icon: CheckCircle2 }
       case 'Failed':
-        return { text: 'Không đạt', variant: 'destructive' as const, icon: XCircle }
+        return { text: t('quizzes.failed'), variant: 'destructive' as const, icon: XCircle }
       case 'Submitted':
       case 'In Progress':
-        return { text: 'Đã làm', variant: 'default' as const, icon: CheckCircle2 }
+        return { text: t('quizzes.submitted'), variant: 'default' as const, icon: CheckCircle2 }
       default:
-        return { text: 'Chưa làm', variant: 'secondary' as const, icon: Clock }
+        return { text: t('quizzes.notTaken'), variant: 'secondary' as const, icon: Clock }
     }
   }
 
@@ -107,7 +109,7 @@ export default function QuizListPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Đang tải...</div>
+          <div className="text-lg">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -115,8 +117,8 @@ export default function QuizListPage() {
 
   return (
     <DashboardLayout 
-      title="Quizzes" 
-      subtitle="All your quizzes across all courses"
+      title={t('quizzes.title')} 
+      subtitle={t('quizzes.subtitle')}
     >
       <div ref={containerRef} className="space-y-4">
         {quizzes.map((quiz) => {
@@ -155,7 +157,7 @@ export default function QuizListPage() {
                         <CardTitle className={cn(
                           "text-lg text-[#1f1d39] dark:text-white",
                           getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                        )}>Quiz {quiz.Assessment_ID}</CardTitle>
+                        )}>{t('quizzes.quiz')} {quiz.Assessment_ID}</CardTitle>
                         {quiz.course && (
                           <Badge variant="outline" className={cn(
                             "text-xs",
@@ -195,7 +197,7 @@ export default function QuizListPage() {
                     <span className={cn(
                       "font-semibold text-orange-700 dark:text-orange-300",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                    )}>Deadline</span>
+                    )}>{t('quizzes.deadline')}</span>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-4">
@@ -213,9 +215,9 @@ export default function QuizListPage() {
                           <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
                             {daysLeft === 0 
                               ? hoursLeft > 0 
-                                ? `${hoursLeft} hour${hoursLeft > 1 ? 's' : ''} left`
-                                : 'Due today'
-                              : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left`}
+                                ? `${hoursLeft} ${hoursLeft > 1 ? t('assignments.hoursLeft') : t('assignments.hourLeft')}`
+                                : t('assignments.dueToday')
+                              : `${daysLeft} ${daysLeft > 1 ? t('assignments.daysLeft') : t('assignments.dayLeft')}`}
                           </span>
                         </Badge>
                       )}
@@ -223,7 +225,7 @@ export default function QuizListPage() {
                         <Badge variant="destructive" className={cn(
                           neoBrutalismMode && "border-4 border-red-600 dark:border-red-400 rounded-none shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] dark:shadow-[4px_4px_0px_0px_rgba(248,113,113,1)]"
                         )}>
-                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Closed</span>
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('quizzes.closed')}</span>
                         </Badge>
                       )}
                       {now < startDate && (
@@ -231,12 +233,12 @@ export default function QuizListPage() {
                           "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
                           neoBrutalismMode && "border-4 border-blue-600 dark:border-blue-400 rounded-none shadow-[4px_4px_0px_0px_rgba(37,99,235,1)] dark:shadow-[4px_4px_0px_0px_rgba(96,165,250,1)]"
                         )}>
-                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Starts {format(startDate, 'MMM dd, yyyy')}</span>
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('quizzes.starts')} {format(startDate, 'MMM dd, yyyy')}</span>
                         </Badge>
                       )}
                     </div>
                     <div className="text-orange-700 dark:text-orange-300 text-xs">
-                      Available: {format(startDate, 'MMM dd, yyyy')} - {format(endDate, 'MMM dd, yyyy')}
+                      {t('quizzes.available')}: {format(startDate, 'MMM dd, yyyy')} - {format(endDate, 'MMM dd, yyyy')}
                     </div>
                   </div>
                 </div>
@@ -244,19 +246,19 @@ export default function QuizListPage() {
                 <div className="flex items-center gap-6 text-sm">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-[#85878d] dark:text-gray-400" />
-                    <span className="text-[#676767] dark:text-gray-300">Time Limit: {quiz.Time_limits}</span>
+                    <span className="text-[#676767] dark:text-gray-300">{t('quizzes.timeLimit')}: {quiz.Time_limits}</span>
                   </div>
                   <div className="text-sm text-[#85878d] dark:text-gray-400">
-                    Pass Score: {quiz.pass_score}
+                    {t('courses.passScore')}: {quiz.pass_score}
                   </div>
                   {quiz.Weight && (
                     <div className="text-sm text-[#85878d] dark:text-gray-400">
-                      Weight: {(quiz.Weight * 100).toFixed(0)}%
+                      {t('courses.weight')}: {(quiz.Weight * 100).toFixed(0)}%
                     </div>
                   )}
                   {quiz.score > 0 && (
                     <div className="text-sm font-semibold text-[#1f1d39] dark:text-white">
-                      Your Score: {quiz.score.toFixed(2)}/{quiz.pass_score}
+                      {t('quizzes.yourScore')}: {quiz.score.toFixed(2)}/{quiz.pass_score}
                     </div>
                   )}
                 </div>
@@ -270,7 +272,7 @@ export default function QuizListPage() {
                           : "bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black"
                       )}
                     >
-                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Take Quiz</span>
+                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('quizzes.takeQuiz')}</span>
                     </Button>
                   ) : (
                     <Button
@@ -282,7 +284,7 @@ export default function QuizListPage() {
                           : "border-[#e5e7e7] dark:border-[#333] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
                       )}
                     >
-                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>View Result</span>
+                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('quizzes.viewResult')}</span>
                     </Button>
                   )}
                 </div>
@@ -298,7 +300,7 @@ export default function QuizListPage() {
               <p className={cn(
                 "text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>No quizzes available</p>
+              )}>{t('quizzes.noQuizzesAvailable')}</p>
             </CardContent>
           </Card>
         )}

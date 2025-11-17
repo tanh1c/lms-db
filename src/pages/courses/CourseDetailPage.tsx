@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +24,7 @@ import CourseContentCard from '@/components/courses/CourseContentCard'
 import { format } from 'date-fns'
 
 export default function CourseDetailPage() {
+  const { t } = useTranslation()
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -67,7 +69,7 @@ export default function CourseDetailPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Đang tải...</div>
+          <div className="text-lg">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -76,7 +78,7 @@ export default function CourseDetailPage() {
   if (!course) {
     return (
       <DashboardLayout>
-        <div className="text-[#85878d]">Course not found</div>
+        <div className="text-[#85878d]">{t('courses.courseNotFound')}</div>
       </DashboardLayout>
     )
   }
@@ -98,7 +100,7 @@ export default function CourseDetailPage() {
           )}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Back to Courses</span>
+          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('courses.backToCourses')}</span>
         </Button>
 
         <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
@@ -120,7 +122,7 @@ export default function CourseDetailPage() {
                 <CardDescription className={cn(
                   "text-[#85878d] dark:text-gray-400",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                )}>Course ID: {course.Course_ID}</CardDescription>
+                )}>{t('courses.courseId')}: {course.Course_ID}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -137,11 +139,11 @@ export default function CourseDetailPage() {
                   <p className={cn(
                     "text-sm font-medium text-[#676767] dark:text-gray-400 mb-1",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                  )}>Credits</p>
+                  )}>{t('courses.credits')}</p>
                   <p className={cn(
                     "text-lg font-semibold text-[#1f1d39] dark:text-white",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>{course.Credit} credits</p>
+                  )}>{course.Credit} {t('courses.credits')}</p>
                 </div>
               </div>
               {course.Start_Date && (
@@ -156,7 +158,7 @@ export default function CourseDetailPage() {
                     <p className={cn(
                       "text-sm font-medium text-[#676767] dark:text-gray-400 mb-1",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>Start Date</p>
+                    )}>{t('courses.startDate')}</p>
                     <p className={cn(
                       "text-lg font-semibold text-[#1f1d39] dark:text-white",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
@@ -183,7 +185,7 @@ export default function CourseDetailPage() {
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                   )}
                 >
-                  Overview
+                  {t('courses.overview')}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="grades"
@@ -193,7 +195,7 @@ export default function CourseDetailPage() {
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                   )}
                 >
-                  Grades
+                  {t('courses.grades')}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="competencies"
@@ -203,7 +205,7 @@ export default function CourseDetailPage() {
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                   )}
                 >
-                  Competencies
+                  {t('courses.competencies')}
                 </TabsTrigger>
               </TabsList>
 
@@ -224,12 +226,12 @@ export default function CourseDetailPage() {
                           <CardTitle className={cn(
                             "text-xl text-[#1f1d39] dark:text-white",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                          )}>Course Content</CardTitle>
+                          )}>{t('courses.courseContent')}</CardTitle>
                           <CardDescription className={cn(
                             "text-[#85878d] dark:text-gray-400",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                           )}>
-                            Course materials and resources
+                            {t('courses.courseMaterials')}
                           </CardDescription>
                         </div>
                       </div>
@@ -254,11 +256,11 @@ export default function CourseDetailPage() {
                           <CardTitle className={cn(
                             "text-xl text-[#1f1d39] dark:text-white",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                          )}>Sections</CardTitle>
+                          )}>{t('courses.sections')}</CardTitle>
                           <CardDescription className={cn(
                             "text-[#85878d] dark:text-gray-400",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                          )}>List of sections for this course</CardDescription>
+                          )}>{t('courses.sectionsList')}</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
@@ -283,11 +285,11 @@ export default function CourseDetailPage() {
                                 <p className={cn(
                                   "font-semibold text-[#1f1d39] dark:text-white",
                                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                                )}>Section {section.Section_ID}</p>
+                                )}>{t('courses.section')} {section.Section_ID}</p>
                                 <p className={cn(
                                   "text-sm text-[#85878d] dark:text-gray-400",
                                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                                )}>Semester: {section.Semester}</p>
+                                )}>{t('courses.semester')}: {section.Semester}</p>
                               </div>
                               <Button 
                                 variant="ghost" 
@@ -298,7 +300,7 @@ export default function CourseDetailPage() {
                                     : "border border-[#e5e7e7] dark:border-[#333]"
                                 )}
                               >
-                                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>View Details</span>
+                                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('courses.viewDetails')}</span>
                               </Button>
                             </div>
                           ))}
@@ -307,7 +309,7 @@ export default function CourseDetailPage() {
                         <p className={cn(
                           "text-sm text-[#85878d] dark:text-gray-400 text-center py-4",
                           getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                        )}>No sections available</p>
+                        )}>{t('courses.noSectionsAvailable')}</p>
                       )}
                     </CardContent>
                   </Card>
@@ -320,7 +322,7 @@ export default function CourseDetailPage() {
                     <h3 className={cn(
                       "text-lg font-semibold text-[#1f1d39] dark:text-white mb-4",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                    )}>Quiz Grades</h3>
+                    )}>{t('courses.quizGrades')}</h3>
                     {quizzes.length > 0 ? (
                       <div className="space-y-3">
                         {quizzes.map((quiz) => {
@@ -359,11 +361,11 @@ export default function CourseDetailPage() {
                                       <span>{quiz.Time_limits}</span>
                                     </div>
                                     <span>•</span>
-                                    <span>Pass Score: {quiz.pass_score}</span>
+                                    <span>{t('courses.passScore')}: {quiz.pass_score}</span>
                                     {quiz.Weight && (
                                       <>
                                         <span>•</span>
-                                        <span>Weight: {(quiz.Weight * 100).toFixed(0)}%</span>
+                                        <span>{t('courses.weight')}: {(quiz.Weight * 100).toFixed(0)}%</span>
                                       </>
                                     )}
                                   </div>
@@ -392,7 +394,7 @@ export default function CourseDetailPage() {
                     ) : (
                       <div className="text-center py-8 text-[#85878d] dark:text-gray-400">
                         <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>No quiz grades available</p>
+                        <p>{t('courses.noQuizGrades')}</p>
                       </div>
                     )}
                   </div>
@@ -405,7 +407,7 @@ export default function CourseDetailPage() {
                     <h3 className={cn(
                       "text-lg font-semibold text-[#1f1d39] dark:text-white mb-4",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                    )}>Students in this Course</h3>
+                    )}>{t('courses.studentsInCourse')}</h3>
                     {students.length > 0 ? (
                       <div className="space-y-3">
                         {students.map((student) => (
@@ -451,7 +453,7 @@ export default function CourseDetailPage() {
                     ) : (
                       <div className="text-center py-8 text-[#85878d] dark:text-gray-400">
                         <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>No students enrolled in this course</p>
+                        <p>{t('courses.noStudentsEnrolled')}</p>
                       </div>
                     )}
                   </div>

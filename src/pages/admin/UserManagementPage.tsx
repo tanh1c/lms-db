@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import {
 } from '@/lib/utils/theme-utils'
 
 export default function UserManagementPage() {
+  const { t } = useTranslation()
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -126,7 +128,7 @@ export default function UserManagementPage() {
   }
 
   const handleDeleteUser = async (universityId: number) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa user ${universityId}?`)) {
+    if (!confirm(`${t('admin.confirmDelete')} ${universityId}?`)) {
       return
     }
 
@@ -138,7 +140,7 @@ export default function UserManagementPage() {
       await loadUsers()
     } catch (error) {
       console.error('Error deleting user:', error)
-      alert('Có lỗi xảy ra khi xóa user. Vui lòng thử lại.')
+      alert(t('admin.errorDeletingUser'))
     } finally {
       setIsDeleting(false)
       setDeleteUserId(null)
@@ -148,13 +150,13 @@ export default function UserManagementPage() {
   const handleSaveUser = async () => {
     // Validation
     if (!formData.University_ID || !formData.First_Name || !formData.Last_Name || !formData.Email) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc (ID, First Name, Last Name, Email)')
+      alert(t('admin.fillRequiredFields'))
       return
     }
 
     const universityId = parseInt(formData.University_ID)
     if (isNaN(universityId)) {
-      alert('University ID phải là số')
+      alert(t('admin.universityIdMustBeNumber'))
       return
     }
 
@@ -173,7 +175,7 @@ export default function UserManagementPage() {
         // Check if user already exists
         const existingUser = users.find(u => u.University_ID === universityId)
         if (existingUser) {
-          alert('University ID đã tồn tại')
+          alert(t('admin.universityIdExists'))
           return
         }
 
@@ -193,7 +195,7 @@ export default function UserManagementPage() {
       await loadUsers()
     } catch (error) {
       console.error('Error saving user:', error)
-      alert('Có lỗi xảy ra khi lưu user. Vui lòng thử lại.')
+      alert(t('admin.errorSavingUser'))
     }
   }
 
@@ -230,7 +232,7 @@ export default function UserManagementPage() {
           <div className={cn(
             "text-lg text-[#211c37] dark:text-white",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-          )}>Đang tải...</div>
+          )}>{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -245,13 +247,13 @@ export default function UserManagementPage() {
             "text-3xl font-bold text-[#211c37] dark:text-white mb-2",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
           )}>
-            Quản lý người dùng
+            {t('admin.userManagement')}
           </h1>
           <p className={cn(
             "text-[#85878d] dark:text-gray-400",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
           )}>
-            Quản lý tất cả người dùng trong hệ thống
+            {t('admin.userManagementSubtitle')}
           </p>
         </div>
 
@@ -264,7 +266,7 @@ export default function UserManagementPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Tìm kiếm theo ID, tên, email..."
+                      placeholder={t('admin.searchPlaceholder')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className={cn(
@@ -279,17 +281,17 @@ export default function UserManagementPage() {
                     "w-[180px] bg-white dark:bg-[#2a2a2a]",
                     getNeoBrutalismInputClasses(neoBrutalismMode)
                   )}>
-                    <SelectValue placeholder="Lọc theo role" />
+                    <SelectValue placeholder={t('admin.filterByRole')} />
                   </SelectTrigger>
                   <SelectContent className={cn(
                     neoBrutalismMode 
                       ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]"
                       : ""
                   )}>
-                    <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="tutor">Tutor</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="all">{t('admin.all')}</SelectItem>
+                    <SelectItem value="student">{t('admin.student')}</SelectItem>
+                    <SelectItem value="tutor">{t('admin.tutor')}</SelectItem>
+                    <SelectItem value="admin">{t('admin.admin')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -303,7 +305,7 @@ export default function UserManagementPage() {
                 )}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Thêm người dùng</span>
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addUser')}</span>
               </Button>
             </div>
           </CardContent>
@@ -326,13 +328,13 @@ export default function UserManagementPage() {
                   "text-xl text-[#1f1d39] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
                 )}>
-                  Danh sách người dùng
+                  {t('admin.userList')}
                 </CardTitle>
                 <CardDescription className={cn(
                   "text-[#85878d] dark:text-gray-400",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                 )}>
-                  Tổng cộng {filteredUsers.length} người dùng
+                  {t('admin.totalUsers')} {filteredUsers.length} {t('admin.users')}
                 </CardDescription>
               </div>
             </div>
@@ -372,27 +374,27 @@ export default function UserManagementPage() {
                               getRoleBadgeColor(user.role),
                               neoBrutalismMode ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]" : ""
                             )}>
-                              <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{user.role || 'Unknown'}</span>
+                              <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{user.role ? t(`admin.${user.role}`) : t('admin.unknown')}</span>
                             </Badge>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-[#676767] dark:text-gray-500">ID:</span>
+                              <span className="font-medium text-[#676767] dark:text-gray-500">{t('admin.id')}:</span>
                               <span>{user.University_ID}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-[#676767] dark:text-gray-500">Email:</span>
+                              <span className="font-medium text-[#676767] dark:text-gray-500">{t('admin.email')}:</span>
                               <span className="truncate">{user.Email}</span>
                             </div>
                             {user.Phone_Number && (
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-[#676767] dark:text-gray-500">Phone:</span>
+                                <span className="font-medium text-[#676767] dark:text-gray-500">{t('admin.phone')}:</span>
                                 <span>{user.Phone_Number}</span>
                               </div>
                             )}
                             {user.Address && (
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-[#676767] dark:text-gray-500">Address:</span>
+                                <span className="font-medium text-[#676767] dark:text-gray-500">{t('admin.address')}:</span>
                                 <span className="truncate">{user.Address}</span>
                               </div>
                             )}
@@ -412,7 +414,7 @@ export default function UserManagementPage() {
                           )}
                         >
                           <Edit2 className="h-4 w-4 mr-1" />
-                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Sửa</span>
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.edit')}</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -427,7 +429,7 @@ export default function UserManagementPage() {
                           )}
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
-                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Xóa</span>
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.delete')}</span>
                         </Button>
                       </div>
                     </div>
@@ -437,7 +439,7 @@ export default function UserManagementPage() {
             ) : (
               <div className="text-center py-12 text-[#85878d] dark:text-gray-400">
                 <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className={getNeoBrutalismTextClasses(neoBrutalismMode, 'body')}>Không tìm thấy người dùng nào</p>
+                <p className={getNeoBrutalismTextClasses(neoBrutalismMode, 'body')}>{t('admin.noUsers')}</p>
               </div>
             )}
           </CardContent>
@@ -456,13 +458,13 @@ export default function UserManagementPage() {
                 "text-[#211c37] dark:text-white text-xl",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
               )}>
-                {editingUser ? 'Sửa thông tin người dùng' : 'Thêm người dùng mới'}
+                {editingUser ? t('admin.editUserInfo') : t('admin.addNewUser')}
               </DialogTitle>
               <DialogDescription className={cn(
                 "text-gray-600 dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
               )}>
-                {editingUser ? 'Cập nhật thông tin người dùng' : 'Điền thông tin để tạo người dùng mới'}
+                {editingUser ? t('admin.updateUserInfo') : t('admin.fillInfoToCreate')}
               </DialogDescription>
             </DialogHeader>
 
@@ -472,7 +474,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  University ID *
+                  {t('admin.universityId')} *
                 </Label>
                 <Input
                   id="university-id"
@@ -491,7 +493,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  First Name *
+                  {t('admin.firstName')} *
                 </Label>
                 <Input
                   id="first-name"
@@ -509,7 +511,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  Last Name *
+                  {t('admin.lastName')} *
                 </Label>
                 <Input
                   id="last-name"
@@ -527,7 +529,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  Email *
+                  {t('admin.email')} *
                 </Label>
                 <Input
                   id="email"
@@ -546,7 +548,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  Phone Number
+                  {t('admin.phoneNumber')}
                 </Label>
                 <Input
                   id="phone"
@@ -564,7 +566,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  National ID
+                  {t('admin.nationalId')}
                 </Label>
                 <Input
                   id="national-id"
@@ -582,7 +584,7 @@ export default function UserManagementPage() {
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
-                  Address
+                  {t('admin.address')}
                 </Label>
                 <Input
                   id="address"
@@ -608,7 +610,7 @@ export default function UserManagementPage() {
                     : ""
                 )}
               >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Hủy</span>
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
               </Button>
               <Button
                 onClick={handleSaveUser}
@@ -618,7 +620,7 @@ export default function UserManagementPage() {
                     : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
                 )}
               >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{editingUser ? 'Cập nhật' : 'Thêm mới'}</span>
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{editingUser ? t('admin.update') : t('admin.addNew')}</span>
               </Button>
             </DialogFooter>
           </DialogContent>

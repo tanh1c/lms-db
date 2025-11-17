@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
@@ -29,6 +30,7 @@ import {
 } from 'lucide-react'
 
 export default function CourseListPage() {
+  const { t } = useTranslation()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -63,7 +65,7 @@ export default function CourseListPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-[#211c37] dark:text-white">Đang tải...</div>
+          <div className="text-lg text-[#211c37] dark:text-white">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -79,13 +81,13 @@ export default function CourseListPage() {
               "text-3xl font-bold text-[#211c37] dark:text-white mb-2",
               getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
             )}>
-              Khóa học của tôi
+              {t('courses.myCourses')}
             </h1>
             <p className={cn(
               "text-[#85878d] dark:text-gray-400",
               getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
             )}>
-              Khám phá và tham gia các khóa học mới
+              {t('courses.exploreCourses')}
             </p>
           </div>
 
@@ -94,7 +96,7 @@ export default function CourseListPage() {
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#85878d] dark:text-gray-400" />
               <Input
-                placeholder="Tìm kiếm khóa học..."
+                placeholder={t('courses.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
@@ -115,7 +117,7 @@ export default function CourseListPage() {
                 )}
               >
                 <Filter className="w-4 h-4 mr-2" />
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Tất cả</span>
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('courses.all')}</span>
               </Button>
             </div>
           </div>
@@ -146,7 +148,7 @@ export default function CourseListPage() {
                         "bg-black dark:bg-white text-white dark:text-black",
                         neoBrutalismMode ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]" : "border-0"
                       )}>
-                        <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{course.Credit} tín chỉ</span>
+                        <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{course.Credit} {t('courses.credits')}</span>
                       </Badge>
                     </div>
                     <div className="absolute bottom-4 left-4">
@@ -175,7 +177,7 @@ export default function CourseListPage() {
                         "text-sm text-[#85878d] dark:text-gray-400",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                       )}>
-                        Mã khóa học: {course.Course_ID}
+                        {t('courses.courseCode')}: {course.Course_ID}
                       </p>
                     </div>
 
@@ -183,7 +185,7 @@ export default function CourseListPage() {
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div className="flex items-center gap-2 text-[#676767] dark:text-gray-400">
                         <Award className="w-4 h-4" />
-                        <span>{course.Credit} credits</span>
+                        <span>{course.Credit} {t('courses.credits')}</span>
                       </div>
                       {course.Start_Date && (
                         <div className="flex items-center gap-2 text-[#676767] dark:text-gray-400">
@@ -193,14 +195,14 @@ export default function CourseListPage() {
                       )}
                       <div className="flex items-center gap-2 text-[#676767] dark:text-gray-400">
                         <Users className="w-4 h-4" />
-                        <span>120 học viên</span>
+                        <span>120 {t('courses.students')}</span>
                       </div>
                     </div>
 
                     {/* Progress Bar (Mock) */}
                     <div className="space-y-2 mt-auto">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-[#85878d] dark:text-gray-400">Tiến độ</span>
+                        <span className="text-[#85878d] dark:text-gray-400">{t('courses.progress')}</span>
                         <span className="font-semibold text-[#211c37] dark:text-white">0%</span>
                       </div>
                       <div className={cn(
@@ -232,7 +234,7 @@ export default function CourseListPage() {
                     >
                       <span className="flex items-center justify-center gap-2">
                         <PlayCircle className="w-4 h-4" />
-                        <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Xem chi tiết</span>
+                        <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('courses.viewDetails')}</span>
                         <ArrowRight className={cn(
                           "w-4 h-4 transition-transform",
                           !neoBrutalismMode && "group-hover/btn:translate-x-1"
@@ -252,15 +254,15 @@ export default function CourseListPage() {
                 "text-lg font-semibold text-[#211c37] dark:text-white mb-2",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
               )}>
-                {searchQuery ? 'Không tìm thấy khóa học' : 'Chưa có khóa học nào'}
+                {searchQuery ? t('courses.noCoursesFound') : t('courses.noCoursesYet')}
               </p>
               <p className={cn(
                 "text-sm text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
               )}>
                 {searchQuery 
-                  ? 'Thử tìm kiếm với từ khóa khác' 
-                  : 'Các khóa học sẽ xuất hiện ở đây khi bạn đăng ký'}
+                  ? t('courses.tryDifferentKeyword')
+                  : t('courses.coursesWillAppear')}
               </p>
             </div>
           </Card>

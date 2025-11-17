@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
 import { useNavigate, Link } from 'react-router-dom'
@@ -21,6 +22,7 @@ const imgProfilePicture = "https://www.figma.com/api/mcp/asset/3c99bdb9-fc77-4a1
 const imgVerificationIcon = "https://www.figma.com/api/mcp/asset/757dafdc-d5a2-4914-af02-10eb336d23e4"
 
 export default function AdminDashboard() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[]>([])
@@ -62,7 +64,7 @@ export default function AdminDashboard() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Đang tải...</div>
+          <div className="text-lg">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -71,7 +73,7 @@ export default function AdminDashboard() {
   const totalUsers = 464 // Mock data
   const totalCourses = courses.length
   const completionRate = 85
-  const systemStatus = 'Active'
+  const systemStatus = t('dashboard.active')
 
   // Mock course cards data
   const cardConfigs = [
@@ -149,11 +151,11 @@ export default function AdminDashboard() {
   // Chart config với dark mode support
   const chartConfig = {
     Users: {
-      label: 'Users',
+      label: t('dashboard.chartUsers'),
       color: '#3bafa8',
     },
     Courses: {
-      label: 'Courses',
+      label: t('dashboard.chartCourses'),
       color: '#ff9053',
     },
   } satisfies ChartConfig
@@ -163,11 +165,11 @@ export default function AdminDashboard() {
 
   // Mock todo list for admin
   const todos = [
-    { id: 1, text: 'Review New User Registrations', category: 'Users', time: '09:00 AM', checked: false },
-    { id: 2, text: 'Update System Settings', category: 'System', time: '10:30 AM', checked: false },
-    { id: 3, text: 'Approve Course Submissions', category: 'Courses', time: '02:00 PM', checked: false },
-    { id: 4, text: 'Generate Monthly Report', category: 'Reports', time: '03:30 PM', checked: false },
-    { id: 5, text: 'Backup Database', category: 'System', time: '04:50 PM', checked: true },
+    { id: 1, text: t('dashboard.todoReviewNewUserRegistrations'), category: t('dashboard.users'), time: '09:00 AM', checked: false },
+    { id: 2, text: t('dashboard.todoUpdateSystemSettings'), category: t('dashboard.todoSystem'), time: '10:30 AM', checked: false },
+    { id: 3, text: t('dashboard.todoApproveCourseSubmissions'), category: t('dashboard.courses'), time: '02:00 PM', checked: false },
+    { id: 4, text: t('dashboard.todoGenerateMonthlyReport'), category: t('dashboard.todoReports'), time: '03:30 PM', checked: false },
+    { id: 5, text: t('dashboard.todoBackupDatabase'), category: t('dashboard.todoSystem'), time: '04:50 PM', checked: true },
   ]
 
   // Right Sidebar Content
@@ -179,7 +181,7 @@ export default function AdminDashboard() {
           <h3 className={cn(
             "text-lg font-semibold text-black dark:text-white",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-          )}>Profile</h3>
+          )}>{t('dashboard.profile')}</h3>
           <Link
             to={ROUTES.PROFILE}
             className={cn(
@@ -221,7 +223,7 @@ export default function AdminDashboard() {
           <p className={cn(
             "text-sm text-black dark:text-gray-300 font-medium",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-          )}>Administrator</p>
+          )}>{t('dashboard.administrator')}</p>
         </div>
       </div>
 
@@ -246,7 +248,7 @@ export default function AdminDashboard() {
           <span className={cn(
             "text-sm font-semibold text-black dark:text-white",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-          )}>December 2021</span>
+          )}>{t('dashboard.december2021')}</span>
           <ChevronRight 
             className="w-4 h-4 cursor-pointer text-[#676767] dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
             onClick={(e) => {
@@ -288,7 +290,7 @@ export default function AdminDashboard() {
         <h3 className={cn(
           "text-lg font-semibold text-black dark:text-white text-center mb-4",
           getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-        )}>Tasks</h3>
+        )}>{t('dashboard.tasks')}</h3>
         <div className="space-y-3">
           {todos.map((todo) => (
             <div
@@ -362,18 +364,18 @@ export default function AdminDashboard() {
                   "text-2xl font-semibold text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
                 )}>
-                  Hello {user?.First_Name || 'Admin'} 👋
+                  {t('dashboard.hello')} {user?.First_Name || 'Admin'} 👋
                 </h1>
               </div>
               <p className={cn(
                 "text-[#85878d] dark:text-gray-400 text-sm font-medium",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Manage your system and users today!</p>
+              )}>{t('dashboard.overview')}</p>
             </div>
             <div className="flex items-center gap-5">
               <form onSubmit={handleSearch} className="relative">
                 <Input
-                  placeholder="Search users or courses..."
+                  placeholder={t('dashboard.searchUsersOrCourses')}
                   className={cn(
                     "w-[322px] pl-4 pr-10 h-12 text-[#211c37] dark:text-white",
                     getNeoBrutalismInputClasses(neoBrutalismMode)
@@ -410,7 +412,7 @@ export default function AdminDashboard() {
             <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">Total Users</p>
+                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.totalUsers')}</p>
                   <p className={cn("text-3xl font-bold text-black dark:text-white", getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'))}>{totalUsers}</p>
                 </div>
                 <div className="w-12 h-12 bg-[#e1e2f6] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
@@ -422,7 +424,7 @@ export default function AdminDashboard() {
             <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">Total Courses</p>
+                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.totalCourses')}</p>
                   <p className={cn("text-3xl font-bold text-black dark:text-white", getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'))}>{totalCourses}</p>
                 </div>
                 <div className="w-12 h-12 bg-[#f8efe2] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
@@ -434,7 +436,7 @@ export default function AdminDashboard() {
             <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">Completion Rate</p>
+                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.completionRate')}</p>
                   <p className={cn("text-3xl font-bold text-black dark:text-white", getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'))}>{completionRate}%</p>
                 </div>
                 <div className="w-12 h-12 bg-[#eff7e2] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
@@ -446,7 +448,7 @@ export default function AdminDashboard() {
             <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">System Status</p>
+                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.systemStatus')}</p>
                   <p className="text-3xl font-bold text-black dark:text-white">{systemStatus}</p>
                 </div>
                 <div className="w-12 h-12 bg-[#e1e2f6] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
@@ -504,7 +506,7 @@ export default function AdminDashboard() {
               <h3 className={cn(
                 "text-xl font-semibold text-black dark:text-white mb-4",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-              )}>System Growth</h3>
+              )}>{t('dashboard.systemGrowth')}</h3>
               <ChartContainer config={chartConfig} className="h-[305px] w-full">
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-[#e5e7e7] dark:stroke-[#333]" />
@@ -548,7 +550,7 @@ export default function AdminDashboard() {
                   <span className={cn(
                     "text-xs font-semibold text-[#42404c] dark:text-white",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>Performance</span>
+                  )}>{t('dashboard.performance')}</span>
                 </div>
                 <div className={cn(
                   "bg-[#eff1f3] dark:bg-[#2a2a2a] px-3 py-1.5 flex items-center gap-2 cursor-pointer transition-all",
@@ -559,7 +561,7 @@ export default function AdminDashboard() {
                   <span className={cn(
                     "text-xs font-semibold text-[#424252] dark:text-gray-300",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>Monthly</span>
+                  )}>{t('dashboard.monthly')}</span>
                   <ChevronDown className="w-3 h-3 text-[#424252] dark:text-gray-300" />
                 </div>
               </div>
@@ -597,7 +599,7 @@ export default function AdminDashboard() {
                       <div className={cn(
                         "text-xs text-[#83868e] dark:text-gray-400 mt-1",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                      )}>Completion</div>
+                      )}>{t('dashboard.completion')}</div>
                     </div>
                   </div>
                 </div>
@@ -607,7 +609,7 @@ export default function AdminDashboard() {
                     <span className={cn(
                       "text-sm text-[#83868e] dark:text-gray-400 font-medium",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>Progress</span>
+                    )}>{t('dashboard.progress')}</span>
                     <span className={cn(
                       "text-sm font-semibold text-black dark:text-white",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
@@ -633,7 +635,7 @@ export default function AdminDashboard() {
                   "text-lg text-[#83868e] dark:text-gray-400 font-medium",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                 )}>
-                  Users: <span className={cn(
+                  {t('dashboard.usersLabel')}: <span className={cn(
                     "text-black dark:text-white font-bold text-xl",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                   )}>{totalUsers}</span>
@@ -643,7 +645,7 @@ export default function AdminDashboard() {
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
                   <TrendingUp className="w-3 h-3" />
-                  <span>System Active</span>
+                  <span>{t('dashboard.systemStatus')}: {t('dashboard.active')}</span>
                 </div>
               </div>
             </Card>

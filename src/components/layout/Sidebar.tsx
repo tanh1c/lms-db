@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthProvider'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils/cn'
@@ -14,35 +15,36 @@ import {
 } from 'lucide-react'
 
 interface NavItem {
-  title: string
+  titleKey: string
   href: string
   icon: React.ComponentType<{ className?: string }>
 }
 
 const studentNavItems: NavItem[] = [
-  { title: 'Dashboard', href: ROUTES.STUDENT_DASHBOARD, icon: LayoutDashboard },
-  { title: 'Courses', href: ROUTES.COURSES, icon: BookOpen },
-  { title: 'Assignments', href: ROUTES.ASSIGNMENTS, icon: FileText },
-  { title: 'Quizzes', href: ROUTES.QUIZZES, icon: HelpCircle },
-  { title: 'Grades', href: ROUTES.GRADES, icon: BarChart3 },
-  { title: 'Schedule', href: ROUTES.SCHEDULE, icon: Calendar },
+  { titleKey: 'sidebar.dashboard', href: ROUTES.STUDENT_DASHBOARD, icon: LayoutDashboard },
+  { titleKey: 'sidebar.courses', href: ROUTES.COURSES, icon: BookOpen },
+  { titleKey: 'sidebar.assignments', href: ROUTES.ASSIGNMENTS, icon: FileText },
+  { titleKey: 'sidebar.quizzes', href: ROUTES.QUIZZES, icon: HelpCircle },
+  { titleKey: 'sidebar.grades', href: ROUTES.GRADES, icon: BarChart3 },
+  { titleKey: 'sidebar.schedule', href: ROUTES.SCHEDULE, icon: Calendar },
 ]
 
 const tutorNavItems: NavItem[] = [
-  { title: 'Dashboard', href: ROUTES.TUTOR_DASHBOARD, icon: LayoutDashboard },
-  { title: 'My Courses', href: ROUTES.COURSES, icon: BookOpen },
-  { title: 'Grading', href: ROUTES.ASSIGNMENTS, icon: FileText },
-  { title: 'Schedule', href: ROUTES.SCHEDULE, icon: Calendar },
+  { titleKey: 'sidebar.dashboard', href: ROUTES.TUTOR_DASHBOARD, icon: LayoutDashboard },
+  { titleKey: 'sidebar.myCourses', href: ROUTES.COURSES, icon: BookOpen },
+  { titleKey: 'sidebar.grading', href: ROUTES.ASSIGNMENTS, icon: FileText },
+  { titleKey: 'sidebar.schedule', href: ROUTES.SCHEDULE, icon: Calendar },
 ]
 
 const adminNavItems: NavItem[] = [
-  { title: 'Dashboard', href: ROUTES.ADMIN_DASHBOARD, icon: LayoutDashboard },
-  { title: 'Users', href: '/admin/users', icon: Users },
-  { title: 'Courses', href: ROUTES.COURSES, icon: BookOpen },
-  { title: 'Settings', href: ROUTES.SETTINGS, icon: Settings },
+  { titleKey: 'sidebar.dashboard', href: ROUTES.ADMIN_DASHBOARD, icon: LayoutDashboard },
+  { titleKey: 'sidebar.users', href: '/admin/users', icon: Users },
+  { titleKey: 'sidebar.courses', href: ROUTES.COURSES, icon: BookOpen },
+  { titleKey: 'sidebar.settings', href: ROUTES.SETTINGS, icon: Settings },
 ]
 
 export default function Sidebar() {
+  const { t } = useTranslation()
   const { role } = useAuth()
   const location = useLocation()
 
@@ -83,7 +85,7 @@ export default function Sidebar() {
                   )}
                 >
                   <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                  {item.title}
+                  {t(item.titleKey)}
                 </Link>
               )
             })}

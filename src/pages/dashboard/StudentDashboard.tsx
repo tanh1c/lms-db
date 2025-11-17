@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
 import { useNavigate, Link } from 'react-router-dom'
@@ -23,6 +24,7 @@ const imgProfilePicture = "https://www.figma.com/api/mcp/asset/3c99bdb9-fc77-4a1
 const imgVerificationIcon = "https://www.figma.com/api/mcp/asset/757dafdc-d5a2-4914-af02-10eb336d23e4"
 
 export default function StudentDashboard() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[]>([])
@@ -73,7 +75,7 @@ export default function StudentDashboard() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Đang tải...</div>
+          <div className="text-lg">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -206,7 +208,7 @@ export default function StudentDashboard() {
           <h3 className={cn(
             "text-lg font-semibold text-black dark:text-white",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-          )}>Profile</h3>
+          )}>{t('dashboard.profile')}</h3>
           <Link
             to={ROUTES.PROFILE}
             className={cn(
@@ -248,7 +250,7 @@ export default function StudentDashboard() {
           <p className={cn(
             "text-sm text-black dark:text-gray-300 font-medium",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-          )}>College Student</p>
+          )}>{t('dashboard.collegeStudent')}</p>
         </div>
       </div>
 
@@ -315,7 +317,7 @@ export default function StudentDashboard() {
         <h3 className={cn(
           "text-lg font-semibold text-black dark:text-white text-center mb-4",
           getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-        )}>To Do List</h3>
+        )}>{t('dashboard.toDoList')}</h3>
         <div className="space-y-3">
           {todos.map((todo) => (
             <div
@@ -390,18 +392,18 @@ export default function StudentDashboard() {
                   "text-2xl font-semibold text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
                 )}>
-                  Hello {user?.First_Name || 'Maietry'} 👋
+                  {t('dashboard.hello')} {user?.First_Name || 'Maietry'} 👋
                 </h1>
               </div>
               <p className={cn(
                 "text-[#85878d] dark:text-gray-400 text-sm font-medium",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Let's learn something new today!</p>
+              )}>{t('dashboard.letsLearn')}</p>
             </div>
             <div className="flex items-center gap-5">
               <form onSubmit={handleSearch} className="relative">
                 <Input
-                  placeholder="Search from courses..."
+                  placeholder={t('dashboard.searchPlaceholder')}
                   className={cn(
                     "w-[322px] pl-4 pr-10 h-12 text-[#211c37] dark:text-white",
                     getNeoBrutalismInputClasses(neoBrutalismMode)
@@ -484,7 +486,7 @@ export default function StudentDashboard() {
               <h3 className={cn(
                 "text-xl font-semibold text-black dark:text-white mb-4",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-              )}>Hours Spent</h3>
+              )}>{t('dashboard.hoursSpent')}</h3>
               <ChartContainer config={chartConfig} className="h-[305px] w-full">
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-[#e5e7e7] dark:stroke-[#333]" />
@@ -531,7 +533,7 @@ export default function StudentDashboard() {
                   <span className={cn(
                     "text-xs font-semibold text-[#42404c] dark:text-white",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>Point Progress</span>
+                  )}>{t('dashboard.pointProgress')}</span>
                 </div>
                 <div className={cn(
                   "bg-[#eff1f3] dark:bg-[#2a2a2a] px-3 py-1.5 flex items-center gap-2 cursor-pointer transition-all",
@@ -542,7 +544,7 @@ export default function StudentDashboard() {
                   <span className={cn(
                     "text-xs font-semibold text-[#424252] dark:text-gray-300",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>Monthly</span>
+                  )}>{t('dashboard.monthly')}</span>
                   <ChevronDown className="w-3 h-3 text-[#424252] dark:text-gray-300" />
                 </div>
               </div>
@@ -583,7 +585,7 @@ export default function StudentDashboard() {
                       <div className={cn(
                         "text-xs text-[#83868e] dark:text-gray-400 mt-1",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                      )}>out of 10</div>
+                      )}>{t('dashboard.outOf10')}</div>
                     </div>
                   </div>
                 </div>
@@ -594,7 +596,7 @@ export default function StudentDashboard() {
                     <span className={cn(
                       "text-sm text-[#83868e] dark:text-gray-400 font-medium",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>Progress</span>
+                    )}>{t('dashboard.progress')}</span>
                     <span className={cn(
                       "text-sm font-semibold text-black dark:text-white",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
@@ -620,7 +622,7 @@ export default function StudentDashboard() {
                   "text-lg text-[#83868e] dark:text-gray-400 font-medium",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                 )}>
-                  Your Point: <span className={cn(
+                  {t('dashboard.yourPoint')}: <span className={cn(
                     "text-black dark:text-white font-bold text-xl",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                   )}>{averageGrade}</span>
@@ -630,7 +632,7 @@ export default function StudentDashboard() {
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                 )}>
                   <Trophy className="w-3 h-3" />
-                  <span>5th in Leaderboard</span>
+                  <span>5th {t('dashboard.inLeaderboard')}</span>
                 </div>
               </div>
           </Card>
@@ -649,18 +651,18 @@ export default function StudentDashboard() {
             <h3 className={cn(
               "text-xl font-semibold text-black dark:text-white mb-4",
               getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-            )}>Leader Board</h3>
+            )}>{t('dashboard.leaderBoard')}</h3>
             <div className={cn(
               "grid grid-cols-[60px_200px_200px_100px_120px] gap-4 text-xs text-[#84868a] dark:text-gray-400 font-semibold mb-4 pb-2",
               neoBrutalismMode 
                 ? "border-b-4 border-[#1a1a1a] dark:border-[#FFFBEB]"
                 : "border-b border-[#e5e7e7] dark:border-[#333]"
             )}>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>RANK</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>NAME</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>COURSE</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>HOUR</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>POINT</div>
+              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.rank')}</div>
+              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.name')}</div>
+              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.courses')}</div>
+              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.hour')}</div>
+              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.point')}</div>
             </div>
             <div className="space-y-4">
               {leaderboard.map((item) => (

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
@@ -27,6 +28,7 @@ interface AssignmentWithCourse extends Assignment {
 }
 
 export default function AssignmentListPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [assignments, setAssignments] = useState<AssignmentWithCourse[]>([])
@@ -84,17 +86,17 @@ export default function AssignmentListPage() {
     const diff = deadlineDate.getTime() - now.getTime()
     const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24))
 
-    if (daysLeft < 0) return { text: 'Overdue', variant: 'destructive' as const, color: 'bg-red-500' }
-    if (daysLeft <= 1) return { text: 'Due Soon', variant: 'destructive' as const, color: 'bg-orange-500' }
-    if (daysLeft <= 3) return { text: 'Due Soon', variant: 'default' as const, color: 'bg-yellow-500' }
-    return { text: 'On Time', variant: 'secondary' as const, color: 'bg-green-500' }
+    if (daysLeft < 0) return { text: t('assignments.overdue'), variant: 'destructive' as const, color: 'bg-red-500' }
+    if (daysLeft <= 1) return { text: t('assignments.dueSoon'), variant: 'destructive' as const, color: 'bg-orange-500' }
+    if (daysLeft <= 3) return { text: t('assignments.dueSoon'), variant: 'default' as const, color: 'bg-yellow-500' }
+    return { text: t('assignments.onTime'), variant: 'secondary' as const, color: 'bg-green-500' }
   }
 
   if (loading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Đang tải...</div>
+          <div className="text-lg">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -102,8 +104,8 @@ export default function AssignmentListPage() {
 
   return (
     <DashboardLayout 
-      title="Assignments" 
-      subtitle="All your assignments across all courses"
+      title={t('assignments.title')} 
+      subtitle={t('assignments.subtitle')}
     >
       <div ref={containerRef} className="space-y-4">
         {assignments.map((assignment) => {
@@ -139,7 +141,7 @@ export default function AssignmentListPage() {
                           "text-lg text-[#1f1d39] dark:text-white",
                           getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                         )}>
-                          Assignment {assignment.Assessment_ID}
+                          {t('assignments.assignment')} {assignment.Assessment_ID}
                         </CardTitle>
                         {assignment.course && (
                           <Badge variant="outline" className={cn(
@@ -157,7 +159,7 @@ export default function AssignmentListPage() {
                         "text-sm text-[#85878d] dark:text-gray-400",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                       )}>
-                        {assignment.instructions || 'No instructions provided'}
+                        {assignment.instructions || t('assignments.noInstructions')}
                       </CardDescription>
                     </div>
                   </div>
@@ -181,7 +183,7 @@ export default function AssignmentListPage() {
                     <span className={cn(
                       "font-semibold text-red-700 dark:text-red-300",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                    )}>Deadline</span>
+                    )}>{t('assignments.deadline')}</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span className={cn(
@@ -198,9 +200,9 @@ export default function AssignmentListPage() {
                         <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
                           {daysLeft === 0 
                             ? hoursLeft > 0 
-                              ? `${hoursLeft} hour${hoursLeft > 1 ? 's' : ''} left`
-                              : 'Due today'
-                            : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left`}
+                              ? `${hoursLeft} ${hoursLeft > 1 ? t('assignments.hoursLeft') : t('assignments.hourLeft')}`
+                              : t('assignments.dueToday')
+                            : `${daysLeft} ${daysLeft > 1 ? t('assignments.daysLeft') : t('assignments.dayLeft')}`}
                         </span>
                       </Badge>
                     )}
@@ -209,7 +211,7 @@ export default function AssignmentListPage() {
                         neoBrutalismMode && "border-4 border-red-600 dark:border-red-400 rounded-none shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] dark:shadow-[4px_4px_0px_0px_rgba(248,113,113,1)]"
                       )}>
                         <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
-                          {Math.abs(daysLeft)} day{Math.abs(daysLeft) > 1 ? 's' : ''} overdue
+                          {Math.abs(daysLeft)} {Math.abs(daysLeft) > 1 ? t('assignments.daysOverdue') : t('assignments.dayOverdue')}
                         </span>
                       </Badge>
                     )}
@@ -219,11 +221,11 @@ export default function AssignmentListPage() {
                 <div className="flex items-center gap-6 text-sm">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-[#85878d] dark:text-gray-400" />
-                    <span className="text-[#676767] dark:text-gray-300">Max Score: {assignment.MaxScore}</span>
+                    <span className="text-[#676767] dark:text-gray-300">{t('assignments.maxScore')}: {assignment.MaxScore}</span>
                   </div>
                   {assignment.accepted_specification && (
                     <div className="text-sm text-[#85878d] dark:text-gray-400">
-                      Format: {assignment.accepted_specification}
+                      {t('assignments.format')}: {assignment.accepted_specification}
                     </div>
                   )}
                 </div>
@@ -236,7 +238,7 @@ export default function AssignmentListPage() {
                         : "bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black"
                     )}
                   >
-                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>View Details</span>
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('assignments.viewDetails')}</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -247,7 +249,7 @@ export default function AssignmentListPage() {
                         : "border-[#e5e7e7] dark:border-[#333] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
                     )}
                   >
-                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Submit</span>
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('assignments.submit')}</span>
                   </Button>
                 </div>
               </CardContent>
@@ -262,7 +264,7 @@ export default function AssignmentListPage() {
               <p className={cn(
                 "text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>No assignments available</p>
+              )}>{t('assignments.noAssignmentsAvailable')}</p>
             </CardContent>
           </Card>
         )}

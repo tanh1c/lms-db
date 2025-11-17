@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
@@ -22,6 +23,7 @@ import { BarChart3, TrendingUp, BookOpen } from 'lucide-react'
 import '@/lib/animations/gsap-setup'
 
 export default function GradeOverviewPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [grades, setGrades] = useState<Assessment[]>([])
@@ -68,7 +70,7 @@ export default function GradeOverviewPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-[#1f1d39] dark:text-white">Đang tải...</div>
+          <div className="text-lg text-[#1f1d39] dark:text-white">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -93,8 +95,8 @@ export default function GradeOverviewPage() {
 
   return (
     <DashboardLayout 
-      title="Grades" 
-      subtitle="View all your grades"
+      title={t('grades.title')} 
+      subtitle={t('grades.subtitle')}
     >
       <div ref={containerRef} className="space-y-6">
         <div className="grid gap-5 md:grid-cols-3">
@@ -103,7 +105,7 @@ export default function GradeOverviewPage() {
               <CardTitle className={cn(
                 "text-sm font-medium text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Average Grade</CardTitle>
+              )}>{t('grades.averageGrade')}</CardTitle>
               <div className={cn(
                 "w-10 h-10 bg-[#e1e2f6] dark:bg-purple-900/30 flex items-center justify-center",
                 neoBrutalismMode 
@@ -121,7 +123,7 @@ export default function GradeOverviewPage() {
               <p className={cn(
                 "text-xs text-[#85878d] dark:text-gray-400 mt-1",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Total {grades.length} grades</p>
+              )}>{t('grades.totalGrades')} {grades.length} {t('grades.grades')}</p>
             </CardContent>
           </Card>
 
@@ -130,7 +132,7 @@ export default function GradeOverviewPage() {
               <CardTitle className={cn(
                 "text-sm font-medium text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Courses</CardTitle>
+              )}>{t('grades.totalCourses')}</CardTitle>
               <div className={cn(
                 "w-10 h-10 bg-[#f8efe2] dark:bg-orange-900/30 flex items-center justify-center",
                 neoBrutalismMode 
@@ -148,7 +150,7 @@ export default function GradeOverviewPage() {
               <p className={cn(
                 "text-xs text-[#85878d] dark:text-gray-400 mt-1",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Total courses with grades</p>
+              )}>{t('grades.coursesWithGrades')}</p>
             </CardContent>
           </Card>
 
@@ -157,7 +159,7 @@ export default function GradeOverviewPage() {
               <CardTitle className={cn(
                 "text-sm font-medium text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Total Grades</CardTitle>
+              )}>{t('grades.totalGrades')}</CardTitle>
               <div className={cn(
                 "w-10 h-10 bg-[#eff7e2] dark:bg-green-900/30 flex items-center justify-center",
                 neoBrutalismMode 
@@ -175,7 +177,7 @@ export default function GradeOverviewPage() {
               <p className={cn(
                 "text-xs text-[#85878d] dark:text-gray-400 mt-1",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>Total assessments</p>
+              )}>{t('grades.totalAssessments')}</p>
             </CardContent>
           </Card>
         </div>
@@ -201,7 +203,7 @@ export default function GradeOverviewPage() {
                       <CardDescription className={cn(
                         "text-[#85878d] dark:text-gray-400",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                      )}>Course ID: {courseId}</CardDescription>
+                      )}>{t('courses.courseId')}: {courseId}</CardDescription>
                     </div>
                     <div className="text-right">
                       <div className={cn(
@@ -211,7 +213,7 @@ export default function GradeOverviewPage() {
                       <p className={cn(
                         "text-sm text-[#85878d] dark:text-gray-400",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                      )}>Average</p>
+                      )}>{t('grades.averageGrade')}</p>
                     </div>
                   </div>
                 </CardHeader>
@@ -231,12 +233,12 @@ export default function GradeOverviewPage() {
                           <p className={cn(
                             "font-semibold text-[#1f1d39] dark:text-white",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                          )}>Assessment {grade.Assessment_ID}</p>
+                          )}>{t('grades.assessment')} {grade.Assessment_ID}</p>
                           <p className={cn(
                             "text-sm text-[#85878d] dark:text-gray-400",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                           )}>
-                            Status: {grade.Status}
+                            {t('grades.status')}: {grade.Status}
                           </p>
                         </div>
                         <div className={cn(
@@ -256,7 +258,7 @@ export default function GradeOverviewPage() {
                     )}
                     onClick={() => navigate(ROUTES.GRADE_DETAIL.replace(':courseId', courseId))}
                   >
-                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>View Details</span>
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('courses.viewDetails')}</span>
                   </Button>
                 </CardContent>
               </Card>
@@ -271,7 +273,7 @@ export default function GradeOverviewPage() {
               <p className={cn(
                 "text-[#85878d] dark:text-gray-400",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>No grades available</p>
+              )}>{t('grades.noGradesAvailable')}</p>
             </CardContent>
           </Card>
         )}

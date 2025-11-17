@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { format, startOfWeek, addDays, getDay } from 'date-fns'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -34,6 +35,7 @@ const DAYS_MAP: Record<string, number> = {
 }
 
 export default function SchedulePage() {
+  const { t, i18n } = useTranslation()
   const { user } = useAuth()
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -158,7 +160,7 @@ export default function SchedulePage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-[#211c37] dark:text-white">Đang tải...</div>
+          <div className="text-lg text-[#211c37] dark:text-white">{t('common.loading')}</div>
         </div>
       </DashboardLayout>
     )
@@ -173,13 +175,13 @@ export default function SchedulePage() {
             "text-3xl font-bold text-[#211c37] dark:text-white mb-2",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
           )}>
-            Lịch học
+            {t('schedule.title')}
           </h1>
           <p className={cn(
             "text-[#85878d] dark:text-gray-400",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
           )}>
-            Xem lịch học và quản lý thời gian biểu của bạn
+            {t('schedule.subtitle')}
           </p>
         </div>
 
@@ -263,7 +265,7 @@ export default function SchedulePage() {
                             "text-xl text-[#211c37] dark:text-white",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
                           )}>
-                            TikTok
+                            {t('schedule.tiktok')}
                           </CardTitle>
                         </div>
                       </>
@@ -282,7 +284,7 @@ export default function SchedulePage() {
                             "text-xl text-[#211c37] dark:text-white",
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
                           )}>
-                            Ghi chú
+                            {t('schedule.notes')}
                           </CardTitle>
                         </div>
                       </>
@@ -292,7 +294,7 @@ export default function SchedulePage() {
                     <span className={cn(
                       "text-sm text-[#676767] dark:text-gray-400",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>Ghi chú</span>
+                    )}>{t('schedule.notes')}</span>
                     <Switch
                       checked={showTikTok}
                       onCheckedChange={setShowTikTok}
@@ -301,7 +303,7 @@ export default function SchedulePage() {
                     <span className={cn(
                       "text-sm text-[#676767] dark:text-gray-400",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>TikTok</span>
+                    )}>{t('schedule.tiktok')}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -338,7 +340,7 @@ export default function SchedulePage() {
                           )}
                         >
                           <StickyNote className="h-4 w-4 mr-2" />
-                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Thêm ghi chú mới</span>
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('schedule.addNewNote')}</span>
                         </Button>
                       </DialogTrigger>
                       <DialogContent className={cn(
@@ -353,8 +355,8 @@ export default function SchedulePage() {
                             getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
                           )}>
                             {currentNote && notes[format(selectedDate, 'yyyy-MM-dd')] ? 
-                              `Sửa ghi chú cho ${format(selectedDate, 'dd/MM/yyyy')}` : 
-                              'Thêm ghi chú mới'}
+                              `${t('schedule.editNote')} ${format(selectedDate, 'dd/MM/yyyy')}` : 
+                              t('schedule.addNewNote')}
                           </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
@@ -363,7 +365,7 @@ export default function SchedulePage() {
                               "text-[#211c37] dark:text-white",
                               getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                             )}>
-                              Ngày
+                              {t('schedule.date')}
                             </Label>
                             <div className="mt-2">
                               <DatePicker
@@ -374,7 +376,7 @@ export default function SchedulePage() {
                                     setCurrentNote(notes[format(date, 'yyyy-MM-dd')] || '')
                                   }
                                 }}
-                                placeholder="Chọn ngày"
+                                placeholder={t('schedule.selectDate')}
                                 className={getNeoBrutalismInputClasses(neoBrutalismMode)}
                               />
                             </div>
@@ -384,13 +386,13 @@ export default function SchedulePage() {
                               "text-[#211c37] dark:text-white",
                               getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                             )}>
-                              Nội dung ghi chú
+                              {t('schedule.noteContent')}
                             </Label>
                             <Textarea
                               id="note"
                               value={currentNote}
                               onChange={(e) => setCurrentNote(e.target.value)}
-                              placeholder="Nhập ghi chú của bạn..."
+                              placeholder={t('schedule.enterNote')}
                               className={cn(
                                 "mt-2 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
                                 getNeoBrutalismInputClasses(neoBrutalismMode, "resize-none")
@@ -409,7 +411,7 @@ export default function SchedulePage() {
                                     : "bg-red-600 hover:bg-red-700"
                                 )}
                               >
-                                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Xóa</span>
+                                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('schedule.delete')}</span>
                               </Button>
                             )}
                             <Button
@@ -420,7 +422,7 @@ export default function SchedulePage() {
                                   : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
                               )}
                             >
-                              <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Lưu</span>
+                              <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('schedule.save')}</span>
                             </Button>
                           </div>
                         </div>
@@ -432,7 +434,7 @@ export default function SchedulePage() {
                       {Object.keys(notes).length === 0 ? (
                         <div className="text-center py-8 text-[#85878d] dark:text-gray-400">
                           <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                          <p className={getNeoBrutalismTextClasses(neoBrutalismMode, 'body')}>Chưa có ghi chú nào</p>
+                          <p className={getNeoBrutalismTextClasses(neoBrutalismMode, 'body')}>{t('schedule.noNotes')}</p>
                         </div>
                       ) : (
                         Object.entries(notes)
@@ -475,7 +477,7 @@ export default function SchedulePage() {
                                         : "hover:bg-yellow-200 dark:hover:bg-yellow-800"
                                     )}
                                   >
-                                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Sửa</span>
+                                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('schedule.edit')}</span>
                                   </Button>
                                 </div>
                                 <p className={cn(
@@ -505,7 +507,7 @@ export default function SchedulePage() {
                 <span className={cn(
                   "text-[#676767] dark:text-gray-400",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                )}>Có lớp học</span>
+                )}>{t('schedule.hasClasses')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={cn(
@@ -515,7 +517,7 @@ export default function SchedulePage() {
                 <span className={cn(
                   "text-[#676767] dark:text-gray-400",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                )}>Có ghi chú</span>
+                )}>{t('schedule.hasNotes')}</span>
               </div>
             </div>
           </div>
@@ -570,7 +572,7 @@ export default function SchedulePage() {
                             "bg-[#3bafa8] text-white",
                             neoBrutalismMode ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]" : "border-0"
                           )}>
-                            <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>Section {item.Section_ID}</span>
+                            <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('schedule.section')} {item.Section_ID}</span>
                           </Badge>
                         </div>
                         
@@ -585,7 +587,7 @@ export default function SchedulePage() {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-[#676767] dark:text-gray-400">
                             <MapPin className="h-4 w-4" />
-                            <span>Phòng {item.Room}</span>
+                            <span>{t('schedule.room')} {item.Room}</span>
                           </div>
                         </div>
                       </div>
@@ -598,7 +600,7 @@ export default function SchedulePage() {
                       "text-[#85878d] dark:text-gray-400",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                     )}>
-                      Không có lớp học trong ngày này
+                      {t('schedule.noClassesToday')}
                     </p>
                   </div>
                 )}
@@ -615,22 +617,22 @@ export default function SchedulePage() {
                 "text-xl text-[#211c37] dark:text-white",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
               )}>
-                Tổng quan tuần
+                {t('schedule.weeklyOverview')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
                   const dayClasses = schedule.filter(item => item.Day === day)
-                  const dayNameVi = {
-                    'Monday': 'Thứ 2',
-                    'Tuesday': 'Thứ 3',
-                    'Wednesday': 'Thứ 4',
-                    'Thursday': 'Thứ 5',
-                    'Friday': 'Thứ 6',
-                    'Saturday': 'Thứ 7',
-                    'Sunday': 'Chủ nhật',
-                  }[day]
+                  const dayName = i18n.language === 'vi' ? {
+                    'Monday': t('schedule.monday'),
+                    'Tuesday': t('schedule.tuesday'),
+                    'Wednesday': t('schedule.wednesday'),
+                    'Thursday': t('schedule.thursday'),
+                    'Friday': t('schedule.friday'),
+                    'Saturday': t('schedule.saturday'),
+                    'Sunday': t('schedule.sunday'),
+                  }[day] : day
 
                   if (dayClasses.length === 0) return null
 
@@ -648,7 +650,7 @@ export default function SchedulePage() {
                         "font-semibold text-[#211c37] dark:text-white mb-3",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                       )}>
-                        {dayNameVi}
+                        {dayName}
                       </h3>
                       <div className="space-y-2">
                         {dayClasses.map((item, idx) => (
