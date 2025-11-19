@@ -26,3 +26,6 @@ dist-ssr
 # Editor and IDE directories
 .claude/
 .cursor/
+
+lms_database.sql
+script.sql
