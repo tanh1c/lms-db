@@ -374,6 +374,35 @@ export const adminService = {
     return response.data.user
   },
 
+  // Filter Users
+  async filterUsers(filters: {
+    role?: 'student' | 'tutor' | 'admin' | 'all'
+    major?: string
+    department?: string
+    type?: string
+    search?: string
+  }): Promise<any[]> {
+    const params = new URLSearchParams()
+    if (filters.role && filters.role !== 'all') params.append('role', filters.role)
+    if (filters.major) params.append('major', filters.major)
+    if (filters.department) params.append('department', filters.department)
+    if (filters.type) params.append('type', filters.type)
+    if (filters.search) params.append('search', filters.search)
+    
+    const response = await apiClient.get(`/admin/users/filter?${params.toString()}`)
+    return response.data
+  },
+
+  // Get Filter Options
+  async getFilterOptions(): Promise<{
+    majors: string[]
+    departments: string[]
+    admin_types: string[]
+  }> {
+    const response = await apiClient.get(`/admin/users/filter-options`)
+    return response.data
+  },
+
   // Assessments
   async getAssessments(): Promise<Assessment[]> {
     const response = await apiClient.get('/admin/assessments')

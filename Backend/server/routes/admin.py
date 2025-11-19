@@ -1450,6 +1450,99 @@ def update_review(submission_no):
         print(f'Update review error: {e}')
         return jsonify({'success': False, 'error': f'Failed to update review: {str(e)}'}), 500
 
+# ==================== FILTER USERS ====================
+
+@admin_bp.route('/users/filter', methods=['GET'])
+def filter_users():
+    """Filter users with advanced filters - Using stored procedure"""
+    try:
+        role = request.args.get('role', None)
+        major = request.args.get('major', None)
+        department = request.args.get('department', None)
+        admin_type = request.args.get('type', None)
+        search_query = request.args.get('search', None)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC FilterUsers %s, %s, %s, %s, %s', (
+            role,
+            major,
+            department,
+            admin_type,
+            search_query
+        ))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        users = []
+        for row in results:
+            # Tuple: University_ID, First_Name, Last_Name, Email, Phone_Number, Address, National_ID, Role, Major, Current_degree, Department_Name, Type, Name, Academic_Rank, Details
+            user = {
+                'University_ID': row[0],
+                'First_Name': row[1],
+                'Last_Name': row[2],
+                'Email': row[3],
+                'Phone_Number': row[4],
+                'Address': row[5],
+                'National_ID': row[6],
+                'role': row[7],
+            }
+            
+            # Add role-specific fields
+            if row[7] == 'student':
+                user['Major'] = row[8]
+                user['Current_degree'] = row[9]
+            elif row[7] == 'tutor':
+                user['Department_Name'] = row[10]
+                user['Name'] = row[12]
+                user['Academic_Rank'] = row[13]
+                user['Details'] = row[14]
+            elif row[7] == 'admin':
+                user['Type'] = row[11]
+            
+            users.append(user)
+        
+        return jsonify(users)
+    except Exception as e:
+        print(f'Filter users error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to filter users: {str(e)}'}), 500
+
+@admin_bp.route('/users/filter-options', methods=['GET'])
+def get_filter_options():
+    """Get filter options (majors, departments, admin types)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get distinct majors
+        cursor.execute('EXEC GetDistinctMajors')
+        majors = [row[0] for row in cursor.fetchall()]
+        
+        # Get distinct departments
+        cursor.execute('EXEC GetDistinctDepartments')
+        departments = [row[0] for row in cursor.fetchall()]
+        
+        # Get distinct admin types
+        cursor.execute('EXEC GetDistinctAdminTypes')
+        admin_types = [row[0] for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'majors': majors,
+            'departments': departments,
+            'admin_types': admin_types
+        })
+    except Exception as e:
+        print(f'Get filter options error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to get filter options: {str(e)}'}), 500
+
 # ==================== UPDATE USER ROLE ====================
 
 @admin_bp.route('/users/<int:university_id>/role', methods=['PUT'])
@@ -1664,12 +1757,13 @@ def get_user_details(university_id):
                     'Section_ID': assessment[1],
                     'Semester': assessment[2],
                     'Course_Name': assessment[3],
-                    'Registration_Date': str(assessment[4]) if assessment[4] else None,
-                    'Status': assessment[5],
-                    'Final_Grade': float(assessment[6]) if assessment[6] else None,
-                    'Midterm_Grade': float(assessment[7]) if assessment[7] else None,
-                    'Quiz_Grade': float(assessment[8]) if assessment[8] else None,
-                    'Assignment_Grade': float(assessment[9]) if assessment[9] else None,
+                    'Credit': int(assessment[4]) if assessment[4] else None,
+                    'Registration_Date': str(assessment[5]) if assessment[5] else None,
+                    'Status': assessment[6],
+                    'Final_Grade': float(assessment[7]) if assessment[7] else None,
+                    'Midterm_Grade': float(assessment[8]) if assessment[8] else None,
+                    'Quiz_Grade': float(assessment[9]) if assessment[9] else None,
+                    'Assignment_Grade': float(assessment[10]) if assessment[10] else None,
                 })
         
         # Get sections taught for tutors
@@ -1685,7 +1779,8 @@ def get_user_details(university_id):
                     'Semester': section[2],
                     'Course_Name': section[3],
                     'Start_Date': str(section[4]) if section[4] else None,
-                    'End_Date': str(section[5]) if section[5] else None,
+                    'Role_Specification': section[5] if len(section) > 5 else None,
+                    'Timestamp': str(section[6]) if len(section) > 6 and section[6] else None,
                 })
         
         conn.close()

@@ -45,11 +45,12 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { adminService } from '@/lib/api/adminService'
 import type { User, UserRole } from '@/types'
 import { 
   Users, Plus, Search, Edit2, Trash2, GraduationCap, UserCheck, Shield,
-  Download, ArrowUpDown, MoreHorizontal, ChevronDown, KeyRound, Eye
+  Download, ArrowUpDown, MoreHorizontal, ChevronDown, KeyRound, Eye, Filter, X, Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { 
@@ -71,14 +72,26 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Pie, PieChart as RechartsPieChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
+import { Pie, PieChart as RechartsPieChart, Bar, BarChart, Line, LineChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
 
 export default function UserManagementPage() {
   const { t } = useTranslation()
   const [users, setUsers] = useState<User[]>([])
+  const [allUsers, setAllUsers] = useState<User[]>([]) // All users for statistics and charts
   const [loading, setLoading] = useState(true)
+  const [filtering, setFiltering] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
+  const [majorFilter, setMajorFilter] = useState<string>('all')
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [filterOptions, setFilterOptions] = useState<{
+    majors: string[]
+    departments: string[]
+    admin_types: string[]
+  }>({ majors: [], departments: [], admin_types: [] })
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
@@ -113,67 +126,163 @@ export default function UserManagementPage() {
   })
 
   useEffect(() => {
-    loadUsers()
+    loadUsers(true) // Initial load
+    loadFilterOptions()
   }, [])
 
-  const loadUsers = async () => {
+  const loadFilterOptions = async () => {
     try {
-      const [students, tutors, admins] = await Promise.all([
-        adminService.getStudents().catch(() => []),
-        adminService.getTutors().catch(() => []),
-        adminService.getAdmins().catch(() => []),
-      ])
-      
-      const allUsers: User[] = [
-        ...students.map(s => ({
-          University_ID: s.University_ID,
-          First_Name: s.First_Name,
-          Last_Name: s.Last_Name,
-          Email: s.Email,
-          Phone_Number: s.Phone_Number ?? undefined,
-          Address: s.Address ?? undefined,
-          National_ID: s.National_ID ?? undefined,
-          role: 'student' as UserRole,
-        })),
-        ...tutors.map(t => ({
-          University_ID: t.University_ID,
-          First_Name: t.First_Name,
-          Last_Name: t.Last_Name,
-          Email: t.Email,
-          Phone_Number: t.Phone_Number ?? undefined,
-          Address: t.Address ?? undefined,
-          National_ID: t.National_ID ?? undefined,
-          role: 'tutor' as UserRole,
-        })),
-        ...admins.map(a => ({
-          University_ID: a.University_ID,
-          First_Name: a.First_Name,
-          Last_Name: a.Last_Name,
-          Email: a.Email,
-          Phone_Number: a.Phone_Number ?? undefined,
-          Address: a.Address ?? undefined,
-          National_ID: a.National_ID ?? undefined,
-          role: 'admin' as UserRole,
-        })),
-      ]
-      
-      setUsers(allUsers)
+      const options = await adminService.getFilterOptions()
+      setFilterOptions(options)
     } catch (error) {
-      console.error('Error loading users:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error loading filter options:', error)
     }
   }
 
-  // Statistics
+  const loadUsers = async (isInitialLoad: boolean = false) => {
+    try {
+      // Only show full loading on initial load, use filtering state for subsequent filters
+      if (isInitialLoad) {
+        setLoading(true)
+      } else {
+        setFiltering(true)
+      }
+      
+      // Check if any advanced filters are active (excluding searchQuery as it can be used independently)
+      const hasAdvancedFilters = (majorFilter && majorFilter !== 'all') || (departmentFilter && departmentFilter !== 'all') || (typeFilter && typeFilter !== 'all')
+      
+      if (hasAdvancedFilters) {
+        // Use filter API
+        const filteredUsers = await adminService.filterUsers({
+          role: roleFilter !== 'all' ? roleFilter : undefined,
+          major: majorFilter && majorFilter !== 'all' ? majorFilter : undefined,
+          department: departmentFilter && departmentFilter !== 'all' ? departmentFilter : undefined,
+          type: typeFilter && typeFilter !== 'all' ? typeFilter : undefined,
+          search: debouncedSearchQuery.trim() || undefined,
+        })
+        
+        const filteredUsersList: User[] = filteredUsers.map((u: any) => ({
+          University_ID: u.University_ID,
+          First_Name: u.First_Name,
+          Last_Name: u.Last_Name,
+          Email: u.Email,
+          Phone_Number: u.Phone_Number ?? undefined,
+          Address: u.Address ?? undefined,
+          National_ID: u.National_ID ?? undefined,
+          role: u.role as UserRole,
+        }))
+        
+        setUsers(filteredUsersList)
+        // Keep allUsers unchanged when filtering
+        if (isInitialLoad) {
+          setAllUsers(filteredUsersList)
+        }
+      } else {
+        // Use regular API (load all)
+        const [studentsResult, tutorsResult, adminsResult] = await Promise.all([
+          adminService.getStudents().catch((err) => {
+            console.error('Error loading students:', err)
+            return []
+          }),
+          adminService.getTutors().catch((err) => {
+            console.error('Error loading tutors:', err)
+            return []
+          }),
+          adminService.getAdmins().catch((err) => {
+            console.error('Error loading admins:', err)
+            return []
+          }),
+        ])
+        
+        const students = Array.isArray(studentsResult) ? studentsResult : []
+        const tutors = Array.isArray(tutorsResult) ? tutorsResult : []
+        const admins = Array.isArray(adminsResult) ? adminsResult : []
+        
+        const allUsersList: User[] = [
+          ...students.map(s => ({
+            University_ID: s.University_ID,
+            First_Name: s.First_Name,
+            Last_Name: s.Last_Name,
+            Email: s.Email,
+            Phone_Number: s.Phone_Number ?? undefined,
+            Address: s.Address ?? undefined,
+            National_ID: s.National_ID ?? undefined,
+            role: 'student' as UserRole,
+          })),
+          ...tutors.map(t => ({
+            University_ID: t.University_ID,
+            First_Name: t.First_Name,
+            Last_Name: t.Last_Name,
+            Email: t.Email,
+            Phone_Number: t.Phone_Number ?? undefined,
+            Address: t.Address ?? undefined,
+            National_ID: t.National_ID ?? undefined,
+            role: 'tutor' as UserRole,
+          })),
+          ...admins.map(a => ({
+            University_ID: a.University_ID,
+            First_Name: a.First_Name,
+            Last_Name: a.Last_Name,
+            Email: a.Email,
+            Phone_Number: a.Phone_Number ?? undefined,
+            Address: a.Address ?? undefined,
+            National_ID: a.National_ID ?? undefined,
+            role: 'admin' as UserRole,
+          })),
+        ]
+        
+        // Always update allUsers on initial load or when no advanced filters
+        if (isInitialLoad || !hasAdvancedFilters) {
+          setAllUsers(allUsersList)
+        }
+        
+        // Apply role filter if needed
+        if (roleFilter !== 'all') {
+          const filtered = allUsersList.filter(u => u.role === roleFilter)
+          setUsers(filtered)
+        } else {
+          setUsers(allUsersList)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading users:', error)
+    } finally {
+      if (isInitialLoad) {
+        setLoading(false)
+      } else {
+        setFiltering(false)
+      }
+    }
+  }
+
+  // Debounce search query
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 500) // 500ms debounce for search
+    
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  // Reload users when filters change (using debounced search query)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadUsers()
+    }, 300) // Debounce to avoid too many API calls
+    
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleFilter, majorFilter, departmentFilter, typeFilter, debouncedSearchQuery])
+
+  // Statistics - Always use allUsers to show total system statistics
   const statistics = useMemo(() => {
-    const total = users.length
-    const students = users.filter(u => u.role === 'student').length
-    const tutors = users.filter(u => u.role === 'tutor').length
-    const admins = users.filter(u => u.role === 'admin').length
+    const total = allUsers.length
+    const students = allUsers.filter(u => u.role === 'student').length
+    const tutors = allUsers.filter(u => u.role === 'tutor').length
+    const admins = allUsers.filter(u => u.role === 'admin').length
     
     return { total, students, tutors, admins }
-  }, [users])
+  }, [allUsers])
 
   // Chart data
   const roleDistributionData = useMemo(() => {
@@ -219,7 +328,17 @@ export default function UserManagementPage() {
   } satisfies ChartConfig
 
   // Filtered users for table
+  // Note: If advanced filters are active, filtering is done on backend
+  // Otherwise, apply client-side filtering for role and search
   const filteredUsers = useMemo(() => {
+    const hasAdvancedFilters = (majorFilter && majorFilter !== 'all') || (departmentFilter && departmentFilter !== 'all') || (typeFilter && typeFilter !== 'all')
+    
+    // If advanced filters are active, users are already filtered from backend
+    if (hasAdvancedFilters) {
+      return users
+    }
+    
+    // Otherwise, apply client-side filtering
     let filtered = [...users]
 
     if (roleFilter !== 'all') {
@@ -227,17 +346,24 @@ export default function UserManagementPage() {
     }
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(user =>
-        user.University_ID.toString().includes(query) ||
-        `${user.First_Name} ${user.Last_Name}`.toLowerCase().includes(query) ||
-        user.Email.toLowerCase().includes(query) ||
-        user.Phone_Number?.toLowerCase().includes(query)
-      )
+      // Normalize Vietnamese text for better search (remove diacritics for comparison)
+      const normalizeVietnamese = (str: string) => {
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      }
+      const query = normalizeVietnamese(searchQuery)
+      filtered = filtered.filter(user => {
+        const fullName = `${user.Last_Name} ${user.First_Name}`
+        return (
+          user.University_ID.toString().includes(searchQuery) ||
+          normalizeVietnamese(fullName).includes(query) ||
+          normalizeVietnamese(user.Email).includes(query) ||
+          (user.Phone_Number && normalizeVietnamese(user.Phone_Number).includes(query))
+        )
+      })
     }
 
     return filtered
-  }, [users, searchQuery, roleFilter])
+  }, [users, searchQuery, roleFilter, majorFilter, departmentFilter, typeFilter])
 
   // Table columns
   const columns: ColumnDef<User>[] = useMemo(() => [
@@ -308,7 +434,7 @@ export default function UserManagementPage() {
               {getRoleIcon(user.role)}
             </div>
             <div>
-              <div className="font-medium">{user.First_Name} {user.Last_Name}</div>
+              <div className="font-medium">{user.Last_Name} {user.First_Name}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{user.Email}</div>
             </div>
           </div>
@@ -475,7 +601,7 @@ export default function UserManagementPage() {
         await adminService.deleteAdmin(universityId)
       }
       
-      await loadUsers()
+      await loadUsers(true) // Reload all users after delete
     } catch (error) {
       console.error('Error deleting user:', error)
       alert(t('admin.errorDeletingUser'))
@@ -512,7 +638,7 @@ export default function UserManagementPage() {
             roleSpecificData.Major = formData.Major
             roleSpecificData.Current_degree = formData.Current_degree || 'Bachelor'
           } else if (newRole === 'tutor') {
-            roleSpecificData.Name = formData.Name || `${formData.First_Name} ${formData.Last_Name}`
+            roleSpecificData.Name = formData.Name || `${formData.Last_Name} ${formData.First_Name}`
             roleSpecificData.Academic_Rank = formData.Academic_Rank || undefined
             roleSpecificData.Details = formData.Details || undefined
             roleSpecificData.Department_Name = formData.Department_Name || undefined
@@ -614,7 +740,7 @@ export default function UserManagementPage() {
         } else if (formData.Role === 'tutor') {
           await adminService.createTutor({
             ...baseUserData,
-            Name: formData.Name || `${formData.First_Name} ${formData.Last_Name}`,
+            Name: formData.Name || `${formData.Last_Name} ${formData.First_Name}`,
             Academic_Rank: formData.Academic_Rank || null,
             Details: formData.Details || null,
             Department_Name: formData.Department_Name || null,
@@ -629,7 +755,7 @@ export default function UserManagementPage() {
       }
 
       setIsDialogOpen(false)
-      await loadUsers()
+      await loadUsers(true) // Reload all users after save
     } catch (error) {
       console.error('Error saving user:', error)
       alert(t('admin.errorSavingUser'))
@@ -721,7 +847,7 @@ export default function UserManagementPage() {
       }
       
       setRowSelection({})
-      await loadUsers()
+      await loadUsers(true) // Reload all users after bulk delete
       alert(t('admin.bulkDeleteSuccess', { count: selectedRows.length }))
     } catch (error) {
       console.error('Error bulk deleting users:', error)
@@ -752,6 +878,113 @@ export default function UserManagementPage() {
         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
       default:
         return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+    }
+  }
+
+  // Calculate GPA for a course: 10% quiz + 20% assignment + 20% midterm + 50% final
+  const calculateCourseGPA = (course: any): number | null => {
+    const quiz = course.Quiz_Grade !== null ? parseFloat(course.Quiz_Grade) : null
+    const assignment = course.Assignment_Grade !== null ? parseFloat(course.Assignment_Grade) : null
+    const midterm = course.Midterm_Grade !== null ? parseFloat(course.Midterm_Grade) : null
+    const final = course.Final_Grade !== null ? parseFloat(course.Final_Grade) : null
+
+    // If final grade exists, use it with weights
+    if (final !== null) {
+      let total = final * 0.5
+      let weightSum = 0.5
+
+      if (midterm !== null) {
+        total += midterm * 0.2
+        weightSum += 0.2
+      }
+      if (assignment !== null) {
+        total += assignment * 0.2
+        weightSum += 0.2
+      }
+      if (quiz !== null) {
+        total += quiz * 0.1
+        weightSum += 0.1
+      }
+
+      // If we have final grade, return weighted average (normalize if some components are missing)
+      return total / weightSum
+    }
+
+    // If no final grade, return null
+    return null
+  }
+
+  // Convert GPA to letter grade according to Vietnamese grading scale
+  const getLetterGrade = (gpa: number): { letter: string; scale4: number; classification: string } => {
+    if (gpa >= 8.5) {
+      return { letter: 'A+', scale4: 4.0, classification: 'excellent' }
+    } else if (gpa >= 8.0) {
+      return { letter: 'B+', scale4: 3.5, classification: 'good' }
+    } else if (gpa >= 7.0) {
+      return { letter: 'B', scale4: 3.0, classification: 'good' }
+    } else if (gpa >= 6.5) {
+      return { letter: 'C+', scale4: 2.5, classification: 'fair' }
+    } else if (gpa >= 5.5) {
+      return { letter: 'C', scale4: 2.0, classification: 'fair' }
+    } else if (gpa >= 5.0) {
+      return { letter: 'D+', scale4: 1.5, classification: 'average' }
+    } else if (gpa >= 4.0) {
+      return { letter: 'D', scale4: 1.0, classification: 'average' }
+    } else {
+      return { letter: 'F', scale4: 0.0, classification: 'poor' }
+    }
+  }
+
+  // Get color classes for letter grade
+  const getLetterGradeColor = (gpa: number) => {
+    if (gpa >= 8.5) {
+      return {
+        bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+        text: 'text-emerald-700 dark:text-emerald-400',
+        border: 'border-emerald-300 dark:border-emerald-700'
+      }
+    } else if (gpa >= 8.0) {
+      return {
+        bg: 'bg-green-100 dark:bg-green-900/30',
+        text: 'text-green-700 dark:text-green-400',
+        border: 'border-green-300 dark:border-green-700'
+      }
+    } else if (gpa >= 7.0) {
+      return {
+        bg: 'bg-blue-100 dark:bg-blue-900/30',
+        text: 'text-blue-700 dark:text-blue-400',
+        border: 'border-blue-300 dark:border-blue-700'
+      }
+    } else if (gpa >= 6.5) {
+      return {
+        bg: 'bg-cyan-100 dark:bg-cyan-900/30',
+        text: 'text-cyan-700 dark:text-cyan-400',
+        border: 'border-cyan-300 dark:border-cyan-700'
+      }
+    } else if (gpa >= 5.5) {
+      return {
+        bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+        text: 'text-yellow-700 dark:text-yellow-400',
+        border: 'border-yellow-300 dark:border-yellow-700'
+      }
+    } else if (gpa >= 5.0) {
+      return {
+        bg: 'bg-orange-100 dark:bg-orange-900/30',
+        text: 'text-orange-700 dark:text-orange-400',
+        border: 'border-orange-300 dark:border-orange-700'
+      }
+    } else if (gpa >= 4.0) {
+      return {
+        bg: 'bg-red-100 dark:bg-red-900/30',
+        text: 'text-red-700 dark:text-red-400',
+        border: 'border-red-300 dark:border-red-700'
+      }
+    } else {
+      return {
+        bg: 'bg-gray-100 dark:bg-gray-900/30',
+        text: 'text-gray-700 dark:text-gray-400',
+        border: 'border-gray-300 dark:border-gray-700'
+      }
     }
   }
 
@@ -1025,45 +1258,76 @@ export default function UserManagementPage() {
           </Card>
         </div>
 
-        {/* Filters and Actions */}
+        {/* Basic Filters and Actions */}
         <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-              <div className="flex flex-1 gap-4 items-center w-full md:w-auto">
-                <div className="flex-1 md:flex-initial">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder={t('admin.searchPlaceholder')}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className={cn(
-                        "pl-10 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white w-full md:w-[300px]",
-                        getNeoBrutalismInputClasses(neoBrutalismMode)
-                      )}
-                    />
+            <div className="flex flex-col gap-4">
+              {/* Top Row: Search, Role Filter, Advanced Filters Toggle, Actions */}
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                <div className="flex flex-1 gap-4 items-center w-full md:w-auto">
+                  <div className="flex-1 md:flex-initial">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder={t('admin.searchPlaceholder')}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className={cn(
+                          "pl-10 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white w-full md:w-[300px]",
+                          getNeoBrutalismInputClasses(neoBrutalismMode)
+                        )}
+                      />
+                    </div>
                   </div>
+                  <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}>
+                    <SelectTrigger className={cn(
+                      "w-[180px] bg-white dark:bg-[#2a2a2a]",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}>
+                      <SelectValue placeholder={t('admin.filterByRole')} />
+                    </SelectTrigger>
+                    <SelectContent className={cn(
+                      neoBrutalismMode 
+                        ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]"
+                        : ""
+                    )}>
+                      <SelectItem value="all">{t('admin.all')}</SelectItem>
+                      <SelectItem value="student">{t('admin.student')}</SelectItem>
+                      <SelectItem value="tutor">{t('admin.tutor')}</SelectItem>
+                      <SelectItem value="admin">{t('admin.admin')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    className={cn(
+                      "gap-2",
+                      (majorFilter !== 'all' || departmentFilter !== 'all' || typeFilter !== 'all')
+                        ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                        : "",
+                      neoBrutalismMode 
+                        ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                        : ""
+                    )}
+                  >
+                    <Filter className="h-4 w-4" />
+                    {t('admin.advancedFilters')}
+                    {(majorFilter !== 'all' || departmentFilter !== 'all' || typeFilter !== 'all') && (
+                      <Badge className={cn(
+                        "ml-1 bg-blue-500 text-white",
+                        neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                      )}>
+                        {[
+                          majorFilter !== 'all' ? 1 : 0,
+                          departmentFilter !== 'all' ? 1 : 0,
+                          typeFilter !== 'all' ? 1 : 0
+                        ].reduce((a, b) => a + b, 0)}
+                      </Badge>
+                    )}
+                  </Button>
                 </div>
-                <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}>
-                  <SelectTrigger className={cn(
-                    "w-[180px] bg-white dark:bg-[#2a2a2a]",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}>
-                    <SelectValue placeholder={t('admin.filterByRole')} />
-                  </SelectTrigger>
-                  <SelectContent className={cn(
-                    neoBrutalismMode 
-                      ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]"
-                      : ""
-                  )}>
-                    <SelectItem value="all">{t('admin.all')}</SelectItem>
-                    <SelectItem value="student">{t('admin.student')}</SelectItem>
-                    <SelectItem value="tutor">{t('admin.tutor')}</SelectItem>
-                    <SelectItem value="admin">{t('admin.admin')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
+                
+                <div className="flex gap-2">
                 {table.getFilteredSelectedRowModel().rows.length > 0 && (
                   <Button
                     variant="outline"
@@ -1104,28 +1368,260 @@ export default function UserManagementPage() {
                   <Plus className="h-4 w-4 mr-2" />
                   <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addUser')}</span>
                 </Button>
+                </div>
               </div>
+
+              {/* Active Filters Display */}
+              {(majorFilter !== 'all' || departmentFilter !== 'all' || typeFilter !== 'all' || debouncedSearchQuery.trim()) && (
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                  <span className={cn(
+                    "text-sm text-muted-foreground",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {t('admin.activeFilters')}:
+                  </span>
+                  {debouncedSearchQuery.trim() && (
+                    <Badge variant="secondary" className={cn(
+                      "gap-1",
+                      neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                    )}>
+                      {t('admin.search')}: "{debouncedSearchQuery}"
+                      <button
+                        onClick={() => {
+                          setSearchQuery('')
+                          setDebouncedSearchQuery('')
+                        }}
+                        className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {majorFilter !== 'all' && (
+                    <Badge variant="secondary" className={cn(
+                      "gap-1",
+                      neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                    )}>
+                      {t('admin.major')}: {majorFilter}
+                      <button
+                        onClick={() => setMajorFilter('all')}
+                        className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {departmentFilter !== 'all' && (
+                    <Badge variant="secondary" className={cn(
+                      "gap-1",
+                      neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                    )}>
+                      {t('admin.department')}: {departmentFilter}
+                      <button
+                        onClick={() => setDepartmentFilter('all')}
+                        className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {typeFilter !== 'all' && (
+                    <Badge variant="secondary" className={cn(
+                      "gap-1",
+                      neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                    )}>
+                      {t('admin.adminType')}: {typeFilter}
+                      <button
+                        onClick={() => setTypeFilter('all')}
+                        className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setMajorFilter('all')
+                      setDepartmentFilter('all')
+                      setTypeFilter('all')
+                      setSearchQuery('')
+                      setDebouncedSearchQuery('')
+                    }}
+                    className={cn(
+                      "h-7 text-xs",
+                      neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                    )}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    {t('admin.clearAllFilters')}
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Advanced Filters Panel - Separate Card */}
+        {showAdvancedFilters && (
+          <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                  )}>
+                    {t('admin.advancedFilters')}
+                  </CardTitle>
+                  <CardDescription className={cn(
+                    "text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {t('admin.advancedFiltersDescription')}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Role Filter */}
+                <div className="space-y-2">
+                  <Label className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.role')}
+                  </Label>
+                  <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}>
+                    <SelectTrigger className={cn(
+                      "bg-white dark:bg-[#2a2a2a]",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}>
+                      <SelectValue placeholder={t('admin.filterByRole')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('admin.all')}</SelectItem>
+                      <SelectItem value="student">{t('admin.student')}</SelectItem>
+                      <SelectItem value="tutor">{t('admin.tutor')}</SelectItem>
+                      <SelectItem value="admin">{t('admin.admin')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Major Filter (for Students) */}
+                {(roleFilter === 'all' || roleFilter === 'student') && (
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.major')}
+                    </Label>
+                    <Select value={majorFilter} onValueChange={setMajorFilter}>
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a]",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.selectMajor')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('admin.all')}</SelectItem>
+                        {filterOptions.majors.map((major) => (
+                          <SelectItem key={major} value={major}>{major}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Department Filter (for Tutors) */}
+                {(roleFilter === 'all' || roleFilter === 'tutor') && (
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.department')}
+                    </Label>
+                    <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a]",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.selectDepartment')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('admin.all')}</SelectItem>
+                        {filterOptions.departments.map((dept) => (
+                          <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Type Filter (for Admins) */}
+                {(roleFilter === 'all' || roleFilter === 'admin') && (
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.adminType')}
+                    </Label>
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a]",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.selectAdminType')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('admin.all')}</SelectItem>
+                        {filterOptions.admin_types.map((type) => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Data Table */}
         <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className={cn(
-                  "text-xl text-[#1f1d39] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                )}>
-                  {t('admin.userList')}
-                </CardTitle>
-                <CardDescription className={cn(
-                  "text-[#85878d] dark:text-gray-400",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                )}>
-                  {t('admin.totalUsers')} {filteredUsers.length} {t('admin.users')}
-                </CardDescription>
+              <div className="flex items-center gap-3">
+                <div>
+                  <CardTitle className={cn(
+                    "text-xl text-[#1f1d39] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                  )}>
+                    {t('admin.userList')}
+                  </CardTitle>
+                  <CardDescription className={cn(
+                    "text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {t('admin.totalUsers')} {filteredUsers.length} {t('admin.users')}
+                  </CardDescription>
+                </div>
+                {filtering && (
+                  <Loader2 className="h-5 w-5 animate-spin text-[#3bafa8] dark:text-[#3bafa8]" />
+                )}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1156,55 +1652,77 @@ export default function UserManagementPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-hidden rounded-md border">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => {
-                        return (
-                          <TableHead key={header.id}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
-                          </TableHead>
-                        )
-                      })}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && 'selected'}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
+            <div className="relative">
+              {filtering && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-[#1a1a1a]/80 z-10 flex items-center justify-center rounded-md">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#3bafa8] dark:text-[#3bafa8]" />
+                    <span className={cn(
+                      "text-sm text-muted-foreground",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                    )}>
+                      {t('common.loading')}...
+                    </span>
+                  </div>
+                </div>
+              )}
+              <ScrollArea className={cn(
+                "h-[600px] rounded-md border",
+                neoBrutalismMode 
+                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                  : "border-[#e5e7e7] dark:border-[#333]"
+              )}>
+                <div className="p-4">
+                  <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                          return (
+                            <TableHead key={header.id}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                            </TableHead>
+                          )
+                        })}
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
-                        {t('admin.noUsers')}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && 'selected'}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={columns.length}
+                          className="h-24 text-center"
+                        >
+                          {t('admin.noUsers')}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                </div>
+              </ScrollArea>
             </div>
             <div className="flex items-center justify-end space-x-2 py-4">
               <div className={cn(
@@ -1640,12 +2158,12 @@ export default function UserManagementPage() {
         {/* User Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
           <DialogContent className={cn(
-            "bg-white dark:bg-[#1a1a1a] max-w-4xl max-h-[90vh] overflow-y-auto",
+            "bg-white dark:bg-[#1a1a1a] max-w-4xl max-h-[90vh] p-0",
             neoBrutalismMode 
               ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[8px_8px_0px_0px_rgba(26,26,26,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,251,235,1)]"
               : "border-[#e5e7e7] dark:border-[#333]"
           )}>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6 pb-4">
               <DialogTitle className={cn(
                 "text-[#211c37] dark:text-white text-xl",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
@@ -1655,14 +2173,15 @@ export default function UserManagementPage() {
             </DialogHeader>
 
             {loadingDetails ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-8 px-6">
                 <div className={cn(
                   "text-lg text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                 )}>{t('common.loading')}</div>
               </div>
             ) : selectedUserDetails ? (
-              <div className="space-y-6 py-4">
+              <ScrollArea className="max-h-[calc(90vh-120px)]">
+                <div className="space-y-6 px-6 pb-6">
                 {/* Basic Info */}
                 <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
                   <CardHeader>
@@ -1692,7 +2211,7 @@ export default function UserManagementPage() {
                       <p className={cn(
                         "font-medium text-[#211c37] dark:text-white",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                      )}>{selectedUserDetails.First_Name} {selectedUserDetails.Last_Name}</p>
+                      )}>{selectedUserDetails.Last_Name} {selectedUserDetails.First_Name}</p>
                     </div>
                     <div>
                       <Label className={cn(
@@ -1757,22 +2276,282 @@ export default function UserManagementPage() {
                     <CardContent className="grid grid-cols-2 gap-4">
                       {Object.entries(selectedUserDetails.role_specific_info).map(([key, value]) => {
                         if (!value) return null
+                        // Map key to correct translation key
+                        let translationKey = key
+                        if (key === 'Current_degree') {
+                          translationKey = 'degree'
+                        } else if (key === 'Major') {
+                          translationKey = 'major'
+                        } else if (key === 'Department_Name') {
+                          translationKey = 'department'
+                        } else if (key === 'Academic_Rank') {
+                          translationKey = 'academicRank'
+                        } else if (key === 'Type') {
+                          translationKey = 'adminType'
+                        } else if (key === 'Name') {
+                          translationKey = 'tutorName'
+                        } else if (key === 'Details') {
+                          translationKey = 'details'
+                        } else if (key === 'Issuance_Date') {
+                          translationKey = 'issuanceDate'
+                        }
                         return (
                           <div key={key}>
                             <Label className={cn(
                               "text-sm text-muted-foreground",
                               getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                            )}>{t(`admin.${key}`) || key}</Label>
+                            )}>{t(`admin.${translationKey}`) || key}</Label>
                             <p className={cn(
                               "font-medium text-[#211c37] dark:text-white",
                               getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                            )}>{String(value)}</p>
+                            )}>
+                              {key === 'Issuance_Date' && value 
+                                ? new Date(String(value)).toLocaleDateString() 
+                                : String(value)}
+                            </p>
                           </div>
                         )
                       })}
                     </CardContent>
                   </Card>
                 )}
+
+                {/* GPA Overview Card (for students) */}
+                {selectedUserDetails.role === 'student' && (() => {
+                  // Calculate GPA data
+                  const coursesWithGPA = selectedUserDetails.courses?.filter((c: any) => {
+                    const gpa = calculateCourseGPA(c)
+                    return gpa !== null && c.Credit
+                  }) || []
+                  
+                  if (coursesWithGPA.length === 0) return null
+                  
+                  const totalPoints = coursesWithGPA.reduce((sum: number, c: any) => {
+                    const gpa = calculateCourseGPA(c)
+                    return sum + (gpa! * (c.Credit || 0))
+                  }, 0)
+                  const totalCredits = coursesWithGPA.reduce((sum: number, c: any) => sum + (c.Credit || 0), 0)
+                  const cumulativeGPA = totalCredits > 0 ? (totalPoints / totalCredits) : 0
+                  
+                  // Prepare chart data - GPA by semester
+                  const gpaBySemester = selectedUserDetails.courses
+                    ?.filter((c: any) => calculateCourseGPA(c) !== null)
+                    .reduce((acc: any, c: any) => {
+                      const semester = c.Semester || 'Unknown'
+                      const gpa = calculateCourseGPA(c)!
+                      const credit = c.Credit || 0
+                      
+                      if (!acc[semester]) {
+                        acc[semester] = { totalPoints: 0, totalCredits: 0, courses: [] }
+                      }
+                      acc[semester].totalPoints += gpa * credit
+                      acc[semester].totalCredits += credit
+                      acc[semester].courses.push({ name: c.Course_Name, gpa, credit })
+                      
+                      return acc
+                    }, {}) || {}
+                  
+                  const chartData = Object.entries(gpaBySemester)
+                    .map(([semester, data]: [string, any]) => ({
+                      semester,
+                      gpa: data.totalCredits > 0 ? (data.totalPoints / data.totalCredits) : 0,
+                      credits: data.totalCredits
+                    }))
+                    .sort((a, b) => a.semester.localeCompare(b.semester))
+                  
+                  // Prepare bar chart data - GPA by course
+                  const courseGpaData = selectedUserDetails.courses
+                    ?.filter((c: any) => calculateCourseGPA(c) !== null)
+                    .map((c: any) => ({
+                      name: c.Course_Name.length > 20 ? c.Course_Name.substring(0, 20) + '...' : c.Course_Name,
+                      fullName: c.Course_Name,
+                      gpa: calculateCourseGPA(c)!,
+                      credit: c.Credit || 0
+                    }))
+                    .sort((a: any, b: any) => b.gpa - a.gpa) || []
+                  
+                  const gpaChartConfig = {
+                    gpa: {
+                      label: t('admin.courseGPA'),
+                      color: 'hsl(var(--chart-1))',
+                    },
+                  } satisfies ChartConfig
+                  
+                  return (
+                    <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+                      <CardHeader>
+                        <CardTitle className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                        )}>
+                          {t('admin.gpaOverview')}
+                        </CardTitle>
+                        <CardDescription className={cn(
+                          "text-[#85878d] dark:text-gray-400",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                        )}>
+                          {t('admin.gpaOverviewDescription')}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {/* Cumulative GPA Display */}
+                          <div className={cn(
+                            "p-6 rounded-lg border-2",
+                            neoBrutalismMode 
+                              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20"
+                              : "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20"
+                          )}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <Label className={cn(
+                                  "text-sm text-muted-foreground",
+                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                )}>{t('admin.cumulativeGPA')}</Label>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <p className={cn(
+                                    "text-5xl font-bold text-[#211c37] dark:text-white",
+                                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                                  )}>
+                                    {cumulativeGPA.toFixed(2)}
+                                  </p>
+                                  {(() => {
+                                    const letterGrade = getLetterGrade(cumulativeGPA)
+                                    const colors = getLetterGradeColor(cumulativeGPA)
+                                    return (
+                                      <div className={cn(
+                                        "px-4 py-2 rounded-lg border-2 flex items-center gap-2",
+                                        colors.bg,
+                                        colors.border,
+                                        neoBrutalismMode ? "rounded-none border-4" : ""
+                                      )}>
+                                        <span className={cn(
+                                          "text-2xl font-bold",
+                                          colors.text
+                                        )}>
+                                          {letterGrade.letter}
+                                        </span>
+                                        <span className={cn(
+                                          "text-xs",
+                                          colors.text
+                                        )}>
+                                          {t(`admin.classification${letterGrade.classification.charAt(0).toUpperCase() + letterGrade.classification.slice(1)}`)}
+                                        </span>
+                                      </div>
+                                    )
+                                  })()}
+                                </div>
+                                <p className={cn(
+                                  "text-sm text-muted-foreground mt-2",
+                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                )}>
+                                  {totalCredits} {t('admin.totalCredits')} • {coursesWithGPA.length} {t('admin.courses')}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* GPA Trend Chart */}
+                          {chartData.length > 0 && (
+                            <div>
+                              <h4 className={cn(
+                                "text-lg font-semibold text-[#211c37] dark:text-white mb-4",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                              )}>
+                                {t('admin.gpaTrendBySemester')}
+                              </h4>
+                              <ChartContainer config={gpaChartConfig} className="h-[250px] w-full">
+                                <LineChart data={chartData}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis
+                                    dataKey="semester"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: '#85878d', fontSize: 12 }}
+                                  />
+                                  <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    domain={[0, 10]}
+                                    tick={{ fill: '#85878d', fontSize: 12 }}
+                                  />
+                                  <ChartTooltip 
+                                    content={<ChartTooltipContent />}
+                                    formatter={(value: number) => [value.toFixed(2), t('admin.courseGPA')]}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="gpa"
+                                    stroke="hsl(var(--chart-1))"
+                                    strokeWidth={3}
+                                    dot={{ fill: "hsl(var(--chart-1))", r: 5 }}
+                                    activeDot={{ r: 7 }}
+                                  />
+                                </LineChart>
+                              </ChartContainer>
+                            </div>
+                          )}
+                          
+                          {/* GPA by Course Bar Chart */}
+                          {courseGpaData.length > 0 && (
+                            <div>
+                              <h4 className={cn(
+                                "text-lg font-semibold text-[#211c37] dark:text-white mb-4",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                              )}>
+                                {t('admin.gpaByCourse')}
+                              </h4>
+                              <ChartContainer config={gpaChartConfig} className="h-[300px] w-full">
+                                <BarChart data={courseGpaData}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis
+                                    dataKey="name"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={80}
+                                    tick={{ fill: '#85878d', fontSize: 11 }}
+                                  />
+                                  <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    domain={[0, 10]}
+                                    tick={{ fill: '#85878d', fontSize: 12 }}
+                                  />
+                                  <ChartTooltip 
+                                    content={<ChartTooltipContent />}
+                                    formatter={(value: number, name: any, _item: any, _index: number, payload: any) => {
+                                      if (!payload || !payload.credit) {
+                                        return [value.toFixed(2), name]
+                                      }
+                                      return [
+                                        `${value.toFixed(2)} (${payload.credit} ${t('admin.credit')})`,
+                                        payload.fullName || name
+                                      ]
+                                    }}
+                                  />
+                                  <Bar dataKey="gpa" radius={[8, 8, 0, 0]}>
+                                    {courseGpaData.map((entry: any, index: number) => (
+                                      <Cell 
+                                        key={`cell-${index}`} 
+                                        fill={
+                                          entry.gpa >= 8.0 ? '#10b981' :
+                                          entry.gpa >= 6.5 ? '#3b82f6' :
+                                          entry.gpa >= 5.0 ? '#f59e0b' : '#ef4444'
+                                        }
+                                      />
+                                    ))}
+                                  </Bar>
+                                </BarChart>
+                              </ChartContainer>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })()}
 
                 {/* Courses (for students) */}
                 {selectedUserDetails.role === 'student' && (
@@ -1788,7 +2567,11 @@ export default function UserManagementPage() {
                     <CardContent>
                       {selectedUserDetails.courses && selectedUserDetails.courses.length > 0 ? (
                         <div className="space-y-4">
-                          {selectedUserDetails.courses.map((course: any, index: number) => (
+                          {selectedUserDetails.courses.map((course: any, index: number) => {
+                            // Calculate GPA for this course
+                            const courseGPA = calculateCourseGPA(course)
+                            
+                            return (
                             <div key={index} className={cn(
                               "p-4 border rounded-lg",
                               neoBrutalismMode 
@@ -1808,9 +2591,30 @@ export default function UserManagementPage() {
                                     {course.Course_ID} - {t('admin.section')} {course.Section_ID} - {course.Semester}
                                   </p>
                                 </div>
-                                {course.Status && (
-                                  <Badge>{course.Status}</Badge>
-                                )}
+                                {course.Status && (() => {
+                                  const getStatusColor = (status: string) => {
+                                    switch (status.toLowerCase()) {
+                                      case 'approved':
+                                        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700'
+                                      case 'pending':
+                                        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700'
+                                      case 'rejected':
+                                        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+                                      case 'cancelled':
+                                        return 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700'
+                                      default:
+                                        return 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700'
+                                    }
+                                  }
+                                  return (
+                                    <Badge className={cn(
+                                      getStatusColor(course.Status),
+                                      neoBrutalismMode ? "border-2 rounded-none" : ""
+                                    )}>
+                                      {course.Status}
+                                    </Badge>
+                                  )
+                                })()}
                               </div>
                               <div className="grid grid-cols-4 gap-2 mt-2">
                                 {course.Final_Grade !== null && (
@@ -1862,6 +2666,70 @@ export default function UserManagementPage() {
                                   </div>
                                 )}
                               </div>
+                              {courseGPA !== null && (
+                                <div className={cn(
+                                  "mt-4 p-4 rounded-lg border-2",
+                                  getLetterGradeColor(courseGPA).bg,
+                                  getLetterGradeColor(courseGPA).border,
+                                  neoBrutalismMode ? "rounded-none border-4" : ""
+                                )}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <Label className={cn(
+                                        "text-xs text-muted-foreground mb-2 block",
+                                        getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                      )}>{t('admin.courseGPA')}</Label>
+                                      <div className="flex items-center gap-3">
+                                        <p className={cn(
+                                          "text-3xl font-bold",
+                                          getLetterGradeColor(courseGPA).text,
+                                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                        )}>
+                                          {courseGPA.toFixed(2)}
+                                        </p>
+                                        {(() => {
+                                          const letterGrade = getLetterGrade(courseGPA)
+                                          const colors = getLetterGradeColor(courseGPA)
+                                          return (
+                                            <div className={cn(
+                                              "px-3 py-1 rounded-lg border-2 flex items-center gap-2",
+                                              colors.bg,
+                                              colors.border,
+                                              neoBrutalismMode ? "rounded-none border-2" : ""
+                                            )}>
+                                              <span className={cn(
+                                                "text-lg font-bold",
+                                                colors.text
+                                              )}>
+                                                {letterGrade.letter}
+                                              </span>
+                                              <span className={cn(
+                                                "text-xs",
+                                                colors.text
+                                              )}>
+                                                {t(`admin.classification${letterGrade.classification.charAt(0).toUpperCase() + letterGrade.classification.slice(1)}`)}
+                                              </span>
+                                            </div>
+                                          )
+                                        })()}
+                                      </div>
+                                    </div>
+                                    {course.Credit && (
+                                      <div className="text-right ml-4">
+                                        <Label className={cn(
+                                          "text-xs text-muted-foreground",
+                                          getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                        )}>{t('admin.credit')}</Label>
+                                        <p className={cn(
+                                          "text-lg font-bold",
+                                          getLetterGradeColor(courseGPA).text,
+                                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                        )}>{course.Credit}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                               {course.Registration_Date && (
                                 <p className={cn(
                                   "text-xs text-muted-foreground mt-2",
@@ -1871,7 +2739,8 @@ export default function UserManagementPage() {
                                 </p>
                               )}
                             </div>
-                          ))}
+                          )
+                          })}
                         </div>
                       ) : (
                         <p className={cn(
@@ -1927,18 +2796,6 @@ export default function UserManagementPage() {
                                     )}>{new Date(section.Start_Date).toLocaleDateString()}</p>
                                   </div>
                                 )}
-                                {section.End_Date && (
-                                  <div>
-                                    <Label className={cn(
-                                      "text-xs text-muted-foreground",
-                                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                                    )}>{t('admin.endDate')}</Label>
-                                    <p className={cn(
-                                      "text-sm",
-                                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                                    )}>{new Date(section.End_Date).toLocaleDateString()}</p>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           ))}
@@ -1952,23 +2809,10 @@ export default function UserManagementPage() {
                     </CardContent>
                   </Card>
                 )}
-              </div>
+                </div>
+              </ScrollArea>
             ) : null}
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDetailsDialogOpen(false)}
-                className={cn(
-                  "border-[#e5e7e7] dark:border-[#333]",
-                  neoBrutalismMode 
-                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
-                    : ""
-                )}
-              >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.close')}</span>
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

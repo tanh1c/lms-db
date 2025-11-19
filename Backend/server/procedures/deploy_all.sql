@@ -53,6 +53,10 @@ GO
 :r get_user_details.sql
 GO
 
+-- Filter Users
+:r filter_users.sql
+GO
+
 PRINT 'All procedures deployed successfully!'
 GO
 

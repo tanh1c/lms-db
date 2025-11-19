@@ -14,7 +14,7 @@ export const useNeoBrutalismMode = () => {
  */
 export const getNeoBrutalismCardClasses = (neoBrutalismMode: boolean, additionalClasses?: string) => {
   if (!neoBrutalismMode) {
-    return cn("border border-[#e5e7e7] dark:border-[#333] rounded-xl", additionalClasses)
+    return cn("border border-[#e5e7e7] dark:border-[#333] rounded-xl bg-white dark:bg-[#1a1a1a]", additionalClasses)
   }
   return cn(
     "neo-brutalism-card border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none",

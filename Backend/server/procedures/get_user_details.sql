@@ -118,6 +118,7 @@ BEGIN
             a.Section_ID,
             a.Semester,
             c.Name AS Course_Name,
+            c.Credit,
             a.Registration_Date,
             a.Status,
             a.Final_Grade,
