@@ -12,6 +12,7 @@ from routes.students import students_bp
 from routes.quizzes import quizzes_bp
 from routes.grades import grades_bp
 from routes.schedule import schedule_bp
+from routes.admin import admin_bp
 
 # Import database config
 from config.database import get_db_connection
@@ -37,6 +38,7 @@ app.register_blueprint(students_bp, url_prefix='/api/students')
 app.register_blueprint(quizzes_bp, url_prefix='/api/quizzes')
 app.register_blueprint(grades_bp, url_prefix='/api/grades')
 app.register_blueprint(schedule_bp, url_prefix='/api/schedule')
+app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
 # Error handling
 @app.errorhandler(Exception)

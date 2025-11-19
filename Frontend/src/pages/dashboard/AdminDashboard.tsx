@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthProvider'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { courseService } from '@/lib/api/courseService'
+import { adminService, type Statistics } from '@/lib/api/adminService'
 import { ROUTES } from '@/constants/routes'
 import type { Course } from '@/types'
 import { Search, Bell, BookOpen, Users, Settings, BarChart3, ChevronDown, Check, Edit2, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[]>([])
+  const [statistics, setStatistics] = useState<Statistics | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -48,8 +50,27 @@ export default function AdminDashboard() {
       if (!user) return
       
       try {
-        const coursesData = await courseService.getCourses()
+        const [coursesData, statsData] = await Promise.all([
+          courseService.getCourses(),
+          adminService.getStatistics().catch((error) => {
+            console.error('Error fetching statistics:', error)
+            // Return default stats instead of null to prevent flickering
+            return {
+              total_users: 0,
+              total_students: 0,
+              total_tutors: 0,
+              total_admins: 0,
+              total_courses: 0,
+              total_sections: 0,
+              total_assignments: 0,
+              total_quizzes: 0,
+              total_submissions: 0,
+              pending_assessments: 0,
+            }
+          }),
+        ])
         setCourses(coursesData)
+        setStatistics(statsData)
       } catch (error) {
         console.error('Error loading dashboard data:', error)
       } finally {
@@ -70,9 +91,14 @@ export default function AdminDashboard() {
     )
   }
 
-  const totalUsers = 464 // Mock data
-  const totalCourses = courses.length
-  const completionRate = 85
+  const totalUsers = statistics?.total_users || 0
+  const totalCourses = statistics?.total_courses || courses.length
+  const totalStudents = statistics?.total_students || 0
+  const totalTutors = statistics?.total_tutors || 0
+  const totalAdmins = statistics?.total_admins || 0
+  const completionRate = statistics 
+    ? Math.round((statistics.total_submissions / Math.max(statistics.total_assignments, 1)) * 100)
+    : 85
   const systemStatus = t('dashboard.active')
 
   // Mock course cards data
@@ -414,6 +440,11 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.totalUsers')}</p>
                   <p className={cn("text-3xl font-bold text-black dark:text-white", getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'))}>{totalUsers}</p>
+                  {statistics && (
+                    <p className="text-xs text-[#85878d] dark:text-gray-400 mt-1">
+                      {totalStudents} {t('admin.student')} • {totalTutors} {t('admin.tutor')} • {totalAdmins} {t('admin.admin')}
+                    </p>
+                  )}
                 </div>
                 <div className="w-12 h-12 bg-[#e1e2f6] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
                   <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />

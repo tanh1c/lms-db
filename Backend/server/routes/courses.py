@@ -14,11 +14,12 @@ def get_courses():
 
         result = []
         for course in courses:
+            # Tuple access: Course_ID, Name, Credit, Start_Date
             result.append({
-                'Course_ID': course.Course_ID,
-                'Course_Name': course.Name,  # Fixed: schema uses 'Name' not 'Course_Name'
-                'Credits': course.Credit,     # Fixed: schema uses 'Credit' not 'Credits'
-                'Start_Date': str(course.Start_Date) if course.Start_Date else None,
+                'Course_ID': course[0],
+                'Course_Name': course[1],  # Name
+                'Credits': course[2],      # Credit
+                'Start_Date': str(course[3]) if course[3] else None,
             })
 
         return jsonify(result)
@@ -31,18 +32,19 @@ def get_course(id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM [Course] WHERE Course_ID = ?', id)
+        cursor.execute('SELECT * FROM [Course] WHERE Course_ID = %s', (id,))
         course = cursor.fetchone()
         conn.close()
 
         if not course:
             return jsonify({'success': False, 'error': 'Course not found'}), 404
 
+        # Tuple access: Course_ID, Name, Credit, Start_Date
         return jsonify({
-            'Course_ID': course.Course_ID,
-            'Course_Name': course.Name,  # Fixed: schema uses 'Name' not 'Course_Name'
-            'Credits': course.Credit,     # Fixed: schema uses 'Credit' not 'Credits'
-            'Start_Date': str(course.Start_Date) if course.Start_Date else None,
+            'Course_ID': course[0],
+            'Course_Name': course[1],  # Name
+            'Credits': course[2],      # Credit
+            'Start_Date': str(course[3]) if course[3] else None,
         })
     except Exception as e:
         print(f'Get course error: {e}')
@@ -53,16 +55,17 @@ def get_course_sections(id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM [Section] WHERE Course_ID = ?', id)
+        cursor.execute('SELECT * FROM [Section] WHERE Course_ID = %s', (id,))
         sections = cursor.fetchall()
         conn.close()
 
         result = []
         for section in sections:
+            # Tuple access: Section_ID, Course_ID, Semester
             result.append({
-                'Section_ID': section.Section_ID,
-                'Course_ID': section.Course_ID,
-                'Semester': section.Semester,  # Fixed: schema uses 'Semester' not 'Semester_ID'
+                'Section_ID': section[0],
+                'Course_ID': section[1],
+                'Semester': section[2],
             })
 
         return jsonify(result)
@@ -75,17 +78,18 @@ def get_section(course_id, section_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM [Section] WHERE Course_ID = ? AND Section_ID = ?', course_id, section_id)
+        cursor.execute('SELECT * FROM [Section] WHERE Course_ID = %s AND Section_ID = %s', (course_id, section_id))
         section = cursor.fetchone()
         conn.close()
 
         if not section:
             return jsonify({'success': False, 'error': 'Section not found'}), 404
 
+        # Tuple access: Section_ID, Course_ID, Semester
         return jsonify({
-            'Section_ID': section.Section_ID,
-            'Course_ID': section.Course_ID,
-            'Semester': section.Semester,  # Fixed: schema uses 'Semester' not 'Semester_ID'
+            'Section_ID': section[0],
+            'Course_ID': section[1],
+            'Semester': section[2],
         })
     except Exception as e:
         print(f'Get section error: {e}')

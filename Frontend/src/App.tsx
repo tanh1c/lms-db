@@ -22,6 +22,10 @@ import GradeDetailPage from './pages/grades/GradeDetailPage'
 import SchedulePage from './pages/schedule/SchedulePage'
 import SectionPage from './pages/courses/SectionPage'
 import UserManagementPage from './pages/admin/UserManagementPage'
+import CourseManagementPage from './pages/admin/CourseManagementPage'
+import AssignmentManagementPage from './pages/admin/AssignmentManagementPage'
+import QuizManagementPage from './pages/admin/QuizManagementPage'
+import AssessmentManagementPage from './pages/admin/AssessmentManagementPage'
 import ErrorBoundary from './components/common/ErrorBoundary'
 
 function App() {
@@ -190,6 +194,42 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <UserManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={ROUTES.ADMIN_COURSES}
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CourseManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={ROUTES.ADMIN_ASSIGNMENTS}
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AssignmentManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={ROUTES.ADMIN_QUIZZES}
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <QuizManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={ROUTES.ADMIN_ASSESSMENTS}
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AssessmentManagementPage />
               </ProtectedRoute>
             }
           />

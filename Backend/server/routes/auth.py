@@ -30,11 +30,12 @@ def login():
 
         # Get user and account info
         cursor.execute("""
-            SELECT u.*, a.[Password] as PasswordHash
+            SELECT u.University_ID, u.First_Name, u.Last_Name, u.Email, 
+                   u.Phone_Number, u.[Address], u.National_ID, a.[Password] as PasswordHash
             FROM [Users] u
             LEFT JOIN [Account] a ON u.University_ID = a.University_ID
-            WHERE u.University_ID = ?
-        """, user_id)
+            WHERE u.University_ID = %s
+        """, (user_id,))
 
         user = cursor.fetchone()
 
@@ -46,8 +47,34 @@ def login():
             }), 404
 
         # Check password
-        if user.PasswordHash:
-            if not bcrypt.checkpw(password.encode('utf-8'), user.PasswordHash.encode('utf-8')):
+        password_hash = user.PasswordHash if hasattr(user, 'PasswordHash') else (user[7] if len(user) > 7 else None)
+        if password_hash:
+            stored_password = password_hash.strip() if password_hash else None
+            
+            # Check if password is bcrypt hash (starts with $2a$, $2b$, or $2y$)
+            is_bcrypt_hash = stored_password and (
+                stored_password.startswith('$2a$') or 
+                stored_password.startswith('$2b$') or 
+                stored_password.startswith('$2y$')
+            )
+            
+            password_valid = False
+            
+            if is_bcrypt_hash:
+                # Try bcrypt verification
+                try:
+                    password_valid = bcrypt.checkpw(
+                        password.encode('utf-8'), 
+                        stored_password.encode('utf-8')
+                    )
+                except Exception as e:
+                    print(f'Bcrypt check error: {e}')
+                    password_valid = False
+            else:
+                # Plain text comparison (for backward compatibility)
+                password_valid = (stored_password == password)
+            
+            if not password_valid:
                 conn.close()
                 return jsonify({
                     'success': False,
@@ -58,20 +85,20 @@ def login():
         role = 'student'
 
         # Check if admin
-        cursor.execute('SELECT * FROM [Admin] WHERE University_ID = ?', user_id)
+        cursor.execute('SELECT * FROM [Admin] WHERE University_ID = %s', (user_id,))
         if cursor.fetchone():
             role = 'admin'
         else:
             # Check if tutor
-            cursor.execute('SELECT * FROM [Tutor] WHERE University_ID = ?', user_id)
+            cursor.execute('SELECT * FROM [Tutor] WHERE University_ID = %s', (user_id,))
             if cursor.fetchone():
                 role = 'tutor'
 
         conn.close()
 
-        return jsonify({
-            'success': True,
-            'user': {
+        # Extract user data (handle both tuple and object)
+        if hasattr(user, 'University_ID'):
+            user_data = {
                 'University_ID': user.University_ID,
                 'First_Name': user.First_Name,
                 'Last_Name': user.Last_Name,
@@ -79,6 +106,23 @@ def login():
                 'Phone_Number': user.Phone_Number,
                 'Address': user.Address,
                 'National_ID': user.National_ID,
+            }
+        else:
+            # Tuple access: University_ID, First_Name, Last_Name, Email, Phone_Number, Address, National_ID, PasswordHash
+            user_data = {
+                'University_ID': user[0],
+                'First_Name': user[1],
+                'Last_Name': user[2],
+                'Email': user[3],
+                'Phone_Number': user[4],
+                'Address': user[5],
+                'National_ID': user[6],
+            }
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                **user_data,
                 'role': role,
             },
             'role': role,
@@ -111,7 +155,7 @@ def get_me():
 
         user_id = int(university_id)
 
-        cursor.execute('SELECT * FROM [Users] WHERE University_ID = ?', user_id)
+        cursor.execute('SELECT * FROM [Users] WHERE University_ID = %s', (user_id,))
         user = cursor.fetchone()
 
         if not user:
@@ -123,19 +167,19 @@ def get_me():
 
         # Determine role
         role = 'student'
-        cursor.execute('SELECT * FROM [Admin] WHERE University_ID = ?', user_id)
+        cursor.execute('SELECT * FROM [Admin] WHERE University_ID = %s', (user_id,))
         if cursor.fetchone():
             role = 'admin'
         else:
-            cursor.execute('SELECT * FROM [Tutor] WHERE University_ID = ?', user_id)
+            cursor.execute('SELECT * FROM [Tutor] WHERE University_ID = %s', (user_id,))
             if cursor.fetchone():
                 role = 'tutor'
 
         conn.close()
 
-        return jsonify({
-            'success': True,
-            'user': {
+        # Extract user data (handle both tuple and object)
+        if hasattr(user, 'University_ID'):
+            user_data = {
                 'University_ID': user.University_ID,
                 'First_Name': user.First_Name,
                 'Last_Name': user.Last_Name,
@@ -143,6 +187,23 @@ def get_me():
                 'Phone_Number': user.Phone_Number,
                 'Address': user.Address,
                 'National_ID': user.National_ID,
+            }
+        else:
+            # Tuple access
+            user_data = {
+                'University_ID': user[0],
+                'First_Name': user[1],
+                'Last_Name': user[2],
+                'Email': user[3],
+                'Phone_Number': user[4],
+                'Address': user[5],
+                'National_ID': user[6],
+            }
+
+        return jsonify({
+            'success': True,
+            'user': {
+                **user_data,
                 'role': role,
             },
         })

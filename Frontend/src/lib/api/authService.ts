@@ -94,10 +94,23 @@ export const authService = {
   async login(universityId: string, password: string): Promise<LoginResult> {
     try {
       const response = await apiClient.post('/auth/login', {
-        universityId,
+        universityId: parseInt(universityId, 10),
         password,
       })
-      return response.data
+      
+      // Backend returns: { success: true, user: {...}, role: 'student'|'tutor'|'admin' }
+      if (response.data.success && response.data.user && response.data.role) {
+        return {
+          success: true,
+          user: response.data.user,
+          role: response.data.role,
+        }
+      }
+      
+      return {
+        success: false,
+        error: response.data.error || 'Đăng nhập thất bại',
+      }
     } catch (error: any) {
       // Check if it's a network error or backend unavailable
       const isNetworkError = 
@@ -116,7 +129,7 @@ export const authService = {
       // Other API errors
       return {
         success: false,
-        error: error.response?.data?.error || 'Đã xảy ra lỗi khi đăng nhập',
+        error: error.response?.data?.error || error.response?.data?.message || 'Đã xảy ra lỗi khi đăng nhập',
       }
     }
   },

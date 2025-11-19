@@ -36,4 +36,9 @@ export const ROUTES = {
   
   // Admin
   USERS_MANAGEMENT: '/admin/users',
+  ADMIN_COURSES: '/admin/courses',
+  ADMIN_SECTIONS: '/admin/sections',
+  ADMIN_ASSIGNMENTS: '/admin/assignments',
+  ADMIN_QUIZZES: '/admin/quizzes',
+  ADMIN_ASSESSMENTS: '/admin/assessments',
 } as const

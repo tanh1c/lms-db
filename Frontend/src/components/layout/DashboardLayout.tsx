@@ -78,7 +78,10 @@ export default function DashboardLayout({
         return [
           { title: 'Dashboard', href: ROUTES.ADMIN_DASHBOARD, icon: LayoutDashboard },
           { title: 'Users', href: ROUTES.USERS_MANAGEMENT, icon: Users },
-          { title: 'Courses', href: ROUTES.COURSES, icon: BookOpen },
+          { title: 'Courses', href: ROUTES.ADMIN_COURSES, icon: BookOpen },
+          { title: 'Assignments', href: ROUTES.ADMIN_ASSIGNMENTS, icon: FileText },
+          { title: 'Quizzes', href: ROUTES.ADMIN_QUIZZES, icon: HelpCircle },
+          { title: 'Assessments', href: ROUTES.ADMIN_ASSESSMENTS, icon: BarChart3 },
           { title: 'Settings', href: ROUTES.SETTINGS, icon: Settings },
         ]
       default:
