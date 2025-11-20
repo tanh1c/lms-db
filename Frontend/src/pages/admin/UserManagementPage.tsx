@@ -81,7 +81,7 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true)
   const [filtering, setFiltering] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
   const [majorFilter, setMajorFilter] = useState<string>('all')
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
@@ -158,7 +158,7 @@ export default function UserManagementPage() {
           major: majorFilter && majorFilter !== 'all' ? majorFilter : undefined,
           department: departmentFilter && departmentFilter !== 'all' ? departmentFilter : undefined,
           type: typeFilter && typeFilter !== 'all' ? typeFilter : undefined,
-          search: debouncedSearchQuery.trim() || undefined,
+          search: submittedSearchQuery.trim() || undefined,
         })
         
         const filteredUsersList: User[] = filteredUsers.map((u: any) => ({
@@ -255,16 +255,7 @@ export default function UserManagementPage() {
     }
   }
 
-  // Debounce search query
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 500) // 500ms debounce for search
-    
-    return () => clearTimeout(timeoutId)
-  }, [searchQuery])
-
-  // Reload users when filters change (using debounced search query)
+  // Reload users when filters change (using submitted search query)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       loadUsers()
@@ -272,7 +263,7 @@ export default function UserManagementPage() {
     
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleFilter, majorFilter, departmentFilter, typeFilter, debouncedSearchQuery])
+  }, [roleFilter, majorFilter, departmentFilter, typeFilter, submittedSearchQuery])
 
   // Statistics - Always use allUsers to show total system statistics
   const statistics = useMemo(() => {
@@ -345,16 +336,16 @@ export default function UserManagementPage() {
       filtered = filtered.filter(user => user.role === roleFilter)
     }
 
-    if (searchQuery.trim()) {
+    if (submittedSearchQuery.trim()) {
       // Normalize Vietnamese text for better search (remove diacritics for comparison)
       const normalizeVietnamese = (str: string) => {
         return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
       }
-      const query = normalizeVietnamese(searchQuery)
+      const query = normalizeVietnamese(submittedSearchQuery)
       filtered = filtered.filter(user => {
         const fullName = `${user.Last_Name} ${user.First_Name}`
         return (
-          user.University_ID.toString().includes(searchQuery) ||
+          user.University_ID.toString().includes(submittedSearchQuery) ||
           normalizeVietnamese(fullName).includes(query) ||
           normalizeVietnamese(user.Email).includes(query) ||
           (user.Phone_Number && normalizeVietnamese(user.Phone_Number).includes(query))
@@ -363,7 +354,7 @@ export default function UserManagementPage() {
     }
 
     return filtered
-  }, [users, searchQuery, roleFilter, majorFilter, departmentFilter, typeFilter])
+  }, [users, submittedSearchQuery, roleFilter, majorFilter, departmentFilter, typeFilter])
 
   // Table columns
   const columns: ColumnDef<User>[] = useMemo(() => [
@@ -1265,19 +1256,38 @@ export default function UserManagementPage() {
               {/* Top Row: Search, Role Filter, Advanced Filters Toggle, Actions */}
               <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                 <div className="flex flex-1 gap-4 items-center w-full md:w-auto">
-                  <div className="flex-1 md:flex-initial">
-                    <div className="relative">
+                  <div className="flex-1 md:flex-initial flex gap-2">
+                    <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
                         placeholder={t('admin.searchPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            setSubmittedSearchQuery(searchQuery)
+                          }
+                        }}
                         className={cn(
                           "pl-10 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white w-full md:w-[300px]",
                           getNeoBrutalismInputClasses(neoBrutalismMode)
                         )}
                       />
                     </div>
+                    <Button
+                      type="button"
+                      onClick={() => setSubmittedSearchQuery(searchQuery)}
+                      className={cn(
+                        "px-4",
+                        neoBrutalismMode 
+                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                          : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+                      )}
+                    >
+                      <Search className="h-4 w-4 mr-2" />
+                      {t('admin.search')}
+                    </Button>
                   </div>
                   <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}>
                     <SelectTrigger className={cn(
@@ -1372,7 +1382,7 @@ export default function UserManagementPage() {
               </div>
 
               {/* Active Filters Display */}
-              {(majorFilter !== 'all' || departmentFilter !== 'all' || typeFilter !== 'all' || debouncedSearchQuery.trim()) && (
+              {(majorFilter !== 'all' || departmentFilter !== 'all' || typeFilter !== 'all' || submittedSearchQuery.trim()) && (
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
                   <span className={cn(
                     "text-sm text-muted-foreground",
@@ -1380,16 +1390,16 @@ export default function UserManagementPage() {
                   )}>
                     {t('admin.activeFilters')}:
                   </span>
-                  {debouncedSearchQuery.trim() && (
+                  {submittedSearchQuery.trim() && (
                     <Badge variant="secondary" className={cn(
                       "gap-1",
                       neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
                     )}>
-                      {t('admin.search')}: "{debouncedSearchQuery}"
+                      {t('admin.search')}: "{submittedSearchQuery}"
                       <button
                         onClick={() => {
                           setSearchQuery('')
-                          setDebouncedSearchQuery('')
+                          setSubmittedSearchQuery('')
                         }}
                         className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
                       >
@@ -1447,7 +1457,7 @@ export default function UserManagementPage() {
                       setDepartmentFilter('all')
                       setTypeFilter('all')
                       setSearchQuery('')
-                      setDebouncedSearchQuery('')
+                      setSubmittedSearchQuery('')
                     }}
                     className={cn(
                       "h-7 text-xs",

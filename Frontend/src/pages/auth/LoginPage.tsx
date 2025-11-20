@@ -91,7 +91,11 @@ export default function LoginPage() {
           className={cn(
             "text-xs px-3 py-1.5 rounded-lg transition-all",
             themeMode === 'normal'
-              ? "bg-black dark:bg-white text-white dark:text-black font-semibold"
+              ? glassmorphismMode
+                ? "bg-white/40 dark:bg-white/30 text-white font-semibold border border-white/60 backdrop-blur-sm shadow-lg"
+                : "bg-black dark:bg-white text-white dark:text-black font-semibold"
+              : glassmorphismMode
+              ? "bg-white/20 dark:bg-white/15 text-white/90 font-medium border border-white/30 backdrop-blur-sm hover:bg-white/30 hover:border-white/50 shadow-md"
               : "bg-white/10 dark:bg-black/10 text-gray-700 dark:text-gray-300 hover:bg-white/20 dark:hover:bg-black/20"
           )}
         >
@@ -105,7 +109,11 @@ export default function LoginPage() {
           className={cn(
             "text-xs px-3 py-1.5 rounded-lg transition-all",
             themeMode === 'neo-brutalism'
-              ? "bg-[#1a1a1a] dark:bg-[#FFFBEB] text-white dark:text-[#1a1a1a] font-bold border-2 border-[#1a1a1a] dark:border-[#FFFBEB]"
+              ? glassmorphismMode
+                ? "bg-white/40 dark:bg-white/30 text-white font-bold border-2 border-white/60 backdrop-blur-sm shadow-lg"
+                : "bg-[#1a1a1a] dark:bg-[#FFFBEB] text-white dark:text-[#1a1a1a] font-bold border-2 border-[#1a1a1a] dark:border-[#FFFBEB]"
+              : glassmorphismMode
+              ? "bg-white/20 dark:bg-white/15 text-white/90 font-medium border border-white/30 backdrop-blur-sm hover:bg-white/30 hover:border-white/50 shadow-md"
               : "bg-white/10 dark:bg-black/10 text-gray-700 dark:text-gray-300 hover:bg-white/20 dark:hover:bg-black/20"
           )}
         >
