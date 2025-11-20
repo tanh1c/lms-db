@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { adminService, type AdminCourse } from '@/lib/api/adminService'
-import { BookOpen, Plus, Search, Edit2, Trash2 } from 'lucide-react'
+import { BookOpen, Plus, Edit2, Trash2, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { 
   useNeoBrutalismMode, 
@@ -23,12 +24,14 @@ import {
   getNeoBrutalismInputClasses,
   getNeoBrutalismTextClasses 
 } from '@/lib/utils/theme-utils'
+import AdvancedSearchPanel, { type SearchFilters } from '@/components/admin/AdvancedSearchPanel'
 
 export default function CourseManagementPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [courses, setCourses] = useState<AdminCourse[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({})
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCourse, setEditingCourse] = useState<AdminCourse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -48,6 +51,7 @@ export default function CourseManagementPage() {
 
   const loadCourses = async () => {
     try {
+      setLoading(true)
       const data = await adminService.getCourses()
       setCourses(data)
     } catch (error) {
@@ -57,10 +61,26 @@ export default function CourseManagementPage() {
     }
   }
 
-  const filteredCourses = courses.filter(course =>
-    course.Course_ID.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.Name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const handleSearch = async () => {
+    try {
+      const hasFilters = Object.values(searchFilters).some(v => v !== undefined && v !== '')
+      
+      if (hasFilters) {
+        const results = await adminService.searchCourses(searchFilters)
+        setCourses(results)
+      } else {
+        await loadCourses()
+      }
+    } catch (error) {
+      console.error('Error searching courses:', error)
+      alert(t('admin.errorSearchingCourses'))
+    }
+  }
+
+  const handleResetFilters = () => {
+    setSearchFilters({})
+    loadCourses()
+  }
 
   const handleAddCourse = () => {
     setEditingCourse(null)
@@ -166,39 +186,28 @@ export default function CourseManagementPage() {
           </p>
         </div>
 
-        {/* Filters and Actions */}
-        <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-              <div className="flex-1 md:flex-initial">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder={t('admin.searchPlaceholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className={cn(
-                      "pl-10 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white w-full md:w-[300px]",
-                      getNeoBrutalismInputClasses(neoBrutalismMode)
-                    )}
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={handleAddCourse}
-                className={cn(
-                  "w-full md:w-auto",
-                  neoBrutalismMode 
-                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
-                    : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
-                )}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addCourse')}</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Advanced Search Panel */}
+        <AdvancedSearchPanel
+          filters={searchFilters}
+          onFiltersChange={setSearchFilters}
+          onSearch={handleSearch}
+          onReset={handleResetFilters}
+        />
+
+        {/* Actions */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleAddCourse}
+            className={cn(
+              neoBrutalismMode 
+                ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+            )}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addCourse')}</span>
+          </Button>
+        </div>
 
         {/* Courses List */}
         <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
@@ -223,15 +232,15 @@ export default function CourseManagementPage() {
                   "text-[#85878d] dark:text-gray-400",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
                 )}>
-                  {t('admin.totalCourses')}: {filteredCourses.length}
+                  {t('admin.totalCourses')}: {courses.length}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {filteredCourses.length > 0 ? (
+            {courses.length > 0 ? (
               <div className="space-y-3">
-                {filteredCourses.map((course) => (
+                {courses.map((course) => (
                   <div
                     key={course.Course_ID}
                     className={cn(
@@ -249,7 +258,7 @@ export default function CourseManagementPage() {
                         )}>
                           {course.Name}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
                           <div>
                             <span className="font-medium text-[#676767] dark:text-gray-500">{t('admin.courseId')}: </span>
                             <span>{course.Course_ID}</span>
@@ -267,8 +276,56 @@ export default function CourseManagementPage() {
                             </div>
                           )}
                         </div>
+                        {(course.SectionCount !== undefined || course.StudentCount !== undefined || course.TutorCount !== undefined) && (
+                          <div className="flex flex-wrap gap-3 text-xs">
+                            {course.SectionCount !== undefined && (
+                              <span className={cn(
+                                "px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded",
+                                neoBrutalismMode 
+                                  ? "border-2 border-blue-600 dark:border-blue-400 rounded-none"
+                                  : ""
+                              )}>
+                                {course.SectionCount} {t('admin.sections')}
+                              </span>
+                            )}
+                            {course.StudentCount !== undefined && (
+                              <span className={cn(
+                                "px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded",
+                                neoBrutalismMode 
+                                  ? "border-2 border-green-600 dark:border-green-400 rounded-none"
+                                  : ""
+                              )}>
+                                {course.StudentCount} {t('admin.students')}
+                              </span>
+                            )}
+                            {course.TutorCount !== undefined && (
+                              <span className={cn(
+                                "px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded",
+                                neoBrutalismMode 
+                                  ? "border-2 border-purple-600 dark:border-purple-400 rounded-none"
+                                  : ""
+                              )}>
+                                {course.TutorCount} {t('admin.tutors')}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
+                      <div className="flex items-center gap-2 ml-4 flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/courses/${course.Course_ID}`)}
+                          className={cn(
+                            "border-[#e5e7e7] dark:border-[#333]",
+                            neoBrutalismMode 
+                              ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                              : ""
+                          )}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.viewDetails')}</span>
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"

@@ -23,16 +23,19 @@ import SchedulePage from './pages/schedule/SchedulePage'
 import SectionPage from './pages/courses/SectionPage'
 import UserManagementPage from './pages/admin/UserManagementPage'
 import CourseManagementPage from './pages/admin/CourseManagementPage'
+import CourseDetailPageAdmin from './pages/admin/CourseDetailPage'
 import AssignmentManagementPage from './pages/admin/AssignmentManagementPage'
 import QuizManagementPage from './pages/admin/QuizManagementPage'
 import AssessmentManagementPage from './pages/admin/AssessmentManagementPage'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import AutoLogoutProvider from './components/auth/AutoLogoutProvider'
 
 function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
+          <AutoLogoutProvider>
           <Routes>
           <Route path={ROUTES.LOGIN} element={<LoginPage />} />
           
@@ -208,6 +211,15 @@ function App() {
           />
           
           <Route
+            path={ROUTES.ADMIN_COURSE_DETAIL}
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CourseDetailPageAdmin />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
             path={ROUTES.ADMIN_ASSIGNMENTS}
             element={
               <ProtectedRoute allowedRoles={['admin']}>
@@ -237,6 +249,7 @@ function App() {
           <Route path="/" element={<Navigate to={ROUTES.LOGIN} replace />} />
           <Route path={ROUTES.DASHBOARD} element={<Navigate to={ROUTES.STUDENT_DASHBOARD} replace />} />
         </Routes>
+          </AutoLogoutProvider>
       </AuthProvider>
     </ThemeProvider>
     </ErrorBoundary>

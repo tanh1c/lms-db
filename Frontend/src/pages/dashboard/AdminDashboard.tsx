@@ -51,25 +51,18 @@ export default function AdminDashboard() {
       
       try {
         const [coursesData, statsData] = await Promise.all([
-          courseService.getCourses(),
+          courseService.getCourses().catch((error) => {
+            console.error('Error fetching courses:', error)
+            return []
+          }),
           adminService.getStatistics().catch((error) => {
             console.error('Error fetching statistics:', error)
-            // Return default stats instead of null to prevent flickering
-            return {
-              total_users: 0,
-              total_students: 0,
-              total_tutors: 0,
-              total_admins: 0,
-              total_courses: 0,
-              total_sections: 0,
-              total_assignments: 0,
-              total_quizzes: 0,
-              total_submissions: 0,
-              pending_assessments: 0,
-            }
+            console.error('Error details:', error.response?.data || error.message)
+            // Return null instead of default 0s to indicate error
+            return null
           }),
         ])
-        setCourses(coursesData)
+        setCourses(coursesData || [])
         setStatistics(statsData)
       } catch (error) {
         console.error('Error loading dashboard data:', error)
@@ -91,11 +84,12 @@ export default function AdminDashboard() {
     )
   }
 
-  const totalUsers = statistics?.total_users || 0
-  const totalCourses = statistics?.total_courses || courses.length
-  const totalStudents = statistics?.total_students || 0
-  const totalTutors = statistics?.total_tutors || 0
-  const totalAdmins = statistics?.total_admins || 0
+  // Use statistics if available, otherwise calculate from courses or show 0
+  const totalUsers = statistics ? statistics.total_users : 0
+  const totalCourses = statistics ? statistics.total_courses : (courses.length || 0)
+  const totalStudents = statistics ? statistics.total_students : 0
+  const totalTutors = statistics ? statistics.total_tutors : 0
+  const totalAdmins = statistics ? statistics.total_admins : 0
   const completionRate = statistics 
     ? Math.round((statistics.total_submissions / Math.max(statistics.total_assignments, 1)) * 100)
     : 85

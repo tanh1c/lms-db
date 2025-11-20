@@ -17,6 +17,7 @@ def deploy_procedures():
     sql_files = [
         'get_statistics.sql',
         'course_crud.sql',
+        'course_advanced.sql',
         'section_crud.sql',
         'student_crud.sql',
         'tutor_crud.sql',
@@ -30,6 +31,7 @@ def deploy_procedures():
         'filter_users.sql',
         'audit_log_queries.sql',
         'advanced_statistics.sql',
+        'password_reset.sql',
     ]
     
     conn = None

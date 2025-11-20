@@ -33,7 +33,20 @@
     "loginButton": "ĐĂNG NHẬP",
     "loggingIn": "Đang đăng nhập...",
     "loginError": "Đăng nhập thất bại",
-    "loginSuccess": "Đăng nhập thành công"
+    "loginSuccess": "Đăng nhập thành công",
+    "rememberMe": "Ghi nhớ đăng nhập",
+    "sessionTimeoutWarning": "Cảnh báo hết phiên đăng nhập",
+    "sessionTimeoutMessage": "Phiên đăng nhập của bạn sẽ hết hạn sau {{minutes}}:{{seconds}}. Bạn có muốn tiếp tục đăng nhập không?",
+    "stayLoggedIn": "Tiếp tục đăng nhập",
+    "logout": "Đăng xuất",
+    "forgotPassword": "Quên mật khẩu?",
+    "resetPassword": "Đặt lại mật khẩu",
+    "changePassword": "Đổi mật khẩu",
+    "currentPassword": "Mật khẩu hiện tại",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Xác nhận mật khẩu",
+    "passwordResetSuccess": "Đặt lại mật khẩu thành công",
+    "passwordChangeSuccess": "Đổi mật khẩu thành công"
   },
   "dashboard": {
     "title": "Bảng điều khiển",

@@ -9,6 +9,7 @@ import { gsap } from 'gsap'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { getGlassmorphismCardClasses, getGlassmorphismButtonClasses, getGlassmorphismInputClasses } from '@/lib/utils/theme-utils'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher'
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>('normal')
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -49,9 +51,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const result = await authService.login(universityId, password)
-      if (result.success && result.user && result.role) {
-        login(result.user, result.role)
+      const result = await authService.login(universityId, password, rememberMe)
+      if (result.success && result.user && result.role && result.token) {
+        login(result.user, result.role, result.token, result.rememberMe || rememberMe)
         
         // Navigate based on role
         if (result.role === 'student') {
@@ -258,6 +260,32 @@ export default function LoginPage() {
                 placeholder={t('auth.passwordPlaceholder')}
                 required
               />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+                className={cn(
+                  neoBrutalismMode
+                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB]"
+                    : ""
+                )}
+              />
+              <label
+                htmlFor="rememberMe"
+                className={cn(
+                  "text-sm font-medium cursor-pointer",
+                  neoBrutalismMode
+                    ? "font-bold text-[#1a1a1a] dark:text-[#FFFBEB]"
+                    : glassmorphismMode
+                    ? "text-white drop-shadow-md"
+                    : "text-[#211c37] dark:text-white"
+                )}
+              >
+                {t('auth.rememberMe')}
+              </label>
             </div>
             
             <Button

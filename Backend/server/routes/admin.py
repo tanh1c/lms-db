@@ -113,6 +113,288 @@ def delete_course(course_id):
         print(f'Delete course error: {e}')
         return jsonify({'success': False, 'error': f'Failed to delete course: {str(e)}'}), 500
 
+@admin_bp.route('/courses/search', methods=['GET'])
+def search_courses():
+    """Search courses with advanced filters - Using stored procedure"""
+    try:
+        search_query = request.args.get('search', None)
+        min_credit = request.args.get('min_credit', type=int)
+        max_credit = request.args.get('max_credit', type=int)
+        start_date_from = request.args.get('start_date_from', None)
+        start_date_to = request.args.get('start_date_to', None)
+        has_sections = request.args.get('has_sections', type=lambda x: x.lower() == 'true' if x else None)
+        has_students = request.args.get('has_students', type=lambda x: x.lower() == 'true' if x else None)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC SearchCourses %s, %s, %s, %s, %s, %s, %s', (
+            search_query,
+            min_credit,
+            max_credit,
+            start_date_from,
+            start_date_to,
+            has_sections,
+            has_students
+        ))
+        
+        courses = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for course in courses:
+            result.append({
+                'Course_ID': course[0],
+                'Name': course[1],
+                'Credit': course[2],
+                'Start_Date': str(course[3]) if course[3] else None,
+                'SectionCount': course[4] if len(course) > 4 else 0,
+                'StudentCount': course[5] if len(course) > 5 else 0,
+                'TutorCount': course[6] if len(course) > 6 else 0,
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f'Search courses error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to search courses: {str(e)}'}), 500
+
+@admin_bp.route('/courses/<string:course_id>/details', methods=['GET'])
+def get_course_details(course_id):
+    """Get course details with statistics - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCourseDetails %s', (course_id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            return jsonify({'success': False, 'error': 'Course not found'}), 404
+        
+        return jsonify({
+            'Course_ID': result[0],
+            'Name': result[1],
+            'Credit': result[2],
+            'Start_Date': str(result[3]) if result[3] else None,
+            'TotalSections': result[4] if len(result) > 4 else 0,
+            'TotalStudents': result[5] if len(result) > 5 else 0,
+            'TotalTutors': result[6] if len(result) > 6 else 0,
+            'TotalAssignments': result[7] if len(result) > 7 else 0,
+            'TotalQuizzes': result[8] if len(result) > 8 else 0,
+            'AverageFinalGrade': float(result[9]) if len(result) > 9 and result[9] else None,
+        })
+    except Exception as e:
+        print(f'Get course details error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get course details: {str(e)}'}), 500
+
+@admin_bp.route('/courses/<string:course_id>/sections', methods=['GET'])
+def get_course_sections(course_id):
+    """Get all sections for a course - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCourseSections %s', (course_id,))
+        sections = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for section in sections:
+            result.append({
+                'Section_ID': section[0],
+                'Course_ID': section[1],
+                'Semester': section[2],
+                'StudentCount': section[3] if len(section) > 3 else 0,
+                'TutorCount': section[4] if len(section) > 4 else 0,
+                'TutorNames': section[5] if len(section) > 5 else None,
+                'RoomCount': section[6] if len(section) > 6 else 0,
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get course sections error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get course sections: {str(e)}'}), 500
+
+@admin_bp.route('/courses/<string:course_id>/students', methods=['GET'])
+def get_course_students(course_id):
+    """Get all students enrolled in a course - Using stored procedure"""
+    try:
+        section_id = request.args.get('section_id', None)
+        semester = request.args.get('semester', None)
+        status = request.args.get('status', None)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCourseStudents %s, %s, %s, %s', (
+            course_id,
+            section_id,
+            semester,
+            status
+        ))
+        
+        students = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for student in students:
+            result.append({
+                'University_ID': student[0],
+                'First_Name': student[1],
+                'Last_Name': student[2],
+                'Email': student[3],
+                'Major': student[4],
+                'Current_degree': student[5],
+                'Section_ID': student[6],
+                'Semester': student[7],
+                'Assessment_ID': student[8],
+                'Registration_Date': str(student[9]) if student[9] else None,
+                'Potential_Withdrawal_Date': str(student[10]) if len(student) > 10 and student[10] else None,
+                'Status': student[11] if len(student) > 11 else None,
+                'Final_Grade': float(student[12]) if len(student) > 12 and student[12] else None,
+                'Midterm_Grade': float(student[13]) if len(student) > 13 and student[13] else None,
+                'Quiz_Grade': float(student[14]) if len(student) > 14 and student[14] else None,
+                'Assignment_Grade': float(student[15]) if len(student) > 15 and student[15] else None,
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get course students error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get course students: {str(e)}'}), 500
+
+@admin_bp.route('/courses/<string:course_id>/tutors', methods=['GET'])
+def get_course_tutors(course_id):
+    """Get all tutors teaching a course - Using stored procedure"""
+    try:
+        section_id = request.args.get('section_id', None)
+        semester = request.args.get('semester', None)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCourseTutors %s, %s, %s', (
+            course_id,
+            section_id,
+            semester
+        ))
+        
+        tutors = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for tutor in tutors:
+            result.append({
+                'University_ID': tutor[0],
+                'First_Name': tutor[1],
+                'Last_Name': tutor[2],
+                'Email': tutor[3],
+                'TutorName': tutor[4],
+                'Academic_Rank': tutor[5],
+                'Department_Name': tutor[6],
+                'Section_ID': tutor[7],
+                'Semester': tutor[8],
+                'Role_Specification': tutor[9],
+                'Timestamp': str(tutor[10]) if len(tutor) > 10 and tutor[10] else None,
+                'StudentCount': tutor[11] if len(tutor) > 11 else 0,
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get course tutors error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get course tutors: {str(e)}'}), 500
+
+@admin_bp.route('/courses/<string:course_id>/statistics', methods=['GET'])
+def get_course_statistics(course_id):
+    """Get detailed statistics for a course - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCourseStatistics %s', (course_id,))
+        stats = cursor.fetchone()
+        conn.close()
+        
+        if not stats:
+            return jsonify({'success': False, 'error': 'Course not found'}), 404
+        
+        return jsonify({
+            'TotalEnrolledStudents': int(stats[0]) if stats[0] else 0,
+            'ApprovedStudents': int(stats[1]) if stats[1] else 0,
+            'PendingStudents': int(stats[2]) if stats[2] else 0,
+            'AverageFinalGrade': float(stats[3]) if stats[3] else None,
+            'MinFinalGrade': float(stats[4]) if stats[4] else None,
+            'MaxFinalGrade': float(stats[5]) if stats[5] else None,
+            'TotalAssignments': int(stats[6]) if stats[6] else 0,
+            'TotalQuizzes': int(stats[7]) if stats[7] else 0,
+            'TotalSubmissions': int(stats[8]) if stats[8] else 0,
+            'TotalSections': int(stats[9]) if stats[9] else 0,
+            'TotalTutors': int(stats[10]) if stats[10] else 0,
+        })
+    except Exception as e:
+        print(f'Get course statistics error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get course statistics: {str(e)}'}), 500
+
+@admin_bp.route('/courses/by-semester/<string:semester>', methods=['GET'])
+def get_courses_by_semester(semester):
+    """Get all courses for a specific semester - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCoursesBySemester %s', (semester,))
+        courses = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for course in courses:
+            result.append({
+                'Course_ID': course[0],
+                'Name': course[1],
+                'Credit': course[2],
+                'Start_Date': str(course[3]) if course[3] else None,
+                'SectionCount': course[4] if len(course) > 4 else 0,
+                'StudentCount': course[5] if len(course) > 5 else 0,
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get courses by semester error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get courses by semester: {str(e)}'}), 500
+
+@admin_bp.route('/courses/<string:course_id>/enrollment-trend', methods=['GET'])
+def get_course_enrollment_trend(course_id):
+    """Get enrollment trend for a course across semesters - Using stored procedure"""
+    try:
+        start_semester = request.args.get('start_semester', None)
+        end_semester = request.args.get('end_semester', None)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC GetCourseEnrollmentTrend %s, %s, %s', (
+            course_id,
+            start_semester,
+            end_semester
+        ))
+        
+        trends = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for trend in trends:
+            result.append({
+                'Semester': trend[0],
+                'EnrolledStudents': int(trend[1]) if trend[1] else 0,
+                'SectionCount': int(trend[2]) if trend[2] else 0,
+                'AverageGrade': float(trend[3]) if trend[3] else None,
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get course enrollment trend error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to get enrollment trend: {str(e)}'}), 500
+
 # ==================== SECTIONS MANAGEMENT ====================
 
 @admin_bp.route('/sections', methods=['GET'])
@@ -994,18 +1276,33 @@ def get_statistics():
         cursor.execute('EXEC GetStatistics')
         result = cursor.fetchone()
         
-        stats = {
-            'total_users': int(result[0]),
-            'total_students': int(result[1]),
-            'total_tutors': int(result[2]),
-            'total_admins': int(result[3]),
-            'total_courses': int(result[4]),
-            'total_sections': int(result[5]),
-            'total_assignments': int(result[6]),
-            'total_quizzes': int(result[7]),
-            'total_submissions': int(result[8]),
-            'pending_assessments': int(result[9]),
-        }
+        if not result:
+            # If no result, return zeros
+            stats = {
+                'total_users': 0,
+                'total_students': 0,
+                'total_tutors': 0,
+                'total_admins': 0,
+                'total_courses': 0,
+                'total_sections': 0,
+                'total_assignments': 0,
+                'total_quizzes': 0,
+                'total_submissions': 0,
+                'pending_assessments': 0,
+            }
+        else:
+            stats = {
+                'total_users': int(result[0]) if result[0] is not None else 0,
+                'total_students': int(result[1]) if result[1] is not None else 0,
+                'total_tutors': int(result[2]) if result[2] is not None else 0,
+                'total_admins': int(result[3]) if result[3] is not None else 0,
+                'total_courses': int(result[4]) if result[4] is not None else 0,
+                'total_sections': int(result[5]) if result[5] is not None else 0,
+                'total_assignments': int(result[6]) if result[6] is not None else 0,
+                'total_quizzes': int(result[7]) if result[7] is not None else 0,
+                'total_submissions': int(result[8]) if result[8] is not None else 0,
+                'pending_assessments': int(result[9]) if result[9] is not None else 0,
+            }
 
         if conn:
             conn.close()
@@ -1017,7 +1314,19 @@ def get_statistics():
         traceback.print_exc()
         if conn:
             conn.close()
-        return jsonify({'success': False, 'error': f'Failed to fetch statistics: {str(e)}'}), 500
+        # Return zeros instead of error to prevent frontend issues
+        return jsonify({
+            'total_users': 0,
+            'total_students': 0,
+            'total_tutors': 0,
+            'total_admins': 0,
+            'total_courses': 0,
+            'total_sections': 0,
+            'total_assignments': 0,
+            'total_quizzes': 0,
+            'total_submissions': 0,
+            'pending_assessments': 0,
+        })
 
 # ==================== TEACHES MANAGEMENT (Assign Tutor to Section) ====================
 

@@ -20,6 +20,87 @@ export interface AdminCourse {
   Name: string
   Credit: number | null
   Start_Date: string | null
+  SectionCount?: number
+  StudentCount?: number
+  TutorCount?: number
+}
+
+export interface CourseDetails {
+  Course_ID: string
+  Name: string
+  Credit: number | null
+  Start_Date: string | null
+  TotalSections: number
+  TotalStudents: number
+  TotalTutors: number
+  TotalAssignments: number
+  TotalQuizzes: number
+  AverageFinalGrade: number | null
+}
+
+export interface CourseSection {
+  Section_ID: string
+  Course_ID: string
+  Semester: string
+  StudentCount: number
+  TutorCount: number
+  TutorNames: string | null
+  RoomCount: number
+}
+
+export interface CourseStudent {
+  University_ID: number
+  First_Name: string
+  Last_Name: string
+  Email: string
+  Major: string
+  Current_degree: string | null
+  Section_ID: string
+  Semester: string
+  Assessment_ID: number
+  Registration_Date: string | null
+  Potential_Withdrawal_Date: string | null
+  Status: string
+  Final_Grade: number | null
+  Midterm_Grade: number | null
+  Quiz_Grade: number | null
+  Assignment_Grade: number | null
+}
+
+export interface CourseTutor {
+  University_ID: number
+  First_Name: string
+  Last_Name: string
+  Email: string
+  TutorName: string
+  Academic_Rank: string | null
+  Department_Name: string | null
+  Section_ID: string
+  Semester: string
+  Role_Specification: string | null
+  Timestamp: string | null
+  StudentCount: number
+}
+
+export interface CourseStatistics {
+  TotalEnrolledStudents: number
+  ApprovedStudents: number
+  PendingStudents: number
+  AverageFinalGrade: number | null
+  MinFinalGrade: number | null
+  MaxFinalGrade: number | null
+  TotalAssignments: number
+  TotalQuizzes: number
+  TotalSubmissions: number
+  TotalSections: number
+  TotalTutors: number
+}
+
+export interface CourseEnrollmentTrend {
+  Semester: string
+  EnrolledStudents: number
+  SectionCount: number
+  AverageGrade: number | null
 }
 
 // Section
@@ -294,6 +375,86 @@ export const adminService = {
 
   async deleteCourse(courseId: string): Promise<void> {
     await apiClient.delete(`/admin/courses/${courseId}`)
+  },
+
+  async searchCourses(params: {
+    search?: string
+    min_credit?: number
+    max_credit?: number
+    start_date_from?: string
+    start_date_to?: string
+    has_sections?: boolean
+    has_students?: boolean
+  }): Promise<AdminCourse[]> {
+    const queryParams = new URLSearchParams()
+    if (params.search) queryParams.append('search', params.search)
+    if (params.min_credit !== undefined) queryParams.append('min_credit', params.min_credit.toString())
+    if (params.max_credit !== undefined) queryParams.append('max_credit', params.max_credit.toString())
+    if (params.start_date_from) queryParams.append('start_date_from', params.start_date_from)
+    if (params.start_date_to) queryParams.append('start_date_to', params.start_date_to)
+    if (params.has_sections !== undefined) queryParams.append('has_sections', params.has_sections.toString())
+    if (params.has_students !== undefined) queryParams.append('has_students', params.has_students.toString())
+    
+    const response = await apiClient.get(`/admin/courses/search?${queryParams.toString()}`)
+    return response.data
+  },
+
+  async getCourseDetails(courseId: string): Promise<CourseDetails> {
+    const response = await apiClient.get(`/admin/courses/${courseId}/details`)
+    return response.data
+  },
+
+  async getCourseSections(courseId: string): Promise<CourseSection[]> {
+    const response = await apiClient.get(`/admin/courses/${courseId}/sections`)
+    return response.data
+  },
+
+  async getCourseStudents(courseId: string, params?: {
+    section_id?: string
+    semester?: string
+    status?: string
+  }): Promise<CourseStudent[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.section_id) queryParams.append('section_id', params.section_id)
+    if (params?.semester) queryParams.append('semester', params.semester)
+    if (params?.status) queryParams.append('status', params.status)
+    
+    const response = await apiClient.get(`/admin/courses/${courseId}/students?${queryParams.toString()}`)
+    return response.data
+  },
+
+  async getCourseTutors(courseId: string, params?: {
+    section_id?: string
+    semester?: string
+  }): Promise<CourseTutor[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.section_id) queryParams.append('section_id', params.section_id)
+    if (params?.semester) queryParams.append('semester', params.semester)
+    
+    const response = await apiClient.get(`/admin/courses/${courseId}/tutors?${queryParams.toString()}`)
+    return response.data
+  },
+
+  async getCourseStatistics(courseId: string): Promise<CourseStatistics> {
+    const response = await apiClient.get(`/admin/courses/${courseId}/statistics`)
+    return response.data
+  },
+
+  async getCoursesBySemester(semester: string): Promise<AdminCourse[]> {
+    const response = await apiClient.get(`/admin/courses/by-semester/${semester}`)
+    return response.data
+  },
+
+  async getCourseEnrollmentTrend(courseId: string, params?: {
+    start_semester?: string
+    end_semester?: string
+  }): Promise<CourseEnrollmentTrend[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.start_semester) queryParams.append('start_semester', params.start_semester)
+    if (params?.end_semester) queryParams.append('end_semester', params.end_semester)
+    
+    const response = await apiClient.get(`/admin/courses/${courseId}/enrollment-trend?${queryParams.toString()}`)
+    return response.data
   },
 
   // Sections

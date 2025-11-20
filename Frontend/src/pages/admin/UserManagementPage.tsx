@@ -47,7 +47,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { adminService, type AuditLog, type GPAStatisticsByMajor, type GPAStatisticsByDepartment, type CourseEnrollmentStatistics, type CompletionRateStatistics, type PerformanceOverTime, type TopStudent, type TopTutor } from '@/lib/api/adminService'
+import { adminService, type AuditLog } from '@/lib/api/adminService'
 import type { User, UserRole } from '@/types'
 import { 
   Users, Plus, Search, Edit2, Trash2, GraduationCap, UserCheck, Shield,
@@ -150,7 +150,8 @@ export default function UserManagementPage() {
   })
 
   useEffect(() => {
-    loadUsers(true) // Initial load
+    // Initial load - always load all users for statistics
+    loadUsers(true)
     loadFilterOptions()
   }, [])
 
@@ -197,30 +198,36 @@ export default function UserManagementPage() {
         }))
         
         setUsers(filteredUsersList)
-        // Keep allUsers unchanged when filtering
-        if (isInitialLoad) {
-          setAllUsers(filteredUsersList)
-        }
+        // Don't update allUsers when filtering - keep the full list for statistics
       } else {
-        // Use regular API (load all)
-        const [studentsResult, tutorsResult, adminsResult] = await Promise.all([
-          adminService.getStudents().catch((err) => {
-            console.error('Error loading students:', err)
-            return []
-          }),
-          adminService.getTutors().catch((err) => {
-            console.error('Error loading tutors:', err)
-            return []
-          }),
-          adminService.getAdmins().catch((err) => {
-            console.error('Error loading admins:', err)
-            return []
-          }),
+        // Use regular API (load all) - ALWAYS load all users for statistics
+        const [studentsResult, tutorsResult, adminsResult] = await Promise.allSettled([
+          adminService.getStudents(),
+          adminService.getTutors(),
+          adminService.getAdmins(),
         ])
         
-        const students = Array.isArray(studentsResult) ? studentsResult : []
-        const tutors = Array.isArray(tutorsResult) ? tutorsResult : []
-        const admins = Array.isArray(adminsResult) ? adminsResult : []
+        // Extract results, use empty array if failed
+        const students = studentsResult.status === 'fulfilled' && Array.isArray(studentsResult.value) 
+          ? studentsResult.value 
+          : []
+        const tutors = tutorsResult.status === 'fulfilled' && Array.isArray(tutorsResult.value)
+          ? tutorsResult.value
+          : []
+        const admins = adminsResult.status === 'fulfilled' && Array.isArray(adminsResult.value)
+          ? adminsResult.value
+          : []
+        
+        // Log errors if any
+        if (studentsResult.status === 'rejected') {
+          console.error('Error loading students:', studentsResult.reason)
+        }
+        if (tutorsResult.status === 'rejected') {
+          console.error('Error loading tutors:', tutorsResult.reason)
+        }
+        if (adminsResult.status === 'rejected') {
+          console.error('Error loading admins:', adminsResult.reason)
+        }
         
         const allUsersList: User[] = [
           ...students.map(s => ({
@@ -255,10 +262,9 @@ export default function UserManagementPage() {
           })),
         ]
         
-        // Always update allUsers on initial load or when no advanced filters
-        if (isInitialLoad || !hasAdvancedFilters) {
-          setAllUsers(allUsersList)
-        }
+        // ALWAYS update allUsers when loading all users (for statistics)
+        // This ensures statistics always reflect the full user list
+        setAllUsers(allUsersList)
         
         // Apply role filter if needed
         if (roleFilter !== 'all') {
@@ -270,6 +276,7 @@ export default function UserManagementPage() {
       }
     } catch (error) {
       console.error('Error loading users:', error)
+      // On error, don't clear existing data
     } finally {
       if (isInitialLoad) {
         setLoading(false)

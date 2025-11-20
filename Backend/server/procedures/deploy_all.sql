@@ -65,6 +65,10 @@ GO
 :r advanced_statistics.sql
 GO
 
+-- Password Reset
+:r password_reset.sql
+GO
+
 PRINT 'All procedures deployed successfully!'
 GO
 

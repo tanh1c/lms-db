@@ -6,6 +6,8 @@ interface LoginResult {
   success: boolean
   user?: User
   role?: UserRole
+  token?: string
+  rememberMe?: boolean
   error?: string
 }
 
@@ -91,19 +93,22 @@ function fallbackLogin(universityId: string): LoginResult {
 }
 
 export const authService = {
-  async login(universityId: string, password: string): Promise<LoginResult> {
+  async login(universityId: string, password: string, rememberMe: boolean = false): Promise<LoginResult> {
     try {
       const response = await apiClient.post('/auth/login', {
         universityId: parseInt(universityId, 10),
         password,
+        rememberMe,
       })
       
-      // Backend returns: { success: true, user: {...}, role: 'student'|'tutor'|'admin' }
+      // Backend returns: { success: true, user: {...}, role: 'student'|'tutor'|'admin', token: '...', rememberMe: boolean }
       if (response.data.success && response.data.user && response.data.role) {
         return {
           success: true,
           user: response.data.user,
           role: response.data.role,
+          token: response.data.token,
+          rememberMe: response.data.rememberMe || false,
         }
       }
       
@@ -169,6 +174,78 @@ export const authService = {
       
       console.error('Get current user error:', error)
       return null
+    }
+  },
+
+  async verifyToken(): Promise<boolean> {
+    try {
+      const response = await apiClient.get('/auth/verify')
+      return response.data.valid === true
+    } catch (error) {
+      return false
+    }
+  },
+
+  async refreshToken(): Promise<string | null> {
+    try {
+      const response = await apiClient.post('/auth/refresh')
+      return response.data.token || null
+    } catch (error) {
+      return null
+    }
+  },
+
+  async forgotPassword(universityId: string, email?: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await apiClient.post('/auth/forgot-password', {
+        universityId: parseInt(universityId, 10),
+        email,
+      })
+      return {
+        success: response.data.success,
+        message: response.data.message,
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Đã xảy ra lỗi',
+      }
+    }
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await apiClient.post('/auth/reset-password', {
+        token,
+        newPassword,
+      })
+      return {
+        success: response.data.success,
+        message: response.data.message,
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Đã xảy ra lỗi',
+      }
+    }
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await apiClient.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      })
+      return {
+        success: response.data.success,
+        message: response.data.message,
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Đã xảy ra lỗi',
+      }
     }
   },
 }
