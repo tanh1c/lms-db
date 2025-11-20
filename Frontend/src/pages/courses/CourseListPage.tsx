@@ -55,7 +55,8 @@ export default function CourseListPage() {
 
   // Filter courses based on search and filter
   const filteredCourses = courses.filter((course) => {
-    const matchesSearch = course.Name
+    const courseName = course.Name || ''
+    const matchesSearch = courseName
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
     return matchesSearch
