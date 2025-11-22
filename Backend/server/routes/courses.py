@@ -32,12 +32,15 @@ def get_course(id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM [Course] WHERE Course_ID = %s', (id,))
+        
+        # Convert id to string to ensure proper matching
+        course_id = str(id)
+        cursor.execute('SELECT * FROM [Course] WHERE Course_ID = %s', (course_id,))
         course = cursor.fetchone()
         conn.close()
 
         if not course:
-            return jsonify({'success': False, 'error': 'Course not found'}), 404
+            return jsonify({'success': False, 'error': f'Course not found: {course_id}'}), 404
 
         # Tuple access: Course_ID, Name, Credit, Start_Date
         return jsonify({
@@ -48,7 +51,9 @@ def get_course(id):
         })
     except Exception as e:
         print(f'Get course error: {e}')
-        return jsonify({'success': False, 'error': 'Failed to fetch course'}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch course: {str(e)}'}), 500
 
 @courses_bp.route('/<string:id>/sections', methods=['GET'])
 def get_course_sections(id):

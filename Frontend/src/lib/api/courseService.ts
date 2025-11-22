@@ -9,11 +9,30 @@ export const courseService = {
 
   async getCourseById(courseId: string | number): Promise<Course | null> {
     try {
-      const response = await apiClient.get(`/courses/${courseId}`)
-      return response.data
+      const response = await apiClient.get(`/courses/${courseId}`, {
+        timeout: 15000, // 15 seconds for course detail query
+      })
+      const data = response.data
+      
+      // Handle different response formats
+      if (data && typeof data === 'object' && 'Course_ID' in data) {
+        return data
+      }
+      
+      // If response has nested data
+      if (data?.course) {
+        return data.course
+      }
+      
+      return null
     } catch (error: any) {
+      console.error('Error fetching course:', error)
       if (error.response?.status === 404) {
         return null
+      }
+      // Log timeout errors
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        console.error('Course fetch timeout - database query may be slow')
       }
       throw error
     }

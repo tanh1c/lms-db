@@ -734,8 +734,23 @@ export const adminService = {
 
   // Assessments
   async getAssessments(): Promise<Assessment[]> {
-    const response = await apiClient.get('/admin/assessments')
-    return response.data
+    const response = await apiClient.get('/admin/assessments', {
+      timeout: 30000, // 30 seconds for assessment query with JOINs
+    })
+    const data = response.data
+    
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      return data
+    }
+    
+    if (Array.isArray(data?.data)) {
+      return data.data
+    }
+    
+    // Return empty array if no data or error format
+    console.warn('Unexpected assessment response format:', data)
+    return []
   },
 
   async updateAssessmentGrade(

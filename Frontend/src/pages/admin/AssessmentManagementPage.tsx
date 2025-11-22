@@ -54,10 +54,16 @@ export default function AssessmentManagementPage() {
 
   const loadAssessments = async () => {
     try {
+      setLoading(true)
       const data = await adminService.getAssessments()
-      setAssessments(data)
-    } catch (error) {
+      setAssessments(data || [])
+    } catch (error: any) {
       console.error('Error loading assessments:', error)
+      // Show user-friendly error message
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        console.error('Assessment fetch timeout - database query may be slow or database structure changed')
+      }
+      setAssessments([]) // Set empty array on error
     } finally {
       setLoading(false)
     }

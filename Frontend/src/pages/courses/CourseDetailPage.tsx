@@ -41,22 +41,35 @@ export default function CourseDetailPage() {
       if (!courseId || !user) return
       
       try {
-        const courseIdNum = parseInt(courseId)
+        setLoading(true)
+        // Convert courseId to string first, then parse if needed
+        const courseIdStr = String(courseId)
+        const courseIdNum = parseInt(courseIdStr)
+        
         const [courseData, sectionsData, quizzesData, gradesData, studentsData] = await Promise.all([
-          courseService.getCourseById(courseIdNum),
-          courseService.getSectionsByCourse(courseIdNum),
-          quizService.getQuizzesByCourse(user.University_ID, courseIdNum),
-          gradeService.getGradeByCourse(user.University_ID, courseIdNum),
-          studentService.getStudentsByCourse(courseIdNum),
+          courseService.getCourseById(courseIdStr), // Use string version
+          courseService.getSectionsByCourse(courseIdStr),
+          quizService.getQuizzesByCourse(user.University_ID, courseIdNum).catch(() => []),
+          gradeService.getGradeByCourse(user.University_ID, courseIdNum).catch(() => []),
+          studentService.getStudentsByCourse(courseIdNum).catch(() => []),
         ])
         
+        if (!courseData) {
+          console.error('Course not found:', courseId)
+          setLoading(false)
+          return
+        }
+        
         setCourse(courseData)
-        setSections(sectionsData)
-        setQuizzes(quizzesData)
-        setGrades(gradesData)
-        setStudents(studentsData)
-      } catch (error) {
+        setSections(sectionsData || [])
+        setQuizzes(quizzesData || [])
+        setGrades(gradesData || [])
+        setStudents(studentsData || [])
+      } catch (error: any) {
         console.error('Error loading course:', error)
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+          console.error('Course fetch timeout - database query may be slow')
+        }
       } finally {
         setLoading(false)
       }

@@ -119,7 +119,10 @@ BEGIN
         s.Semester,
         (SELECT COUNT(DISTINCT a.University_ID) 
          FROM [Assessment] a 
-         WHERE a.Section_ID = s.Section_ID AND a.Course_ID = s.Course_ID AND a.Semester = s.Semester) as StudentCount,
+         WHERE a.Section_ID = s.Section_ID 
+           AND a.Course_ID = s.Course_ID 
+           AND a.Semester = s.Semester 
+           AND UPPER(LTRIM(RTRIM(a.Status))) = 'APPROVED') as StudentCount,
         (SELECT COUNT(DISTINCT t.University_ID) 
          FROM [Teaches] t 
          WHERE t.Section_ID = s.Section_ID AND t.Course_ID = s.Course_ID AND t.Semester = s.Semester) as TutorCount,
@@ -131,10 +134,9 @@ BEGIN
          FROM [takes_place] tp 
          WHERE tp.Section_ID = s.Section_ID AND tp.Course_ID = s.Course_ID AND tp.Semester = s.Semester) as RoomCount,
         -- Room and Building information as comma-separated strings
-        -- Format: "Building_Name - Room Room_ID" (e.g., "A1 - Room 101")
-        (SELECT STRING_AGG(CONCAT(b.Building_Name, ' - Room ', CAST(tp.Room_ID AS NVARCHAR(10))), ', ')
+        -- Format: "Building_Name - Room_Name" (e.g., "A1 - Room 101")
+        (SELECT STRING_AGG(CONCAT(tp.Building_Name, ' - ', tp.Room_Name), ', ')
          FROM [takes_place] tp
-         INNER JOIN [Building] b ON tp.Building_ID = b.Building_ID
          WHERE tp.Section_ID = s.Section_ID AND tp.Course_ID = s.Course_ID AND tp.Semester = s.Semester) as RoomsInfo
     FROM [Section] s
     WHERE s.Course_ID = @Course_ID

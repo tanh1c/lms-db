@@ -215,6 +215,18 @@ def get_course_sections(course_id):
         
         cursor.execute('EXEC GetCourseSections %s', (course_id,))
         sections = cursor.fetchall()
+        
+        # Debug: Check actual data from database
+        cursor.execute("""
+            SELECT DISTINCT a.Status, COUNT(*) as Count
+            FROM [Assessment] a
+            INNER JOIN [Section] s ON a.Section_ID = s.Section_ID AND a.Course_ID = s.Course_ID AND a.Semester = s.Semester
+            WHERE s.Course_ID = %s
+            GROUP BY a.Status
+        """, (course_id,))
+        status_counts = cursor.fetchall()
+        print(f'[Backend] Assessment Status distribution for course {course_id}: {status_counts}')
+        
         conn.close()
         
         elapsed = time.time() - start_time
@@ -222,11 +234,13 @@ def get_course_sections(course_id):
         
         result = []
         for section in sections:
+            student_count = section[3] if len(section) > 3 else 0
+            print(f'[Backend] Section {section[0]}: StudentCount = {student_count}')
             result.append({
                 'Section_ID': section[0],
                 'Course_ID': section[1],
                 'Semester': section[2],
-                'StudentCount': section[3] if len(section) > 3 else 0,
+                'StudentCount': student_count,
                 'TutorCount': section[4] if len(section) > 4 else 0,
                 'TutorNames': section[5] if len(section) > 5 else None,
                 'RoomCount': section[6] if len(section) > 6 else 0,
@@ -1155,6 +1169,11 @@ def get_all_assessments():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Set query timeout to 25 seconds
+        cursor.execute("SET QUERY_GOVERNOR_COST_LIMIT 0")
+        cursor.execute("SET LOCK_TIMEOUT 25000")
+        
         cursor.execute("""
             SELECT a.*, u.First_Name, u.Last_Name, c.Name as Course_Name
             FROM [Assessment] a
@@ -1190,7 +1209,9 @@ def get_all_assessments():
         return jsonify(result)
     except Exception as e:
         print(f'Get all assessments error: {e}')
-        return jsonify({'success': False, 'error': 'Failed to fetch assessments'}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch assessments: {str(e)}'}), 500
 
 @admin_bp.route('/assessments/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['PUT'])
 def update_assessment_grade(university_id, section_id, course_id, semester, assessment_id):

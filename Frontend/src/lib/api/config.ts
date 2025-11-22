@@ -3,7 +3,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 
 export const apiConfig = {
   baseURL: API_BASE_URL,
-  timeout: 3000, // Reduced timeout for faster fallback to mock data
+  timeout: 30000, // 30 seconds timeout for database queries
   headers: {
     'Content-Type': 'application/json',
   },
