@@ -41,8 +41,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { adminService, type AdminCourse, type CourseEnrollmentByCourse, type CourseDistributionByCredit, type TopCourseByEnrollment, type CourseAverageGrade, type CourseEnrollmentTrendOverTime, type CourseStatusDistribution, type CourseActivityStatistics } from '@/lib/api/adminService'
-import { BookOpen, Edit2, Trash2, Eye, ArrowUpDown, MoreHorizontal, ChevronDown, Loader2, BarChart3 } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { adminService, type AdminCourse, type CourseEnrollmentByCourse, type CourseDistributionByCredit, type TopCourseByEnrollment, type CourseAverageGrade, type CourseEnrollmentTrendOverTime, type CourseStatusDistribution, type CourseActivityStatistics, type Room, type Building, type RoomEquipment } from '@/lib/api/adminService'
+import { BookOpen, Edit2, Trash2, Eye, ArrowUpDown, MoreHorizontal, ChevronDown, Loader2, BarChart3, Plus, MapPin, Grid, List, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { 
   useNeoBrutalismMode, 
@@ -107,6 +112,31 @@ export default function CourseManagementPage() {
     Start_Date: '',
   })
 
+  // Room Management state
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [buildings, setBuildings] = useState<Building[]>([])
+  const [loadingRooms, setLoadingRooms] = useState(false)
+  const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false)
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null)
+  const [roomFormData, setRoomFormData] = useState({
+    Building_Name: '',
+    Room_Name: '',
+    Capacity: '',
+  })
+  const [roomSearchQuery, setRoomSearchQuery] = useState('')
+  const [selectedBuildingFilter, setSelectedBuildingFilter] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'courses' | 'rooms'>('courses')
+  const [roomSortBy, setRoomSortBy] = useState<'building' | 'roomName' | 'capacity' | 'usage'>('building')
+  const [roomSortOrder, setRoomSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [roomViewMode, setRoomViewMode] = useState<'table' | 'grid'>('table')
+  const [groupByBuilding, setGroupByBuilding] = useState(false)
+  const [roomPageSize, setRoomPageSize] = useState(50)
+  const [roomCurrentPage, setRoomCurrentPage] = useState(1)
+  const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set())
+  const [selectedFloors, setSelectedFloors] = useState<{ [buildingName: string]: string | null }>({})
+  const [roomEquipment, setRoomEquipment] = useState<{ [key: string]: RoomEquipment[] }>({})
+  const [loadingEquipment, setLoadingEquipment] = useState<{ [key: string]: boolean }>({})
+
   useEffect(() => {
     loadCourses()
     loadStatistics()
@@ -118,6 +148,305 @@ export default function CourseManagementPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAdvancedStatistics, trendGroupBy])
+
+  useEffect(() => {
+    if (activeTab === 'rooms') {
+      loadBuildings()
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab === 'rooms') {
+      const timeoutId = setTimeout(() => {
+        loadRooms()
+      }, 300) // Debounce search by 300ms
+      return () => clearTimeout(timeoutId)
+    }
+  }, [activeTab, roomSearchQuery, selectedBuildingFilter])
+
+  const loadRooms = async () => {
+    try {
+      setLoadingRooms(true)
+      const data = await adminService.getRooms({
+        building_name: selectedBuildingFilter || undefined,
+        search: roomSearchQuery || undefined,
+      })
+      setRooms(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ API getRooms failed:', error)
+    } finally {
+      setLoadingRooms(false)
+    }
+  }
+
+  const loadBuildings = async () => {
+    try {
+      const data = await adminService.getBuildings()
+      setBuildings(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ API getBuildings failed:', error)
+    }
+  }
+
+  const handleAddRoom = () => {
+    setEditingRoom(null)
+    setRoomFormData({
+      Building_Name: '',
+      Room_Name: '',
+      Capacity: '',
+    })
+    setIsRoomDialogOpen(true)
+  }
+
+  const handleEditRoom = (room: Room) => {
+    setEditingRoom(room)
+    setRoomFormData({
+      Building_Name: room.Building_Name,
+      Room_Name: room.Room_Name,
+      Capacity: room.Capacity?.toString() || '',
+    })
+    setIsRoomDialogOpen(true)
+  }
+
+  const handleSaveRoom = async () => {
+    try {
+      if (editingRoom) {
+        await adminService.updateRoom(
+          editingRoom.Building_Name,
+          editingRoom.Room_Name,
+          {
+            Capacity: roomFormData.Capacity ? parseInt(roomFormData.Capacity) : undefined,
+          }
+        )
+      } else {
+        await adminService.createRoom({
+          Building_Name: roomFormData.Building_Name,
+          Room_Name: roomFormData.Room_Name,
+          Capacity: roomFormData.Capacity ? parseInt(roomFormData.Capacity) : 30,
+        })
+      }
+      setIsRoomDialogOpen(false)
+      loadRooms()
+    } catch (error) {
+      console.error('Failed to save room:', error)
+      alert(t('admin.errorSavingRoom') || 'Failed to save room')
+    }
+  }
+
+  const handleDeleteRoom = async (room: Room) => {
+    if (!confirm(`${t('admin.confirmDeleteRoom')} ${room.Room_Name} in ${room.Building_Name}?`)) {
+      return
+    }
+    try {
+      await adminService.deleteRoom(room.Building_Name, room.Room_Name)
+      loadRooms()
+    } catch (error) {
+      console.error('Failed to delete room:', error)
+      alert(t('admin.errorDeletingRoom') || 'Failed to delete room. Make sure the room is not assigned to any sections.')
+    }
+  }
+
+  const loadRoomEquipment = async (buildingName: string, roomName: string) => {
+    const key = `${buildingName}-${roomName}`
+    if (roomEquipment[key]) {
+      // Already loaded
+      return
+    }
+    
+    setLoadingEquipment(prev => ({ ...prev, [key]: true }))
+    try {
+      const equipment = await adminService.getRoomEquipment(buildingName, roomName)
+      setRoomEquipment(prev => ({ ...prev, [key]: equipment }))
+    } catch (error) {
+      console.error('Failed to load room equipment:', error)
+      setRoomEquipment(prev => ({ ...prev, [key]: [] }))
+    } finally {
+      setLoadingEquipment(prev => ({ ...prev, [key]: false }))
+    }
+  }
+
+  // Sort and paginate rooms
+  const sortedAndPaginatedRooms = useMemo(() => {
+    let sorted = [...rooms]
+    
+    // Sort
+    sorted.sort((a, b) => {
+      let comparison = 0
+      switch (roomSortBy) {
+        case 'building':
+          comparison = a.Building_Name.localeCompare(b.Building_Name)
+          break
+        case 'roomName':
+          comparison = a.Room_Name.localeCompare(b.Room_Name)
+          break
+        case 'capacity':
+          comparison = (a.Capacity || 0) - (b.Capacity || 0)
+          break
+        case 'usage':
+          comparison = (a.UsageCount || 0) - (b.UsageCount || 0)
+          break
+      }
+      return roomSortOrder === 'asc' ? comparison : -comparison
+    })
+
+    // Group by building if enabled
+    if (groupByBuilding) {
+      const grouped: { [key: string]: Room[] } = {}
+      sorted.forEach(room => {
+        if (!grouped[room.Building_Name]) {
+          grouped[room.Building_Name] = []
+        }
+        grouped[room.Building_Name].push(room)
+      })
+      return grouped
+    }
+
+    // Paginate
+    const startIndex = (roomCurrentPage - 1) * roomPageSize
+    const endIndex = startIndex + roomPageSize
+    return sorted.slice(startIndex, endIndex)
+  }, [rooms, roomSortBy, roomSortOrder, groupByBuilding, roomCurrentPage, roomPageSize])
+
+
+  const totalRooms = rooms.length
+  const totalPages = Math.ceil(totalRooms / roomPageSize)
+  const startIndex = (roomCurrentPage - 1) * roomPageSize + 1
+  const endIndex = Math.min(roomCurrentPage * roomPageSize, totalRooms)
+
+  const handleSortChange = (newSortBy: typeof roomSortBy) => {
+    if (roomSortBy === newSortBy) {
+      setRoomSortOrder(roomSortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setRoomSortBy(newSortBy)
+      setRoomSortOrder('asc')
+    }
+    setRoomCurrentPage(1)
+  }
+
+  // Helper function to extract floor from room name (e.g., "101" -> "1")
+  // Helper function to extract floor from room name (e.g., "101" -> "1")
+  // Assumes room naming: 3-digit rooms (101-699) where first digit is floor
+  // For non-numeric or invalid formats, return empty string
+  const getFloorFromRoomName = (roomName: string): string => {
+    if (!roomName) return ''
+    
+    // Extract numeric part (remove any non-numeric characters)
+    const numericPart = roomName.replace(/\D/g, '')
+    
+    // For 3-digit rooms (101-699), first digit is floor (1-6)
+    if (numericPart.length === 3) {
+      const firstDigit = numericPart[0]
+      const floorNum = parseInt(firstDigit)
+      // Only return if floor is 1-6 (max floors per building)
+      if (floorNum >= 1 && floorNum <= 6) {
+        return firstDigit
+      }
+    }
+    
+    // For other formats, try to extract first digit if it's 1-6
+    if (numericPart.length > 0) {
+      const firstDigit = numericPart[0]
+      const floorNum = parseInt(firstDigit)
+      if (floorNum >= 1 && floorNum <= 6) {
+        return firstDigit
+      }
+    }
+    
+    return ''
+  }
+
+  // Helper function to extract room number from room name (e.g., "101" -> "01")
+  const getRoomNumberFromRoomName = (roomName: string): string => {
+    if (roomName && roomName.length >= 2) {
+      return roomName.slice(1)
+    }
+    return ''
+  }
+
+  // Helper function to group rooms by floor
+  const groupRoomsByFloor = (rooms: Room[]): { [floor: string]: Room[] } => {
+    const grouped: { [floor: string]: Room[] } = {}
+    rooms.forEach(room => {
+      const floor = getFloorFromRoomName(room.Room_Name)
+      if (!grouped[floor]) {
+        grouped[floor] = []
+      }
+      grouped[floor].push(room)
+    })
+    // Sort rooms within each floor by room number
+    Object.keys(grouped).forEach(floor => {
+      grouped[floor].sort((a, b) => {
+        const aNum = parseInt(getRoomNumberFromRoomName(a.Room_Name)) || 0
+        const bNum = parseInt(getRoomNumberFromRoomName(b.Room_Name)) || 0
+        return aNum - bNum
+      })
+    })
+    return grouped
+  }
+
+  // Helper function to create room range string (e.g., "101->106")
+  const createRoomRange = (rooms: Room[]): string => {
+    if (rooms.length === 0) return ''
+    if (rooms.length === 1) return rooms[0].Room_Name
+    
+    const sorted = [...rooms].sort((a, b) => {
+      const aNum = parseInt(getRoomNumberFromRoomName(a.Room_Name)) || 0
+      const bNum = parseInt(getRoomNumberFromRoomName(b.Room_Name)) || 0
+      return aNum - bNum
+    })
+    
+    const first = sorted[0].Room_Name
+    const last = sorted[sorted.length - 1].Room_Name
+    
+    // Check if rooms are consecutive
+    let isConsecutive = true
+    for (let i = 1; i < sorted.length; i++) {
+      const prevNum = parseInt(getRoomNumberFromRoomName(sorted[i - 1].Room_Name)) || 0
+      const currNum = parseInt(getRoomNumberFromRoomName(sorted[i].Room_Name)) || 0
+      if (currNum !== prevNum + 1) {
+        isConsecutive = false
+        break
+      }
+    }
+    
+    if (isConsecutive) {
+      return `${first}->${last}`
+    }
+    
+    // If not consecutive, show first and last with count
+    return `${first}...${last} (${rooms.length})`
+  }
+
+  // Toggle building expansion
+  const toggleBuilding = (buildingName: string) => {
+    setExpandedBuildings(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(buildingName)) {
+        newSet.delete(buildingName)
+      } else {
+        newSet.add(buildingName)
+      }
+      return newSet
+    })
+  }
+
+  // Get unique floors from rooms
+  const getUniqueFloors = (rooms: Room[]): string[] => {
+    const floors = new Set<string>()
+    rooms.forEach(room => {
+      const floor = getFloorFromRoomName(room.Room_Name)
+      if (floor) floors.add(floor)
+    })
+    return Array.from(floors).sort()
+  }
+
+  // Handle floor selection for a building
+  const handleFloorSelect = (buildingName: string, floor: string | null) => {
+    setSelectedFloors(prev => ({
+      ...prev,
+      [buildingName]: prev[buildingName] === floor ? null : floor
+    }))
+  }
 
   const loadCourses = async () => {
     try {
@@ -664,6 +993,19 @@ export default function CourseManagementPage() {
           </p>
         </div>
 
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'courses' | 'rooms')}>
+          <TabsList className={cn(
+            "grid w-full grid-cols-2",
+            neoBrutalismMode 
+              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+              : ""
+          )}>
+            <TabsTrigger value="courses">{t('admin.courses')}</TabsTrigger>
+            <TabsTrigger value="rooms">{t('admin.rooms') || 'Rooms'}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="courses" className="space-y-6 mt-6">
         {/* Statistics Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
@@ -1449,6 +1791,1084 @@ export default function CourseManagementPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </TabsContent>
+
+          <TabsContent value="rooms" className="space-y-6 mt-6">
+            {/* Room Management Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className={cn(
+                  "text-2xl font-bold text-[#211c37] dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>
+                  {t('admin.roomManagement') || 'Room Management'}
+                </h2>
+                <p className={cn(
+                  "text-[#85878d] dark:text-gray-400 mt-1",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>
+                  {t('admin.roomManagementSubtitle') || 'Manage rooms and building assignments'}
+                </p>
+              </div>
+              <Button
+                onClick={handleAddRoom}
+                className={cn(
+                  neoBrutalismMode 
+                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                    : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+                )}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('admin.addRoom') || 'Add Room'}
+              </Button>
+            </div>
+
+            {/* Room Filters */}
+            <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.search') || 'Search'}
+                    </Label>
+                    <Input
+                      placeholder={t('admin.searchRooms') || 'Search by building or room ID...'}
+                      value={roomSearchQuery}
+                      onChange={(e) => setRoomSearchQuery(e.target.value)}
+                      className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.building') || 'Building'}
+                    </Label>
+                    <select
+                      value={selectedBuildingFilter || ''}
+                      onChange={(e) => setSelectedBuildingFilter(e.target.value || null)}
+                      className={cn(
+                        "w-full px-3 py-2 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white border rounded-md",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : "border-[#e5e7e7] dark:border-[#333]"
+                      )}
+                    >
+                      <option value="">{t('admin.allBuildings') || 'All Buildings'}</option>
+                      {buildings.map((building) => (
+                        <option key={building.Building_Name} value={building.Building_Name}>
+                          {building.Building_Name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Rooms Controls */}
+            <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+              <CardContent className="pt-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-sm text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                    )}>
+                      {t('admin.totalRooms')}: <strong>{totalRooms}</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Sort Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            neoBrutalismMode 
+                              ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                              : ""
+                          )}
+                        >
+                          <ArrowUpDown className="h-4 w-4 mr-2" />
+                          {t('admin.sortBy')}: {t(`admin.sortBy${roomSortBy.charAt(0).toUpperCase() + roomSortBy.slice(1)}` as any) || roomSortBy}
+                          {roomSortOrder === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>{t('admin.sortBy')}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuCheckboxItem
+                          checked={roomSortBy === 'building'}
+                          onCheckedChange={() => handleSortChange('building')}
+                        >
+                          {t('admin.sortByBuilding')}
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                          checked={roomSortBy === 'roomName'}
+                          onCheckedChange={() => handleSortChange('roomName')}
+                        >
+                          {t('admin.sortByRoomName')}
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                          checked={roomSortBy === 'capacity'}
+                          onCheckedChange={() => handleSortChange('capacity')}
+                        >
+                          {t('admin.sortByCapacity')}
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                          checked={roomSortBy === 'usage'}
+                          onCheckedChange={() => handleSortChange('usage')}
+                        >
+                          {t('admin.sortByUsage')}
+                        </DropdownMenuCheckboxItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center gap-1 border rounded-md p-1">
+                      <Button
+                        variant={roomViewMode === 'table' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setRoomViewMode('table')}
+                        className={cn(
+                          "h-8 px-3",
+                          roomViewMode === 'table' && "bg-[#3bafa8] text-white"
+                        )}
+                      >
+                        <List className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant={roomViewMode === 'grid' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setRoomViewMode('grid')}
+                        className={cn(
+                          "h-8 px-3",
+                          roomViewMode === 'grid' && "bg-[#3bafa8] text-white"
+                        )}
+                      >
+                        <Grid className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Group by Building Toggle */}
+                    <Button
+                      variant={groupByBuilding ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setGroupByBuilding(!groupByBuilding)
+                        setRoomCurrentPage(1)
+                        if (!groupByBuilding) {
+                          // When enabling group by building, collapse all
+                          setExpandedBuildings(new Set())
+                        }
+                      }}
+                      className={cn(
+                        groupByBuilding && "bg-[#3bafa8] text-white",
+                        neoBrutalismMode 
+                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, groupByBuilding ? 'primary' : 'outline')
+                          : ""
+                      )}
+                    >
+                      {t('admin.groupByBuilding')}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Rooms Table/Grid */}
+            <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className={cn(
+                    "text-xl text-[#1f1d39] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                  )}>
+                    {t('admin.rooms') || 'Rooms'}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Label className={cn(
+                      "text-sm text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                    )}>
+                      {t('admin.roomsPerPage')}:
+                    </Label>
+                    <select
+                      value={roomPageSize}
+                      onChange={(e) => {
+                        setRoomPageSize(Number(e.target.value))
+                        setRoomCurrentPage(1)
+                      }}
+                      className={cn(
+                        "px-2 py-1 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white border rounded-md text-sm",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : "border-[#e5e7e7] dark:border-[#333]"
+                      )}
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={200}>200</option>
+                    </select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingRooms ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#3bafa8]" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {groupByBuilding && typeof sortedAndPaginatedRooms === 'object' && !Array.isArray(sortedAndPaginatedRooms) ? (
+                      // Grouped view with collapse/expand
+                      Object.entries(sortedAndPaginatedRooms).map(([buildingName, buildingRooms]) => {
+                        const isExpanded = expandedBuildings.has(buildingName)
+                        const roomsByFloor = groupRoomsByFloor(buildingRooms)
+                        const floors = getUniqueFloors(buildingRooms)
+                        const selectedFloor = selectedFloors[buildingName] || null
+                        const filteredFloors = selectedFloor ? [selectedFloor] : floors
+                        
+                        return (
+                          <div key={buildingName} className="space-y-2">
+                            {/* Building Header - Clickable to expand/collapse */}
+                            <div 
+                              className={cn(
+                                "flex items-center gap-2 p-3 bg-[#f5f5f5] dark:bg-[#2a2a2a] rounded-md cursor-pointer hover:bg-[#e5e5e5] dark:hover:bg-[#333] transition-colors",
+                                neoBrutalismMode 
+                                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                  : ""
+                              )}
+                              onClick={() => toggleBuilding(buildingName)}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-5 w-5 text-[#3bafa8]" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5 text-[#3bafa8]" />
+                              )}
+                              <MapPin className="h-5 w-5 text-[#3bafa8]" />
+                              <span className={cn(
+                                "font-bold text-lg text-[#211c37] dark:text-white flex-1",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                              )}>
+                                {buildingName}
+                              </span>
+                              <Badge variant="secondary" className="ml-2">
+                                {buildingRooms.length} {t('admin.rooms')}
+                              </Badge>
+                            </div>
+                            
+                            {/* Expanded Content */}
+                            {isExpanded && (
+                              <div className="space-y-3 pl-6">
+                                {/* Floor Filter */}
+                                {floors.length > 1 && (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Label className={cn(
+                                      "text-sm text-[#211c37] dark:text-white",
+                                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                    )}>
+                                      {t('admin.filterByFloor') || 'Filter by Floor'}:
+                                    </Label>
+                                    <Button
+                                      variant={selectedFloor === null ? 'default' : 'outline'}
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleFloorSelect(buildingName, null)
+                                      }}
+                                      className={cn(
+                                        selectedFloor === null && "bg-[#3bafa8] text-white",
+                                        neoBrutalismMode 
+                                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, selectedFloor === null ? 'primary' : 'outline')
+                                          : ""
+                                      )}
+                                    >
+                                      {t('admin.all') || 'All'}
+                                    </Button>
+                                    {floors.map(floor => (
+                                      <Button
+                                        key={floor}
+                                        variant={selectedFloor === floor ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleFloorSelect(buildingName, floor)
+                                        }}
+                                        className={cn(
+                                          selectedFloor === floor && "bg-[#3bafa8] text-white",
+                                          neoBrutalismMode 
+                                            ? getNeoBrutalismButtonClasses(neoBrutalismMode, selectedFloor === floor ? 'primary' : 'outline')
+                                            : ""
+                                        )}
+                                      >
+                                        {t('admin.floor') || 'Floor'} {floor}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Rooms by Floor */}
+                                {filteredFloors.map(floor => {
+                                  const floorRooms = roomsByFloor[floor] || []
+                                  if (floorRooms.length === 0) return null
+                                  
+                                  const roomRange = createRoomRange(floorRooms)
+                                  
+                                  return (
+                                    <div key={floor} className="space-y-2">
+                                      <div className={cn(
+                                        "flex items-center gap-2 p-2 bg-[#fafafa] dark:bg-[#252525] rounded-md",
+                                        neoBrutalismMode 
+                                          ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                          : ""
+                                      )}>
+                                        <span className={cn(
+                                          "font-semibold text-[#211c37] dark:text-white",
+                                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                        )}>
+                                          {t('admin.floor') || 'Floor'} {floor}
+                                        </span>
+                                        <Badge variant="outline" className="ml-2">
+                                          {roomRange}
+                                        </Badge>
+                                        <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
+                                          {floorRooms.length} {t('admin.rooms')}
+                                        </span>
+                                      </div>
+                                      
+                                      <div className={cn(
+                                        "border rounded-md overflow-hidden",
+                                        neoBrutalismMode 
+                                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                          : "border-[#e5e7e7] dark:border-[#333]"
+                                      )}>
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead className="w-20">{t('admin.roomId')}</TableHead>
+                                              <TableHead>{t('admin.roomName')}</TableHead>
+                                              <TableHead className="text-center">{t('admin.capacity')}</TableHead>
+                                              <TableHead className="text-center">{t('admin.usage')}</TableHead>
+                                              <TableHead className="text-center">{t('admin.equipment')}</TableHead>
+                                              <TableHead className="text-right">{t('admin.actions')}</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {floorRooms.map((room) => (
+                                              <TableRow key={`${room.Building_Name}-${room.Room_Name}`}>
+                                                <TableCell className="text-sm text-gray-500">
+                                                  {room.Room_ID}
+                                                </TableCell>
+                                                <TableCell>
+                                                  <Badge className={cn(
+                                                    neoBrutalismMode 
+                                                      ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                      : ""
+                                                  )}>
+                                                    {room.Room_Name}
+                                                  </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                  {room.Capacity || '-'}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                  <Badge variant={room.UsageCount && room.UsageCount > 0 ? 'default' : 'secondary'}>
+                                                    {room.UsageCount || 0}
+                                                  </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                  {room.EquipmentCount && room.EquipmentCount > 0 ? (
+                                                    <Popover>
+                                                      <PopoverTrigger asChild>
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-auto p-1"
+                                                          onClick={() => {
+                                                            const key = `${room.Building_Name}-${room.Room_Name}`
+                                                            if (!roomEquipment[key]) {
+                                                              loadRoomEquipment(room.Building_Name, room.Room_Name)
+                                                            }
+                                                          }}
+                                                        >
+                                                          <Badge 
+                                                            variant="default" 
+                                                            className="cursor-pointer hover:bg-primary/80 transition-colors flex items-center gap-1"
+                                                          >
+                                                            <Wrench className="h-3 w-3" />
+                                                            {room.EquipmentCount}
+                                                          </Badge>
+                                                        </Button>
+                                                      </PopoverTrigger>
+                                                      <PopoverContent 
+                                                        className={cn(
+                                                          "w-80 p-0",
+                                                          neoBrutalismMode 
+                                                            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                            : ""
+                                                        )}
+                                                        align="center"
+                                                      >
+                                                        <div className="p-3">
+                                                          <div className="flex items-center justify-between mb-2">
+                                                            <h4 className={cn(
+                                                              "font-semibold text-sm",
+                                                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                                            )}>
+                                                              {t('admin.equipment')} - {room.Building_Name} {room.Room_Name}
+                                                            </h4>
+                                                          </div>
+                                                          <ScrollArea className="h-[200px] pr-4">
+                                                            {loadingEquipment[`${room.Building_Name}-${room.Room_Name}`] ? (
+                                                              <div className="flex items-center justify-center py-8">
+                                                                <Loader2 className="h-5 w-5 animate-spin text-[#3bafa8]" />
+                                                              </div>
+                                                            ) : (
+                                                              <div className="flex flex-wrap gap-2">
+                                                                {roomEquipment[`${room.Building_Name}-${room.Room_Name}`]?.length > 0 ? (
+                                                                  roomEquipment[`${room.Building_Name}-${room.Room_Name}`].map((eq, idx) => (
+                                                                    <Badge 
+                                                                      key={idx} 
+                                                                      variant="outline" 
+                                                                      className={cn(
+                                                                        "text-xs py-1 px-2",
+                                                                        neoBrutalismMode 
+                                                                          ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                                          : ""
+                                                                      )}
+                                                                    >
+                                                                      {eq.Equipment_Name}
+                                                                    </Badge>
+                                                                  ))
+                                                                ) : (
+                                                                  <span className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                                                                    {t('admin.noEquipment')}
+                                                                  </span>
+                                                                )}
+                                                              </div>
+                                                            )}
+                                                          </ScrollArea>
+                                                        </div>
+                                                      </PopoverContent>
+                                                    </Popover>
+                                                  ) : (
+                                                    <Badge variant="secondary">
+                                                      0
+                                                    </Badge>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                  <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => handleEditRoom(room)}
+                                                      className={cn(
+                                                        neoBrutalismMode 
+                                                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                                          : ""
+                                                      )}
+                                                    >
+                                                      <Edit2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => handleDeleteRoom(room)}
+                                                      className={cn(
+                                                        "text-red-600 hover:text-red-700",
+                                                        neoBrutalismMode 
+                                                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                                          : ""
+                                                      )}
+                                                    >
+                                                      <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                  </div>
+                                                </TableCell>
+                                              </TableRow>
+                                            ))}
+                                          </TableBody>
+                                        </Table>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
+                    ) : (
+                      // Table or Grid view
+                      <div className={cn(
+                        "border rounded-md overflow-hidden",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : "border-[#e5e7e7] dark:border-[#333]"
+                      )}>
+                        {roomViewMode === 'table' ? (
+                          <div className="max-h-[600px] overflow-auto">
+                            <Table>
+                              <TableHeader className="sticky top-0 bg-white dark:bg-[#1a1a1a] z-10">
+                                <TableRow>
+                                  <TableHead 
+                                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                    onClick={() => handleSortChange('building')}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {t('admin.building')}
+                                      {roomSortBy === 'building' && (
+                                        roomSortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                      )}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead 
+                                    className="text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                    onClick={() => handleSortChange('roomName')}
+                                  >
+                                    <div className="flex items-center justify-center gap-2">
+                                      {t('admin.roomName')}
+                                      {roomSortBy === 'roomName' && (
+                                        roomSortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                      )}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead 
+                                    className="text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                    onClick={() => handleSortChange('capacity')}
+                                  >
+                                    <div className="flex items-center justify-center gap-2">
+                                      {t('admin.capacity')}
+                                      {roomSortBy === 'capacity' && (
+                                        roomSortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                      )}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead 
+                                    className="text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                    onClick={() => handleSortChange('usage')}
+                                  >
+                                    <div className="flex items-center justify-center gap-2">
+                                      {t('admin.usage')}
+                                      {roomSortBy === 'usage' && (
+                                        roomSortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                      )}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="text-center">{t('admin.equipment')}</TableHead>
+                                  <TableHead className="text-right">{t('admin.actions')}</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {Array.isArray(sortedAndPaginatedRooms) && sortedAndPaginatedRooms.length > 0 ? (
+                                  sortedAndPaginatedRooms.map((room) => (
+                                    <TableRow key={`${room.Building_Name}-${room.Room_Name}`}>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          <MapPin className="h-4 w-4 text-[#3bafa8]" />
+                                          <span className={cn(
+                                            "font-medium text-[#211c37] dark:text-white",
+                                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                          )}>
+                                            {room.Building_Name}
+                                          </span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Badge className={cn(
+                                          neoBrutalismMode 
+                                            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                            : ""
+                                        )}>
+                                          {room.Room_Name}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        {room.Capacity || '-'}
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Badge variant={room.UsageCount && room.UsageCount > 0 ? 'default' : 'secondary'}>
+                                          {room.UsageCount || 0} {t('admin.sections')}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        {room.EquipmentCount && room.EquipmentCount > 0 ? (
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-auto p-1"
+                                                onClick={() => {
+                                                  const key = `${room.Building_Name}-${room.Room_Name}`
+                                                  if (!roomEquipment[key]) {
+                                                    loadRoomEquipment(room.Building_Name, room.Room_Name)
+                                                  }
+                                                }}
+                                              >
+                                                <Badge 
+                                                  variant="default" 
+                                                  className="cursor-pointer hover:bg-primary/80 transition-colors flex items-center gap-1"
+                                                >
+                                                  <Wrench className="h-3 w-3" />
+                                                  {room.EquipmentCount} {t('admin.equipment')}
+                                                </Badge>
+                                              </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent 
+                                              className={cn(
+                                                "w-80 p-0",
+                                                neoBrutalismMode 
+                                                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                  : ""
+                                              )}
+                                              align="center"
+                                            >
+                                              <div className="p-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                  <h4 className={cn(
+                                                    "font-semibold text-sm",
+                                                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                                  )}>
+                                                    {t('admin.equipment')} - {room.Building_Name} {room.Room_Name}
+                                                  </h4>
+                                                </div>
+                                                <ScrollArea className="h-[200px] pr-4">
+                                                  {loadingEquipment[`${room.Building_Name}-${room.Room_Name}`] ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                      <Loader2 className="h-5 w-5 animate-spin text-[#3bafa8]" />
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                      {roomEquipment[`${room.Building_Name}-${room.Room_Name}`]?.length > 0 ? (
+                                                        roomEquipment[`${room.Building_Name}-${room.Room_Name}`].map((eq, idx) => (
+                                                          <Badge 
+                                                            key={idx} 
+                                                            variant="outline" 
+                                                            className={cn(
+                                                              "text-xs py-1 px-2",
+                                                              neoBrutalismMode 
+                                                                ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                                : ""
+                                                            )}
+                                                          >
+                                                            {eq.Equipment_Name}
+                                                          </Badge>
+                                                        ))
+                                                      ) : (
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                                                          {t('admin.noEquipment')}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </ScrollArea>
+                                              </div>
+                                            </PopoverContent>
+                                          </Popover>
+                                        ) : (
+                                          <Badge variant="secondary">
+                                            0 {t('admin.equipment')}
+                                          </Badge>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleEditRoom(room)}
+                                            className={cn(
+                                              neoBrutalismMode 
+                                                ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                                : ""
+                                            )}
+                                          >
+                                            <Edit2 className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteRoom(room)}
+                                            className={cn(
+                                              "text-red-600 hover:text-red-700",
+                                              neoBrutalismMode 
+                                                ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                                : ""
+                                            )}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">
+                                      {t('admin.noRooms')}
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          // Grid view
+                          <div className="p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                              {Array.isArray(sortedAndPaginatedRooms) && sortedAndPaginatedRooms.map((room) => (
+                                <Card 
+                                  key={`${room.Building_Name}-${room.Room_Name}`}
+                                  className={cn(
+                                    "p-4",
+                                    getNeoBrutalismCardClasses(neoBrutalismMode)
+                                  )}
+                                >
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-[#3bafa8]" />
+                                        <span className={cn(
+                                          "text-sm font-medium text-[#211c37] dark:text-white",
+                                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                        )}>
+                                          {room.Building_Name}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Badge className={cn(
+                                        "text-lg",
+                                        neoBrutalismMode 
+                                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                          : ""
+                                      )}>
+                                        {room.Room_Name}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-600 dark:text-gray-400">
+                                        {t('admin.capacity')}: <strong>{room.Capacity || '-'}</strong>
+                                      </span>
+                                      <Badge variant={room.UsageCount && room.UsageCount > 0 ? 'default' : 'secondary'}>
+                                        {room.UsageCount || 0} {t('admin.sections')}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-600 dark:text-gray-400">
+                                        {t('admin.equipment')}:
+                                      </span>
+                                      {room.EquipmentCount && room.EquipmentCount > 0 ? (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-auto p-1"
+                                              onClick={() => {
+                                                const key = `${room.Building_Name}-${room.Room_Name}`
+                                                if (!roomEquipment[key]) {
+                                                  loadRoomEquipment(room.Building_Name, room.Room_Name)
+                                                }
+                                              }}
+                                            >
+                                              <Badge 
+                                                variant="default" 
+                                                className="cursor-pointer hover:bg-primary/80 transition-colors flex items-center gap-1"
+                                              >
+                                                <Wrench className="h-3 w-3" />
+                                                {room.EquipmentCount}
+                                              </Badge>
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent 
+                                            className={cn(
+                                              "w-80 p-0",
+                                              neoBrutalismMode 
+                                                ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                : ""
+                                            )}
+                                            align="end"
+                                          >
+                                            <div className="p-3">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <h4 className={cn(
+                                                  "font-semibold text-sm",
+                                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                                )}>
+                                                  {t('admin.equipment')} - {room.Building_Name} {room.Room_Name}
+                                                </h4>
+                                              </div>
+                                              <ScrollArea className="h-[200px] pr-4">
+                                                {loadingEquipment[`${room.Building_Name}-${room.Room_Name}`] ? (
+                                                  <div className="flex items-center justify-center py-8">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-[#3bafa8]" />
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {roomEquipment[`${room.Building_Name}-${room.Room_Name}`]?.length > 0 ? (
+                                                      roomEquipment[`${room.Building_Name}-${room.Room_Name}`].map((eq, idx) => (
+                                                        <Badge 
+                                                          key={idx} 
+                                                          variant="outline" 
+                                                          className={cn(
+                                                            "text-xs py-1 px-2",
+                                                            neoBrutalismMode 
+                                                              ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                              : ""
+                                                          )}
+                                                        >
+                                                          {eq.Equipment_Name}
+                                                        </Badge>
+                                                      ))
+                                                    ) : (
+                                                      <span className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                                                        {t('admin.noEquipment')}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </ScrollArea>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      ) : (
+                                        <Badge variant="secondary">
+                                          0
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEditRoom(room)}
+                                        className={cn(
+                                          neoBrutalismMode 
+                                            ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                            : ""
+                                        )}
+                                      >
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteRoom(room)}
+                                        className={cn(
+                                          "text-red-600 hover:text-red-700",
+                                          neoBrutalismMode 
+                                            ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                            : ""
+                                        )}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                            {Array.isArray(sortedAndPaginatedRooms) && sortedAndPaginatedRooms.length === 0 && (
+                              <div className="text-center py-12">
+                                <p className={cn(
+                                  "text-gray-500 dark:text-gray-400",
+                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                )}>
+                                  {t('admin.noRooms')}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div className={cn(
+                          "text-sm text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                        )}>
+                          {t('admin.showingResults')} <strong>{startIndex}</strong> - <strong>{endIndex}</strong> {t('admin.of')} <strong>{totalRooms}</strong>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRoomCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={roomCurrentPage === 1}
+                            className={cn(
+                              neoBrutalismMode 
+                                ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                : ""
+                            )}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <div className={cn(
+                            "px-4 py-2 text-sm",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                          )}>
+                            {t('admin.page')} {roomCurrentPage} {t('admin.of')} {totalPages}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRoomCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={roomCurrentPage === totalPages}
+                            className={cn(
+                              neoBrutalismMode 
+                                ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                : ""
+                            )}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Add/Edit Room Dialog */}
+            <Dialog open={isRoomDialogOpen} onOpenChange={setIsRoomDialogOpen}>
+              <DialogContent className={cn(
+                "bg-white dark:bg-[#1a1a1a] max-w-md",
+                neoBrutalismMode 
+                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[8px_8px_0px_0px_rgba(26,26,26,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,251,235,1)]"
+                  : "border-[#e5e7e7] dark:border-[#333]"
+              )}>
+                <DialogHeader>
+                  <DialogTitle className={cn(
+                    "text-[#211c37] dark:text-white text-xl",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                  )}>
+                    {editingRoom ? t('admin.editRoom') || 'Edit Room' : t('admin.addRoom') || 'Add Room'}
+                  </DialogTitle>
+                  <DialogDescription className={cn(
+                    "text-gray-600 dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {editingRoom ? t('admin.updateRoomInfo') || 'Update room information' : t('admin.fillInfoToCreateRoom') || 'Fill in the information to create a new room'}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="room-building" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.building') || 'Building'} *
+                    </Label>
+                    <select
+                      id="room-building"
+                      value={roomFormData.Building_Name}
+                      onChange={(e) => setRoomFormData({ ...roomFormData, Building_Name: e.target.value })}
+                      disabled={!!editingRoom}
+                      className={cn(
+                        "w-full px-3 py-2 bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white border rounded-md",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : "border-[#e5e7e7] dark:border-[#333]"
+                      )}
+                    >
+                      <option value="">{t('admin.selectBuilding') || 'Select a building'}</option>
+                      {buildings.map((building) => (
+                        <option key={building.Building_Name} value={building.Building_Name}>
+                          {building.Building_Name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="room-name" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.roomName') || 'Room Name'} *
+                    </Label>
+                    <Input
+                      id="room-name"
+                      value={roomFormData.Room_Name}
+                      onChange={(e) => setRoomFormData({ ...roomFormData, Room_Name: e.target.value })}
+                      placeholder="101"
+                      disabled={!!editingRoom}
+                      className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="room-capacity" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.capacity') || 'Capacity'}
+                    </Label>
+                    <Input
+                      id="room-capacity"
+                      type="number"
+                      value={roomFormData.Capacity}
+                      onChange={(e) => setRoomFormData({ ...roomFormData, Capacity: e.target.value })}
+                      placeholder="30"
+                      className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsRoomDialogOpen(false)}
+                    className={cn(
+                      "border-[#e5e7e7] dark:border-[#333]",
+                      neoBrutalismMode 
+                        ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                        : ""
+                    )}
+                  >
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
+                  </Button>
+                  <Button
+                    onClick={handleSaveRoom}
+                    disabled={!roomFormData.Building_Name || (!editingRoom && !roomFormData.Room_Name)}
+                    className={cn(
+                      neoBrutalismMode 
+                        ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                        : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+                    )}
+                  >
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
+                      {editingRoom ? t('admin.update') : t('admin.addNew')}
+                    </span>
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   )

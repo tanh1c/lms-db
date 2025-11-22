@@ -7,8 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { adminService, type CourseDetails, type CourseSection, type CourseStudent, type CourseTutor, type CourseStatistics } from '@/lib/api/adminService'
-import { ArrowLeft, BookOpen, Users, GraduationCap, BarChart3, Loader2, ArrowUpDown } from 'lucide-react'
+import { adminService, type CourseDetails, type CourseSection, type CourseStudent, type CourseTutor, type CourseStatistics, type Room } from '@/lib/api/adminService'
+import { ArrowLeft, BookOpen, Users, GraduationCap, BarChart3, Loader2, ArrowUpDown, Plus, X, MapPin } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { 
   useNeoBrutalismMode, 
@@ -38,6 +47,11 @@ export default function CourseDetailPage() {
   const [statistics, setStatistics] = useState<CourseStatistics | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [sorting, setSorting] = useState<SortingState>([])
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false)
+  const [selectedSection, setSelectedSection] = useState<CourseSection | null>(null)
+  const [sectionRooms, setSectionRooms] = useState<Room[]>([])
+  const [loadingRooms, setLoadingRooms] = useState(false)
   const neoBrutalismMode = useNeoBrutalismMode()
 
   useEffect(() => {
@@ -449,12 +463,13 @@ export default function CourseDetailPage() {
     
     try {
       setLoading(true)
-      const [details, sectionsData, studentsData, tutorsData, statsData] = await Promise.all([
+      const [details, sectionsData, studentsData, tutorsData, statsData, roomsData] = await Promise.all([
         adminService.getCourseDetails(courseId),
         adminService.getCourseSections(courseId),
         adminService.getCourseStudents(courseId),
         adminService.getCourseTutors(courseId),
         adminService.getCourseStatistics(courseId),
+        adminService.getRooms(),
       ])
       
       setCourseDetails(details)
@@ -462,11 +477,66 @@ export default function CourseDetailPage() {
       setStudents(studentsData)
       setTutors(tutorsData)
       setStatistics(statsData)
+      setRooms(roomsData)
     } catch (error) {
       console.error('Error loading course data:', error)
       alert(t('admin.errorLoadingCourseData'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadSectionRooms = async (section: CourseSection) => {
+    try {
+      setLoadingRooms(true)
+      const data = await adminService.getSectionRooms(section.Section_ID, section.Course_ID, section.Semester)
+      setSectionRooms(data)
+    } catch (error) {
+      console.error('Error loading section rooms:', error)
+    } finally {
+      setLoadingRooms(false)
+    }
+  }
+
+  const handleOpenRoomDialog = async (section: CourseSection) => {
+    setSelectedSection(section)
+    await loadSectionRooms(section)
+    setIsRoomDialogOpen(true)
+  }
+
+  const handleAssignRoom = async (room: Room) => {
+    if (!selectedSection) return
+    try {
+      await adminService.assignRoomToSection(
+        selectedSection.Section_ID,
+        selectedSection.Course_ID,
+        selectedSection.Semester,
+        room.Building_Name,
+        room.Room_Name
+      )
+      await loadSectionRooms(selectedSection)
+      await loadCourseData() // Reload sections to update room counts
+    } catch (error) {
+      console.error('Error assigning room:', error)
+      alert('Failed to assign room. It may already be assigned to this section.')
+    }
+  }
+
+  const handleRemoveRoom = async (room: Room) => {
+    if (!selectedSection) return
+    try {
+      await adminService.removeRoomFromSection(
+        selectedSection.Section_ID,
+        selectedSection.Course_ID,
+        selectedSection.Semester,
+        room.Building_Name,
+        room.Room_Name
+      )
+      await loadSectionRooms(selectedSection)
+      await loadCourseData() // Reload sections to update room counts
+    } catch (error) {
+      console.error('Error removing room:', error)
+      alert('Failed to remove room')
     }
   }
 
@@ -869,27 +939,45 @@ export default function CourseDetailPage() {
                               </p>
                             </div>
                             <div className="md:col-span-2">
-                              <p className={cn(
-                                "text-[#85878d] dark:text-gray-400",
-                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                              )}>
-                                {t('admin.rooms')} ({section.RoomCount})
-                              </p>
-                              {section.RoomsInfo ? (
-                                <p className={cn(
-                                  "text-sm text-[#211c37] dark:text-white mt-1",
-                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                                )}>
-                                  {section.RoomsInfo}
-                                </p>
-                              ) : (
-                                <p className={cn(
-                                  "text-sm text-[#85878d] dark:text-gray-400 mt-1 italic",
-                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                                )}>
-                                  {t('admin.noRoomsAssigned') || 'No rooms assigned'}
-                                </p>
-                              )}
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className={cn(
+                                    "text-[#85878d] dark:text-gray-400",
+                                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                  )}>
+                                    {t('admin.rooms')} ({section.RoomCount})
+                                  </p>
+                                  {section.RoomsInfo ? (
+                                    <p className={cn(
+                                      "text-sm text-[#211c37] dark:text-white mt-1",
+                                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                    )}>
+                                      {section.RoomsInfo}
+                                    </p>
+                                  ) : (
+                                    <p className={cn(
+                                      "text-sm text-[#85878d] dark:text-gray-400 mt-1 italic",
+                                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                    )}>
+                                      {t('admin.noRoomsAssigned') || 'No rooms assigned'}
+                                    </p>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenRoomDialog(section)}
+                                  className={cn(
+                                    "gap-2",
+                                    neoBrutalismMode 
+                                      ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                                      : ""
+                                  )}
+                                >
+                                  <MapPin className="h-4 w-4" />
+                                  {t('admin.manageRooms') || 'Manage Rooms'}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           {section.TutorNames && (
@@ -1040,6 +1128,177 @@ export default function CourseDetailPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Room Management Dialog */}
+        <Dialog open={isRoomDialogOpen} onOpenChange={setIsRoomDialogOpen}>
+          <DialogContent className={cn(
+            "bg-white dark:bg-[#1a1a1a] max-w-2xl",
+            neoBrutalismMode 
+              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[8px_8px_0px_0px_rgba(26,26,26,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,251,235,1)]"
+              : "border-[#e5e7e7] dark:border-[#333]"
+          )}>
+            <DialogHeader>
+              <DialogTitle className={cn(
+                "text-[#211c37] dark:text-white text-xl",
+                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+              )}>
+                {t('admin.manageRooms') || 'Manage Rooms'} - {t('admin.section')} {selectedSection?.Section_ID}
+              </DialogTitle>
+              <DialogDescription className={cn(
+                "text-gray-600 dark:text-gray-400",
+                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+              )}>
+                {t('admin.roomManagementDescription') || 'Assign or remove rooms for this section'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Assigned Rooms */}
+              <div>
+                <Label className={cn(
+                  "text-[#211c37] dark:text-white mb-2 block",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                )}>
+                  {t('admin.assignedRooms') || 'Assigned Rooms'} ({sectionRooms.length})
+                </Label>
+                {loadingRooms ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#3bafa8]" />
+                  </div>
+                ) : sectionRooms.length > 0 ? (
+                  <div className="space-y-2">
+                    {sectionRooms.map((room) => (
+                      <div
+                        key={`${room.Building_Name}-${room.Room_Name}`}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-md",
+                          neoBrutalismMode 
+                            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none"
+                            : "border border-[#e5e7e7] dark:border-[#333] bg-gray-50 dark:bg-[#2a2a2a]"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <MapPin className="h-5 w-5 text-[#3bafa8]" />
+                          <div>
+                            <p className={cn(
+                              "font-semibold text-[#211c37] dark:text-white",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                            )}>
+                              {room.Building_Name} - {room.Room_Name}
+                            </p>
+                            {room.Capacity && (
+                              <p className={cn(
+                                "text-xs text-[#85878d] dark:text-gray-400",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}>
+                                {t('admin.capacity')}: {room.Capacity}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveRoom(room)}
+                          className={cn(
+                            "text-red-600 hover:text-red-700",
+                            neoBrutalismMode 
+                              ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                              : ""
+                          )}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          {t('admin.remove') || 'Remove'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={cn(
+                    "text-sm text-[#85878d] dark:text-gray-400 italic py-4 text-center",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {t('admin.noRoomsAssigned') || 'No rooms assigned to this section'}
+                  </p>
+                )}
+              </div>
+
+              {/* Available Rooms */}
+              <div>
+                <Label className={cn(
+                  "text-[#211c37] dark:text-white mb-2 block",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                )}>
+                  {t('admin.availableRooms') || 'Available Rooms'}
+                </Label>
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {rooms
+                    .filter(room => !sectionRooms.some(sr => sr.Room_Name === room.Room_Name && sr.Building_Name === room.Building_Name))
+                    .map((room) => (
+                      <div
+                        key={`${room.Building_Name}-${room.Room_Name}`}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-md",
+                          neoBrutalismMode 
+                            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none"
+                            : "border border-[#e5e7e7] dark:border-[#333] bg-gray-50 dark:bg-[#2a2a2a]"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <MapPin className="h-5 w-5 text-[#85878d]" />
+                          <div>
+                            <p className={cn(
+                              "font-semibold text-[#211c37] dark:text-white",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                            )}>
+                              {room.Building_Name} - {room.Room_Name}
+                            </p>
+                            {room.Capacity && (
+                              <p className={cn(
+                                "text-xs text-[#85878d] dark:text-gray-400",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}>
+                                {t('admin.capacity')}: {room.Capacity}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAssignRoom(room)}
+                          className={cn(
+                            "gap-1",
+                            neoBrutalismMode 
+                              ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                              : ""
+                          )}
+                        >
+                          <Plus className="h-4 w-4" />
+                          {t('admin.assign') || 'Assign'}
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsRoomDialogOpen(false)}
+                className={cn(
+                  "border-[#e5e7e7] dark:border-[#333]",
+                  neoBrutalismMode 
+                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                    : ""
+                )}
+              >
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.close') || 'Close'}</span>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   )

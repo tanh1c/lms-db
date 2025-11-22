@@ -1476,15 +1476,14 @@ def get_all_buildings():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM [Building] ORDER BY Building_ID')
+        cursor.execute('SELECT Building_Name FROM [Building] ORDER BY Building_Name')
         buildings = cursor.fetchall()
         conn.close()
 
         result = []
         for building in buildings:
             result.append({
-                'Building_ID': building.Building_ID,
-                'Building_Name': building.Building_Name,
+                'Building_Name': building[0],
             })
 
         return jsonify(result)
@@ -1503,7 +1502,7 @@ def create_building():
         cursor.execute("""
             INSERT INTO [Building] (Building_Name)
             VALUES (?)
-        """, data['Building_Name'])
+        """, (data['Building_Name'],))
 
         conn.commit()
         conn.close()
@@ -1511,7 +1510,9 @@ def create_building():
         return jsonify({
             'success': True,
             'message': 'Building created successfully',
-            'building': data
+            'building': {
+                'Building_Name': data['Building_Name']
+            }
         }), 201
     except Exception as e:
         print(f'Create building error: {e}')
@@ -1519,60 +1520,215 @@ def create_building():
 
 @admin_bp.route('/rooms', methods=['GET'])
 def get_all_rooms():
-    """Get all rooms with building info"""
+    """Get all rooms with building info - Using stored procedure"""
     try:
+        building_name = request.args.get('building_name', type=str)
+        search = request.args.get('search', type=str)
+        
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT r.*, b.Building_Name
-            FROM [Room] r
-            INNER JOIN [Building] b ON r.Building_ID = b.Building_ID
-            ORDER BY b.Building_Name, r.Room_ID
-        """)
+        cursor.execute('EXEC GetAllRooms %s, %s', (building_name, search))
         rooms = cursor.fetchall()
         conn.close()
 
         result = []
         for room in rooms:
             result.append({
-                'Room_ID': room.Room_ID,
-                'Building_ID': room.Building_ID,
-                'Building_Name': room.Building_Name,
-                'Capacity': room.Capacity,
+                'Room_ID': room[0],
+                'Building_Name': room[1],
+                'Room_Name': room[2],
+                'Capacity': room[3] if room[3] is not None else None,
+                'UsageCount': room[4] if len(room) > 4 and room[4] is not None else 0,
+                'EquipmentCount': room[5] if len(room) > 5 and room[5] is not None else 0,
             })
 
         return jsonify(result)
     except Exception as e:
         print(f'Get all rooms error: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': 'Failed to fetch rooms'}), 500
 
 @admin_bp.route('/rooms', methods=['POST'])
 def create_room():
-    """Create a new room"""
+    """Create a new room - Using stored procedure"""
     try:
         data = request.get_json()
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
-            INSERT INTO [Room] (Building_ID, Capacity)
-            VALUES (?, ?)
-        """,
-            data['Building_ID'],
+        cursor.execute('EXEC CreateRoom %s, %s, %s', (
+            data['Building_Name'], 
+            data['Room_Name'], 
             data.get('Capacity', 30)
-        )
+        ))
+        result = cursor.fetchone()
+        conn.commit()
+        conn.close()
 
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'Room created successfully',
+                'room': {
+                    'Room_ID': result[0],
+                    'Building_Name': result[1],
+                    'Room_Name': result[2],
+                    'Capacity': result[3] if result[3] is not None else None,
+                    'UsageCount': 0
+                }
+            }), 201
+        else:
+            return jsonify({'success': False, 'error': 'Failed to create room'}), 500
+    except Exception as e:
+        print(f'Create room error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to create room: {str(e)}'}), 500
+
+@admin_bp.route('/rooms/<string:building_name>/<string:room_name>', methods=['PUT'])
+def update_room(building_name, room_name):
+    """Update a room - Using stored procedure"""
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC UpdateRoom %s, %s, %s, %s, %s', 
+                      (building_name, room_name,
+                       data.get('New_Building_Name'), 
+                       data.get('New_Room_Name'),
+                       data.get('Capacity')))
         conn.commit()
         conn.close()
 
         return jsonify({
             'success': True,
-            'message': 'Room created successfully',
-            'room': data
-        }), 201
+            'message': 'Room updated successfully'
+        })
     except Exception as e:
-        print(f'Create room error: {e}')
-        return jsonify({'success': False, 'error': f'Failed to create room: {str(e)}'}), 500
+        print(f'Update room error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to update room: {str(e)}'}), 500
+
+@admin_bp.route('/rooms/<string:building_name>/<string:room_name>', methods=['DELETE'])
+def delete_room(building_name, room_name):
+    """Delete a room - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC DeleteRoom %s, %s', (building_name, room_name))
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Room deleted successfully'
+        })
+    except Exception as e:
+        print(f'Delete room error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to delete room: {str(e)}'}), 500
+
+@admin_bp.route('/rooms/<string:building_name>/<string:room_name>/equipment', methods=['GET'])
+def get_room_equipment(building_name, room_name):
+    """Get equipment for a specific room - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetRoomEquipment %s, %s', (building_name, room_name))
+        equipment = cursor.fetchall()
+        conn.close()
+
+        result = []
+        for eq in equipment:
+            result.append({
+                'Equipment_Name': eq[0],
+                'Building_Name': eq[1],
+                'Room_Name': eq[2],
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get room equipment error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch room equipment: {str(e)}'}), 500
+
+@admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/rooms', methods=['GET'])
+def get_section_rooms(section_id, course_id, semester):
+    """Get rooms assigned to a section - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetRoomsBySection %s, %s, %s', (section_id, course_id, semester))
+        rooms = cursor.fetchall()
+        conn.close()
+
+        result = []
+        for room in rooms:
+            result.append({
+                'Room_ID': room[0],
+                'Building_Name': room[1],
+                'Room_Name': room[2],
+                'Capacity': room[3] if room[3] is not None else None,
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get section rooms error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch section rooms: {str(e)}'}), 500
+
+@admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/rooms', methods=['POST'])
+def assign_room_to_section(section_id, course_id, semester):
+    """Assign a room to a section - Using stored procedure"""
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC AssignRoomToSection %s, %s, %s, %s, %s',
+                      (section_id, course_id, semester,
+                       data['Building_Name'], data['Room_Name']))
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Room assigned successfully'
+        })
+    except Exception as e:
+        print(f'Assign room to section error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to assign room: {str(e)}'}), 500
+
+@admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/rooms/<string:building_name>/<string:room_name>', methods=['DELETE'])
+def remove_room_from_section(section_id, course_id, semester, building_name, room_name):
+    """Remove a room from a section - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC RemoveRoomFromSection %s, %s, %s, %s, %s',
+                      (section_id, course_id, semester, building_name, room_name))
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Room removed successfully'
+        })
+    except Exception as e:
+        print(f'Remove room from section error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to remove room: {str(e)}'}), 500
 
 # ==================== ADMIN ACCOUNTS MANAGEMENT ====================
 

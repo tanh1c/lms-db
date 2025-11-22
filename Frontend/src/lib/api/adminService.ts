@@ -246,16 +246,24 @@ export interface Teaches {
 
 // Building
 export interface Building {
-  Building_ID: number
   Building_Name: string
 }
 
 // Room
 export interface Room {
   Room_ID: number
-  Building_ID: number
   Building_Name: string
+  Room_Name: string
   Capacity: number | null
+  UsageCount?: number
+  EquipmentCount?: number
+}
+
+// Room Equipment
+export interface RoomEquipment {
+  Equipment_Name: string
+  Building_Name: string
+  Room_Name: string
 }
 
 // Audit Log
@@ -812,20 +820,72 @@ export const adminService = {
     return response.data
   },
 
-  async createBuilding(building: Omit<Building, 'Building_ID'>): Promise<Building> {
+  async createBuilding(building: Building): Promise<Building> {
     const response = await apiClient.post('/admin/buildings', building)
     return response.data.building
   },
 
   // Rooms
-  async getRooms(): Promise<Room[]> {
-    const response = await apiClient.get('/admin/rooms')
+  async getRooms(params?: {
+    building_name?: string
+    search?: string
+  }): Promise<Room[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.building_name) queryParams.append('building_name', params.building_name)
+    if (params?.search) queryParams.append('search', params.search)
+    
+    const response = await apiClient.get(`/admin/rooms?${queryParams.toString()}`)
     return response.data
   },
 
-  async createRoom(room: Omit<Room, 'Room_ID' | 'Building_Name'>): Promise<Room> {
+  async createRoom(room: Omit<Room, 'Room_ID' | 'UsageCount'>): Promise<Room> {
     const response = await apiClient.post('/admin/rooms', room)
     return response.data.room
+  },
+
+  async updateRoom(buildingName: string, roomName: string, updates: {
+    New_Building_Name?: string
+    New_Room_Name?: string
+    Capacity?: number
+  }): Promise<void> {
+    await apiClient.put(`/admin/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}`, updates)
+  },
+
+  async getRoomEquipment(buildingName: string, roomName: string): Promise<RoomEquipment[]> {
+    const response = await apiClient.get(`/admin/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}/equipment`)
+    return response.data
+  },
+
+  async deleteRoom(buildingName: string, roomName: string): Promise<void> {
+    await apiClient.delete(`/admin/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}`)
+  },
+
+  async getSectionRooms(sectionId: string, courseId: string, semester: string): Promise<Room[]> {
+    const response = await apiClient.get(`/admin/sections/${sectionId}/${courseId}/${semester}/rooms`)
+    return response.data
+  },
+
+  async assignRoomToSection(
+    sectionId: string,
+    courseId: string,
+    semester: string,
+    buildingName: string,
+    roomName: string
+  ): Promise<void> {
+    await apiClient.post(`/admin/sections/${sectionId}/${courseId}/${semester}/rooms`, {
+      Building_Name: buildingName,
+      Room_Name: roomName
+    })
+  },
+
+  async removeRoomFromSection(
+    sectionId: string,
+    courseId: string,
+    semester: string,
+    buildingName: string,
+    roomName: string
+  ): Promise<void> {
+    await apiClient.delete(`/admin/sections/${sectionId}/${courseId}/${semester}/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}`)
   },
 
   // Audit Logs
