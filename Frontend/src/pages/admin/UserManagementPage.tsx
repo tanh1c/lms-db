@@ -153,6 +153,11 @@ export default function UserManagementPage() {
     Department_Name: '',
     Type: 'Program Administrator',
   })
+  
+  const [validationErrors, setValidationErrors] = useState<{
+    Phone_Number?: string
+    National_ID?: string
+  }>({})
 
   useEffect(() => {
     // Initial load - always load all users for statistics
@@ -172,6 +177,113 @@ export default function UserManagementPage() {
       setFilterOptions(options)
     } catch (error) {
       console.error('Error loading filter options:', error)
+    }
+  }
+
+  // Silent refresh - reload users without showing loading state
+  const refreshUsersSilently = async () => {
+    if (isLoadingUsersRef.current) {
+      return
+    }
+    
+    if (!isMountedRef.current) {
+      return
+    }
+    
+    try {
+      isLoadingUsersRef.current = true
+      
+      // Check if any advanced filters are active
+      const hasAdvancedFilters = (majorFilter && majorFilter !== 'all') || (departmentFilter && departmentFilter !== 'all') || (typeFilter && typeFilter !== 'all')
+      
+      if (hasAdvancedFilters) {
+        const filteredUsers = await adminService.filterUsers({
+          role: roleFilter !== 'all' ? roleFilter : undefined,
+          major: majorFilter && majorFilter !== 'all' ? majorFilter : undefined,
+          department: departmentFilter && departmentFilter !== 'all' ? departmentFilter : undefined,
+          type: typeFilter && typeFilter !== 'all' ? typeFilter : undefined,
+          search: submittedSearchQuery.trim() || undefined,
+        })
+        
+        if (!isMountedRef.current) return
+        
+        const filteredUsersList: User[] = filteredUsers.map((u: any) => ({
+          University_ID: u.University_ID,
+          First_Name: u.First_Name,
+          Last_Name: u.Last_Name,
+          Email: u.Email,
+          Phone_Number: u.Phone_Number ?? undefined,
+          Address: u.Address ?? undefined,
+          National_ID: u.National_ID ?? undefined,
+          role: u.role as UserRole,
+        }))
+        
+        setUsers(filteredUsersList)
+      } else {
+        const [studentsResult, tutorsResult, adminsResult] = await Promise.allSettled([
+          adminService.getStudents(),
+          adminService.getTutors(),
+          adminService.getAdmins(),
+        ])
+        
+        if (!isMountedRef.current) return
+        
+        const students = studentsResult.status === 'fulfilled' && Array.isArray(studentsResult.value) 
+          ? studentsResult.value 
+          : []
+        const tutors = tutorsResult.status === 'fulfilled' && Array.isArray(tutorsResult.value)
+          ? tutorsResult.value
+          : []
+        const admins = adminsResult.status === 'fulfilled' && Array.isArray(adminsResult.value)
+          ? adminsResult.value
+          : []
+        
+        const allUsersList: User[] = [
+          ...students.map(s => ({
+            University_ID: s.University_ID,
+            First_Name: s.First_Name,
+            Last_Name: s.Last_Name,
+            Email: s.Email,
+            Phone_Number: s.Phone_Number ?? undefined,
+            Address: s.Address ?? undefined,
+            National_ID: s.National_ID ?? undefined,
+            role: 'student' as UserRole,
+          })),
+          ...tutors.map(t => ({
+            University_ID: t.University_ID,
+            First_Name: t.First_Name,
+            Last_Name: t.Last_Name,
+            Email: t.Email,
+            Phone_Number: t.Phone_Number ?? undefined,
+            Address: t.Address ?? undefined,
+            National_ID: t.National_ID ?? undefined,
+            role: 'tutor' as UserRole,
+          })),
+          ...admins.map(a => ({
+            University_ID: a.University_ID,
+            First_Name: a.First_Name,
+            Last_Name: a.Last_Name,
+            Email: a.Email,
+            Phone_Number: a.Phone_Number ?? undefined,
+            Address: a.Address ?? undefined,
+            National_ID: a.National_ID ?? undefined,
+            role: 'admin' as UserRole,
+          })),
+        ]
+        
+        setAllUsers(allUsersList)
+        
+        if (roleFilter !== 'all') {
+          const filtered = allUsersList.filter(u => u.role === roleFilter)
+          setUsers(filtered)
+        } else {
+          setUsers(allUsersList)
+        }
+      }
+    } catch (error) {
+      console.error('Error silently refreshing users:', error)
+    } finally {
+      isLoadingUsersRef.current = false
     }
   }
 
@@ -598,7 +710,11 @@ export default function UserManagementPage() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => handleDeleteUser(user.University_ID)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleDeleteUser(user.University_ID, user)
+                }}
                 className="text-red-600 dark:text-red-400"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -650,6 +766,7 @@ export default function UserManagementPage() {
       Department_Name: '',
       Type: 'Program Administrator',
     })
+    setValidationErrors({})
     setIsDialogOpen(true)
   }
 
@@ -673,37 +790,94 @@ export default function UserManagementPage() {
       Department_Name: (user as any).Department_Name || '',
       Type: (user as any).Type || 'Program Administrator',
     })
+    setValidationErrors({})
     setIsDialogOpen(true)
   }
 
-  const handleDeleteUser = async (universityId: number) => {
+  const handleDeleteUser = async (universityId: number, user?: User) => {
+    console.log('handleDeleteUser called with:', { universityId, user, allUsersLength: allUsers.length, usersLength: users.length })
+    
     if (!confirm(`${t('admin.confirmDelete')} ${universityId}?`)) {
+      console.log('User cancelled delete')
       return
     }
 
     try {
-      const user = users.find(u => u.University_ID === universityId)
-      if (!user) {
+      // Use provided user object, or find it in allUsers/users
+      let userToDelete = user
+      
+      if (!userToDelete) {
+        console.log('User object not provided, searching in allUsers and users...')
+        userToDelete = allUsers.find(u => u.University_ID === universityId) || 
+                      users.find(u => u.University_ID === universityId)
+      }
+      
+      if (!userToDelete) {
+        console.error('User not found:', universityId, 'Available IDs:', allUsers.map(u => u.University_ID).slice(0, 10))
         alert(t('admin.userNotFound'))
         return
       }
 
-      if (user.role === 'student') {
+      console.log('Deleting user:', universityId, 'Role:', userToDelete.role, 'User object:', userToDelete)
+
+      // Call appropriate delete API based on role
+      if (userToDelete.role === 'student') {
+        console.log('Calling deleteStudent API for user:', universityId)
         await adminService.deleteStudent(universityId)
-      } else if (user.role === 'tutor') {
+        console.log('deleteStudent API call completed')
+      } else if (userToDelete.role === 'tutor') {
+        console.log('Calling deleteTutor API for user:', universityId)
         await adminService.deleteTutor(universityId)
-      } else if (user.role === 'admin') {
+        console.log('deleteTutor API call completed')
+      } else if (userToDelete.role === 'admin') {
+        console.log('Calling deleteAdmin API for user:', universityId)
         await adminService.deleteAdmin(universityId)
+        console.log('deleteAdmin API call completed')
+      } else {
+        console.error('Unknown user role:', userToDelete.role)
+        alert(t('admin.userNotFound') || 'User role not found')
+        return
       }
       
-      await loadUsers(true) // Reload all users after delete
-    } catch (error) {
+      console.log('Delete API call successful for user:', universityId)
+      
+      // Update UI optimistically - remove user from lists immediately
+      setUsers(prevUsers => prevUsers.filter(u => u.University_ID !== universityId))
+      setAllUsers(prevAllUsers => prevAllUsers.filter(u => u.University_ID !== universityId))
+      
+      // Show success message
+      alert(t('admin.deleteUserSuccess'))
+      
+      // Refresh data silently in background (no loading indicator)
+      refreshUsersSilently().catch(err => {
+        console.error('Error refreshing users:', err)
+      })
+    } catch (error: any) {
       console.error('Error deleting user:', error)
-      alert(t('admin.errorDeletingUser'))
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        stack: error?.stack
+      })
+      
+      // Extract error message from backend response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorDeletingUser')
+      
+      alert(errorMessage)
     }
   }
 
-  const handleSaveUser = async () => {
+  const handleSaveUser = async (e?: React.FormEvent) => {
+    // Prevent form submission and page reload
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    
     if (!formData.University_ID || !formData.First_Name || !formData.Last_Name || !formData.Email) {
       alert(t('admin.fillRequiredFields'))
       return
@@ -849,8 +1023,44 @@ export default function UserManagementPage() {
         }
       }
 
+      // Close dialog immediately
       setIsDialogOpen(false)
-      await loadUsers(true) // Reload all users after save
+      
+      // Show success message
+      if (editingUser) {
+        alert(t('admin.updateUserSuccess'))
+      } else {
+        alert(t('admin.createUserSuccess'))
+      }
+      
+      // Update state optimistically first
+      if (editingUser) {
+        const updatedUser: User = {
+          University_ID: universityId,
+          First_Name: formData.First_Name,
+          Last_Name: formData.Last_Name,
+          Email: formData.Email,
+          Phone_Number: formData.Phone_Number || undefined,
+          Address: formData.Address || undefined,
+          National_ID: formData.National_ID || undefined,
+          role: (formData.Role || editingUser.role) as UserRole,
+        }
+        
+        // Update in users list
+        setUsers(prevUsers => 
+          prevUsers.map(u => u.University_ID === universityId ? updatedUser : u)
+        )
+        
+        // Update in allUsers list
+        setAllUsers(prevAllUsers => 
+          prevAllUsers.map(u => u.University_ID === universityId ? updatedUser : u)
+        )
+      }
+      
+      // Refresh data silently in background (no loading indicator)
+      refreshUsersSilently().catch(err => {
+        console.error('Error refreshing users:', err)
+      })
     } catch (error) {
       console.error('Error saving user:', error)
       alert(t('admin.errorSavingUser'))
@@ -1043,6 +1253,17 @@ export default function UserManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auditLogFilters.dateRange?.from, auditLogFilters.dateRange?.to, auditLogFilters.university_id])
 
+  // Load Performance Data only (for switching between Semester/Month)
+  const loadPerformanceData = async () => {
+    try {
+      const performanceData = await adminService.getPerformanceOverTime(performanceGroupBy)
+      setPerformanceOverTime(performanceData)
+    } catch (error) {
+      console.error('Error loading performance data:', error)
+      // Don't show alert for this, just log the error
+    }
+  }
+
   // Load Advanced Statistics
   const loadAdvancedStatistics = async () => {
     try {
@@ -1080,12 +1301,21 @@ export default function UserManagementPage() {
     }
   }
 
+  // Load all advanced statistics when panel is first opened
   useEffect(() => {
     if (showAdvancedStatistics) {
       loadAdvancedStatistics()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAdvancedStatistics, performanceGroupBy])
+  }, [showAdvancedStatistics])
+
+  // Only reload performance data when switching between Semester/Month
+  useEffect(() => {
+    if (showAdvancedStatistics) {
+      loadPerformanceData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [performanceGroupBy])
 
   // Calculate GPA for a course: 10% quiz + 20% assignment + 20% midterm + 50% final
   const calculateCourseGPA = (course: any): number | null => {
@@ -1565,7 +1795,7 @@ export default function UserManagementPage() {
                     )}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Xóa đã chọn ({table.getFilteredSelectedRowModel().rows.length})
+                    {t('admin.deleteSelected', { count: table.getFilteredSelectedRowModel().rows.length })}
                   </Button>
                 )}
                 <Button
@@ -3152,7 +3382,12 @@ export default function UserManagementPage() {
         </Card>
 
         {/* Add/Edit User Dialog - Keep existing dialog code */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open)
+          if (!open) {
+            setValidationErrors({})
+          }
+        }}>
           <DialogContent className={cn(
             "bg-white dark:bg-[#1a1a1a] max-w-2xl",
             neoBrutalismMode 
@@ -3174,7 +3409,8 @@ export default function UserManagementPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-4 py-4">
+            <form onSubmit={handleSaveUser}>
+              <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="university-id" className={cn(
                   "text-[#211c37] dark:text-white",
@@ -3259,13 +3495,38 @@ export default function UserManagementPage() {
                 <Input
                   id="phone"
                   value={formData.Phone_Number}
-                  onChange={(e) => setFormData({ ...formData, Phone_Number: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setFormData({ ...formData, Phone_Number: value })
+                    // Validate phone number: must be 10 or 11 characters if provided
+                    if (value && value.length > 0 && value.length !== 10 && value.length !== 11) {
+                      setValidationErrors(prev => ({
+                        ...prev,
+                        Phone_Number: t('admin.phoneNumberValidation') || 'Số điện thoại phải có 10 hoặc 11 chữ số'
+                      }))
+                    } else {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev }
+                        delete newErrors.Phone_Number
+                        return newErrors
+                      })
+                    }
+                  }}
                   placeholder="0900000000"
                   className={cn(
                     "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
+                    getNeoBrutalismInputClasses(neoBrutalismMode),
+                    validationErrors.Phone_Number && "border-red-500 dark:border-red-500"
                   )}
                 />
+                {validationErrors.Phone_Number && (
+                  <p className={cn(
+                    "text-sm text-red-500 dark:text-red-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {validationErrors.Phone_Number}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="national-id" className={cn(
@@ -3277,13 +3538,38 @@ export default function UserManagementPage() {
                 <Input
                   id="national-id"
                   value={formData.National_ID}
-                  onChange={(e) => setFormData({ ...formData, National_ID: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setFormData({ ...formData, National_ID: value })
+                    // Validate national ID: must be exactly 12 characters if provided
+                    if (value && value.length > 0 && value.length !== 12) {
+                      setValidationErrors(prev => ({
+                        ...prev,
+                        National_ID: t('admin.nationalIdValidation') || 'CMND/CCCD phải có đúng 12 chữ số'
+                      }))
+                    } else {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev }
+                        delete newErrors.National_ID
+                        return newErrors
+                      })
+                    }
+                  }}
                   placeholder="079123456789"
                   className={cn(
                     "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
+                    getNeoBrutalismInputClasses(neoBrutalismMode),
+                    validationErrors.National_ID && "border-red-500 dark:border-red-500"
                   )}
                 />
+                {validationErrors.National_ID && (
+                  <p className={cn(
+                    "text-sm text-red-500 dark:text-red-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {validationErrors.National_ID}
+                  </p>
+                )}
               </div>
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="address" className={cn(
@@ -3513,32 +3799,34 @@ export default function UserManagementPage() {
                   )}
                 </>
               )}
-            </div>
+              </div>
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                className={cn(
-                  "border-[#e5e7e7] dark:border-[#333]",
-                  neoBrutalismMode 
-                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
-                    : ""
-                )}
-              >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
-              </Button>
-              <Button
-                onClick={handleSaveUser}
-                className={cn(
-                  neoBrutalismMode 
-                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
-                    : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
-                )}
-              >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{editingUser ? t('admin.update') : t('admin.addNew')}</span>
-              </Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  className={cn(
+                    "border-[#e5e7e7] dark:border-[#333]",
+                    neoBrutalismMode 
+                      ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                      : ""
+                  )}
+                >
+                  <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
+                </Button>
+                <Button
+                  type="submit"
+                  className={cn(
+                    neoBrutalismMode 
+                      ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                      : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+                  )}
+                >
+                  <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{editingUser ? t('admin.update') : t('admin.addNew')}</span>
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
 

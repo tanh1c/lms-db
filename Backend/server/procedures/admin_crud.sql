@@ -161,12 +161,73 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
         
-        DELETE FROM [Admin] WHERE University_ID = @University_ID;
-        DELETE FROM [Account] WHERE University_ID = @University_ID;
-        DELETE FROM [Users] WHERE University_ID = @University_ID;
-        
-        IF @@ROWCOUNT = 0
+        -- Check if admin exists first
+        IF NOT EXISTS (SELECT 1 FROM [Admin] WHERE University_ID = @University_ID)
+        BEGIN
             THROW 50001, 'Admin not found', 1;
+        END
+        
+        -- Delete related data first (to avoid foreign key constraint violations)
+        -- Delete Reference_To (if any)
+        DELETE FROM [Reference_To] 
+        WHERE University_ID = @University_ID;
+        
+        -- IMPORTANT: Delete from ALL role tables (user might have data in multiple roles)
+        -- Delete from Student table (if exists) - handle related data first
+        IF EXISTS (SELECT 1 FROM [Student] WHERE University_ID = @University_ID)
+        BEGIN
+            -- Delete Submissions
+            DELETE FROM [Submission] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Assignments
+            DELETE FROM [Assignment] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Quizzes
+            DELETE FROM [Quiz] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Feedbacks
+            DELETE FROM [Feedback] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Assessments
+            DELETE FROM [Assessment] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete from Student table
+            DELETE FROM [Student] WHERE University_ID = @University_ID;
+        END
+        
+        -- Delete from Tutor table (if exists) - handle related data first
+        IF EXISTS (SELECT 1 FROM [Tutor] WHERE University_ID = @University_ID)
+        BEGIN
+            -- Update Department to remove this tutor as chair
+            UPDATE [Department] 
+            SET University_ID = NULL 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Reviews
+            DELETE FROM [review] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Teaches relationships
+            DELETE FROM [Teaches] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete from Tutor table
+            DELETE FROM [Tutor] WHERE University_ID = @University_ID;
+        END
+        
+        -- Delete from Admin table
+        DELETE FROM [Admin] WHERE University_ID = @University_ID;
+        
+        -- Delete from Account
+        DELETE FROM [Account] WHERE University_ID = @University_ID;
+        
+        -- Delete from Users (parent table) - now safe to delete
+        DELETE FROM [Users] WHERE University_ID = @University_ID;
         
         COMMIT TRANSACTION;
     END TRY

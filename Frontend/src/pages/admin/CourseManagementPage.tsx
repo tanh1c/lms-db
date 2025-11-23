@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
@@ -14,6 +14,13 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Pie, PieChart as RechartsPieChart, Bar, BarChart, Line, LineChart, CartesianGrid, XAxis, YAxis, Cell, Legend } from 'recharts'
 import {
   Dialog,
@@ -46,7 +53,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { adminService, type AdminCourse, type CourseEnrollmentByCourse, type CourseDistributionByCredit, type TopCourseByEnrollment, type CourseAverageGrade, type CourseEnrollmentTrendOverTime, type CourseStatusDistribution, type CourseActivityStatistics, type Room, type Building, type RoomEquipment, type RoomSection } from '@/lib/api/adminService'
+import { Checkbox } from '@/components/ui/checkbox'
+import { adminService, type AdminCourse, type CourseEnrollmentByCourse, type CourseDistributionByCredit, type TopCourseByEnrollment, type CourseAverageGrade, type CourseEnrollmentTrendOverTime, type CourseStatusDistribution, type CourseActivityStatistics, type Room, type Building, type RoomEquipment, type RoomSection, type ScheduleEntry, type ScheduleByRoomEntry } from '@/lib/api/adminService'
 import { BookOpen, Edit2, Trash2, Eye, ArrowUpDown, MoreHorizontal, ChevronDown, Loader2, BarChart3, Plus, MapPin, Grid, List, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { 
@@ -125,7 +133,7 @@ export default function CourseManagementPage() {
   })
   const [roomSearchQuery, setRoomSearchQuery] = useState('')
   const [selectedBuildingFilter, setSelectedBuildingFilter] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'courses' | 'rooms'>('courses')
+  const [activeTab, setActiveTab] = useState<'courses' | 'rooms' | 'schedule'>('courses')
   const [roomSortBy, setRoomSortBy] = useState<'building' | 'roomName' | 'capacity' | 'usage'>('building')
   const [roomSortOrder, setRoomSortOrder] = useState<'asc' | 'desc'>('asc')
   const [roomViewMode, setRoomViewMode] = useState<'table' | 'grid'>('table')
@@ -138,11 +146,73 @@ export default function CourseManagementPage() {
   const [loadingEquipment, setLoadingEquipment] = useState<{ [key: string]: boolean }>({})
   const [roomSections, setRoomSections] = useState<{ [key: string]: RoomSection[] }>({})
   const [loadingSections, setLoadingSections] = useState<{ [key: string]: boolean }>({})
+  const [equipmentTypes, setEquipmentTypes] = useState<string[]>([])
+  const [loadingEquipmentTypes, setLoadingEquipmentTypes] = useState(false)
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([])
+  const courseListRef = useRef<HTMLDivElement>(null)
+  
+  // Schedule Management state
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([])
+  const [schedulesByRoom, setSchedulesByRoom] = useState<ScheduleByRoomEntry[]>([])
+  const [loadingSchedules, setLoadingSchedules] = useState(false)
+  const [loadingSchedulesByRoom, setLoadingSchedulesByRoom] = useState(false)
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string | null>(null)
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string | null>(null)
+  const [selectedScheduleBuildingFilter, setSelectedScheduleBuildingFilter] = useState<string | null>(null)
+  const [selectedRoomFilter, setSelectedRoomFilter] = useState<string | null>(null)
+  const [availableSemesters, setAvailableSemesters] = useState<string[]>([])
+  const [scheduleViewMode, setScheduleViewMode] = useState<'calendar' | 'byRoom'>('calendar')
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null)
+  const [scheduleFormData, setScheduleFormData] = useState({
+    Section_ID: '',
+    Course_ID: '',
+    Semester: '',
+    Day_of_Week: 1,
+    Start_Period: 1,
+    End_Period: 2,
+  })
 
   useEffect(() => {
     loadCourses()
     loadStatistics()
   }, [])
+
+  // Scroll to course list when returning from detail page
+  useEffect(() => {
+    // Check if we're returning from course detail page
+    const shouldScrollToCourseList = sessionStorage.getItem('shouldScrollToCourseList') === 'true'
+    
+    if (shouldScrollToCourseList && !loading) {
+      // Ensure course list is visible first
+      if (!showCourseList) {
+        setShowCourseList(true)
+        // Wait for DOM to update after showing course list
+        const timer = setTimeout(() => {
+          if (courseListRef.current) {
+            courseListRef.current.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            })
+            sessionStorage.removeItem('shouldScrollToCourseList')
+          }
+        }, 200)
+        return () => clearTimeout(timer)
+      } else {
+        // Course list already visible, scroll immediately
+        const timer = setTimeout(() => {
+          if (courseListRef.current) {
+            courseListRef.current.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            })
+            sessionStorage.removeItem('shouldScrollToCourseList')
+          }
+        }, 100)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [loading, showCourseList])
 
   useEffect(() => {
     if (showAdvancedStatistics) {
@@ -154,8 +224,24 @@ export default function CourseManagementPage() {
   useEffect(() => {
     if (activeTab === 'rooms') {
       loadBuildings()
+      loadEquipmentTypes()
+    } else if (activeTab === 'schedule') {
+      loadSchedules()
     }
   }, [activeTab])
+  
+  useEffect(() => {
+    if (activeTab === 'schedule') {
+      const timeoutId = setTimeout(() => {
+        if (scheduleViewMode === 'calendar') {
+          loadSchedules()
+        } else {
+          loadSchedulesByRoom()
+        }
+      }, 300)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [activeTab, selectedCourseFilter, selectedSemesterFilter, scheduleViewMode, selectedScheduleBuildingFilter, selectedRoomFilter])
 
   useEffect(() => {
     if (activeTab === 'rooms') {
@@ -181,12 +267,184 @@ export default function CourseManagementPage() {
     }
   }
 
+  // Silent refresh - reload rooms without showing loading state
+  const refreshRoomsSilently = async () => {
+    try {
+      console.log('[CourseManagement] Silently refreshing rooms...')
+      const data = await adminService.getRooms({
+        building_name: selectedBuildingFilter || undefined,
+        search: roomSearchQuery || undefined,
+      })
+      console.log('[CourseManagement] ✅ Silent refresh succeeded:', data?.length || 0, 'rooms')
+      setRooms(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ Silent refresh failed:', error)
+    }
+  }
+
   const loadBuildings = async () => {
     try {
       const data = await adminService.getBuildings()
       setBuildings(data)
     } catch (error) {
       console.error('[CourseManagement] ❌ API getBuildings failed:', error)
+    }
+  }
+
+  const loadSchedules = async () => {
+    try {
+      setLoadingSchedules(true)
+      const data = await adminService.getAllSchedules({
+        course_id: selectedCourseFilter || undefined,
+        semester: selectedSemesterFilter || undefined,
+      })
+      setSchedules(data)
+      
+      // Extract unique semesters from schedules
+      const uniqueSemesters = Array.from(new Set(data.map(s => s.Semester).filter(Boolean))).sort()
+      setAvailableSemesters(uniqueSemesters)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ API getAllSchedules failed:', error)
+    } finally {
+      setLoadingSchedules(false)
+    }
+  }
+
+  const loadSchedulesByRoom = async () => {
+    try {
+      setLoadingSchedulesByRoom(true)
+      const data = await adminService.getAllSchedulesByRoom({
+        building_name: selectedScheduleBuildingFilter || undefined,
+        room_name: selectedRoomFilter || undefined,
+        semester: selectedSemesterFilter || undefined,
+      })
+      setSchedulesByRoom(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ API getAllSchedulesByRoom failed:', error)
+    } finally {
+      setLoadingSchedulesByRoom(false)
+    }
+  }
+
+  const handleSaveSchedule = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    try {
+      if (editingSchedule) {
+        await adminService.updateScheduleEntry(
+          scheduleFormData.Section_ID,
+          scheduleFormData.Course_ID,
+          scheduleFormData.Semester,
+          editingSchedule.Day_of_Week,
+          editingSchedule.Start_Period,
+          editingSchedule.End_Period,
+          scheduleFormData.Day_of_Week,
+          scheduleFormData.Start_Period,
+          scheduleFormData.End_Period
+        )
+        alert(t('admin.updateScheduleSuccess') || t('admin.updateCourseSuccess') || 'Schedule updated successfully')
+      } else {
+        await adminService.createScheduleEntry(
+          scheduleFormData.Section_ID,
+          scheduleFormData.Course_ID,
+          scheduleFormData.Semester,
+          scheduleFormData.Day_of_Week,
+          scheduleFormData.Start_Period,
+          scheduleFormData.End_Period
+        )
+        alert(t('admin.createScheduleSuccess') || t('admin.createCourseSuccess') || 'Schedule created successfully')
+      }
+
+      setIsScheduleDialogOpen(false)
+      setEditingSchedule(null)
+      setScheduleFormData({
+        Section_ID: '',
+        Course_ID: '',
+        Semester: '',
+        Day_of_Week: 1,
+        Start_Period: 1,
+        End_Period: 2,
+      })
+      
+      loadSchedules()
+    } catch (error: any) {
+      console.error('Failed to save schedule:', error)
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorSavingSchedule') || 
+                          'Failed to save schedule'
+      alert(errorMessage)
+    }
+  }
+
+  const handleDeleteSchedule = async (schedule: ScheduleEntry) => {
+    if (!confirm(`${t('admin.confirmDeleteSchedule') || 'Are you sure you want to delete schedule for'} ${schedule.Course_ID} - ${schedule.Section_ID}?`)) {
+      return
+    }
+    
+    try {
+      await adminService.deleteScheduleEntry(
+        schedule.Section_ID,
+        schedule.Course_ID,
+        schedule.Semester,
+        schedule.Day_of_Week,
+        schedule.Start_Period,
+        schedule.End_Period
+      )
+      
+      setSchedules(prevSchedules => 
+        prevSchedules.filter(s => 
+          !(s.Section_ID === schedule.Section_ID && 
+            s.Course_ID === schedule.Course_ID && 
+            s.Semester === schedule.Semester &&
+            s.Day_of_Week === schedule.Day_of_Week &&
+            s.Start_Period === schedule.Start_Period &&
+            s.End_Period === schedule.End_Period)
+        )
+      )
+      
+      alert(t('admin.deleteScheduleSuccess') || t('admin.deleteCourseSuccess') || 'Schedule deleted successfully')
+      loadSchedules()
+    } catch (error: any) {
+      console.error('Failed to delete schedule:', error)
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorDeletingSchedule') || 
+                          'Failed to delete schedule'
+      alert(errorMessage)
+    }
+  }
+
+  // Helper function to get time string for a period
+  const getPeriodTime = (period: number): string => {
+    const hour = 5 + period // Period 1 = 6 AM, Period 2 = 7 AM, etc.
+    const periodLabel = hour >= 12 ? `${hour - 12} PM` : `${hour} AM`
+    return periodLabel
+  }
+  
+  // Helper function to get time range for a schedule
+  const getScheduleTimeRange = (startPeriod: number, endPeriod: number): string => {
+    const startHour = 5 + startPeriod
+    const endHour = 5 + endPeriod
+    const startLabel = startHour >= 12 ? `${startHour - 12} PM` : `${startHour} AM`
+    const endLabel = endHour >= 12 ? `${endHour - 12} PM` : `${endHour} AM`
+    return `${startLabel} - ${endLabel}`
+  }
+
+  const loadEquipmentTypes = async () => {
+    try {
+      setLoadingEquipmentTypes(true)
+      const data = await adminService.getEquipmentTypes()
+      setEquipmentTypes(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ API getEquipmentTypes failed:', error)
+    } finally {
+      setLoadingEquipmentTypes(false)
     }
   }
 
@@ -197,20 +455,37 @@ export default function CourseManagementPage() {
       Room_Name: '',
       Capacity: '',
     })
+    setSelectedEquipment([])
     setIsRoomDialogOpen(true)
   }
 
-  const handleEditRoom = (room: Room) => {
+  const handleEditRoom = async (room: Room) => {
     setEditingRoom(room)
     setRoomFormData({
       Building_Name: room.Building_Name,
       Room_Name: room.Room_Name,
       Capacity: room.Capacity?.toString() || '',
     })
+    
+    // Load current equipment for this room
+    try {
+      const equipment = await adminService.getRoomEquipment(room.Building_Name, room.Room_Name)
+      setSelectedEquipment(equipment.map(eq => eq.Equipment_Name))
+    } catch (error) {
+      console.error('Failed to load room equipment:', error)
+      setSelectedEquipment([])
+    }
+    
     setIsRoomDialogOpen(true)
   }
 
-  const handleSaveRoom = async () => {
+  const handleSaveRoom = async (e?: React.FormEvent) => {
+    // Prevent form submission and page reload
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     try {
       if (editingRoom) {
         await adminService.updateRoom(
@@ -220,18 +495,75 @@ export default function CourseManagementPage() {
             Capacity: roomFormData.Capacity ? parseInt(roomFormData.Capacity) : undefined,
           }
         )
+        // Update equipment for existing room
+        await adminService.updateRoomEquipment(
+          editingRoom.Building_Name,
+          editingRoom.Room_Name,
+          selectedEquipment
+        )
       } else {
         await adminService.createRoom({
           Building_Name: roomFormData.Building_Name,
           Room_Name: roomFormData.Room_Name,
           Capacity: roomFormData.Capacity ? parseInt(roomFormData.Capacity) : 30,
         })
+        // Add equipment for new room
+        if (selectedEquipment.length > 0) {
+          await adminService.updateRoomEquipment(
+            roomFormData.Building_Name,
+            roomFormData.Room_Name,
+            selectedEquipment
+          )
+        }
       }
+
+      // Close dialog immediately
       setIsRoomDialogOpen(false)
-      loadRooms()
-    } catch (error) {
+      setSelectedEquipment([])
+      
+      // Show success message
+      if (editingRoom) {
+        alert(t('admin.updateRoomSuccess') || t('admin.updateCourseSuccess') || 'Room updated successfully')
+      } else {
+        alert(t('admin.createRoomSuccess') || t('admin.createCourseSuccess') || 'Room created successfully')
+      }
+      
+      // Update state optimistically first
+      if (editingRoom) {
+        const updatedRoom: Room = {
+          Room_ID: editingRoom.Room_ID,
+          Building_Name: editingRoom.Building_Name,
+          Room_Name: editingRoom.Room_Name,
+          Capacity: roomFormData.Capacity ? parseInt(roomFormData.Capacity) : editingRoom.Capacity,
+          UsageCount: editingRoom.UsageCount,
+          EquipmentCount: selectedEquipment.length,
+        }
+        
+        // Update in rooms list
+        setRooms(prevRooms => 
+          prevRooms.map(r => 
+            r.Building_Name === editingRoom.Building_Name && r.Room_Name === editingRoom.Room_Name 
+              ? updatedRoom 
+              : r
+          )
+        )
+      }
+      
+      // Refresh data silently in background (no loading indicator)
+      refreshRoomsSilently().catch(err => {
+        console.error('Error refreshing rooms:', err)
+      })
+    } catch (error: any) {
       console.error('Failed to save room:', error)
-      alert(t('admin.errorSavingRoom') || 'Failed to save room')
+      
+      // Extract error message from backend response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorSavingRoom') || 
+                          'Failed to save room'
+      
+      alert(errorMessage)
     }
   }
 
@@ -239,12 +571,35 @@ export default function CourseManagementPage() {
     if (!confirm(`${t('admin.confirmDeleteRoom')} ${room.Room_Name} in ${room.Building_Name}?`)) {
       return
     }
+    
     try {
       await adminService.deleteRoom(room.Building_Name, room.Room_Name)
-      loadRooms()
-    } catch (error) {
+      
+      // Update UI optimistically - remove room from list immediately
+      setRooms(prevRooms => 
+        prevRooms.filter(r => 
+          !(r.Building_Name === room.Building_Name && r.Room_Name === room.Room_Name)
+        )
+      )
+      
+      // Show success message
+      alert(t('admin.deleteRoomSuccess') || t('admin.deleteCourseSuccess') || 'Room deleted successfully')
+      
+      // Refresh data silently in background (no loading indicator)
+      refreshRoomsSilently().catch(err => {
+        console.error('Error refreshing rooms:', err)
+      })
+    } catch (error: any) {
       console.error('Failed to delete room:', error)
-      alert(t('admin.errorDeletingRoom') || 'Failed to delete room. Make sure the room is not assigned to any sections.')
+      
+      // Extract error message from backend response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorDeletingRoom') || 
+                          'Failed to delete room. Make sure the room is not assigned to any sections.'
+      
+      alert(errorMessage)
     }
   }
 
@@ -483,6 +838,18 @@ export default function CourseManagementPage() {
     }
   }
 
+  // Silent refresh - reload courses without showing loading state
+  const refreshCoursesSilently = async () => {
+    try {
+      console.log('[CourseManagement] Silently refreshing courses...')
+      const data = await adminService.getCourses()
+      console.log('[CourseManagement] ✅ Silent refresh succeeded:', data?.length || 0, 'courses')
+      setCourses(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ Silent refresh failed:', error)
+    }
+  }
+
   const loadStatistics = async () => {
     try {
       console.log('[CourseManagement] Calling API: getStatistics')
@@ -651,17 +1018,40 @@ export default function CourseManagementPage() {
 
     try {
       await adminService.deleteCourse(courseId)
-      await loadCourses()
-    } catch (error) {
+      
+      // Update UI optimistically - remove course from list immediately
+      setCourses(prevCourses => prevCourses.filter(c => c.Course_ID !== courseId))
+      
+      // Show success message
+      alert(t('admin.deleteCourseSuccess'))
+      
+      // Refresh data silently in background (no loading indicator)
+      refreshCoursesSilently().catch(err => {
+        console.error('Error refreshing courses:', err)
+      })
+    } catch (error: any) {
       console.error('Error deleting course:', error)
-      alert(t('admin.errorDeletingUser'))
+      
+      // Extract error message from backend response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorDeletingCourse')
+      
+      alert(errorMessage)
     } finally {
       setIsDeleting(false)
       setDeleteCourseId(null)
     }
   }
 
-  const handleSaveCourse = async () => {
+  const handleSaveCourse = async (e?: React.FormEvent) => {
+    // Prevent form submission and page reload
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     if (!formData.Course_ID || !formData.Name) {
       alert(t('admin.fillRequiredFields'))
       return
@@ -683,11 +1073,48 @@ export default function CourseManagementPage() {
         })
       }
 
+      // Close dialog immediately
       setIsDialogOpen(false)
-      await loadCourses()
-    } catch (error) {
+      
+      // Show success message
+      if (editingCourse) {
+        alert(t('admin.updateCourseSuccess'))
+      } else {
+        alert(t('admin.createCourseSuccess'))
+      }
+      
+      // Update state optimistically first
+      if (editingCourse) {
+        const updatedCourse: AdminCourse = {
+          Course_ID: formData.Course_ID,
+          Name: formData.Name,
+          Credit: formData.Credit ? parseInt(formData.Credit) : null,
+          Start_Date: formData.Start_Date || null,
+          SectionCount: editingCourse.SectionCount,
+          StudentCount: editingCourse.StudentCount,
+          TutorCount: editingCourse.TutorCount,
+        }
+        
+        // Update in courses list
+        setCourses(prevCourses => 
+          prevCourses.map(c => c.Course_ID === formData.Course_ID ? updatedCourse : c)
+        )
+      }
+      
+      // Refresh data silently in background (no loading indicator)
+      refreshCoursesSilently().catch(err => {
+        console.error('Error refreshing courses:', err)
+      })
+    } catch (error: any) {
       console.error('Error saving course:', error)
-      alert(t('admin.errorSavingUser'))
+      
+      // Extract error message from backend response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          t('admin.errorSavingCourse')
+      
+      alert(errorMessage)
     }
   }
 
@@ -890,7 +1317,11 @@ export default function CourseManagementPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>{t('admin.actions')}</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigate(`/admin/courses/${course.Course_ID}`)}>
+              <DropdownMenuItem onClick={() => {
+                // Set flag to scroll to course list when returning
+                sessionStorage.setItem('shouldScrollToCourseList', 'true')
+                navigate(`/admin/courses/${course.Course_ID}`)
+              }}>
                 <Eye className="mr-2 h-4 w-4" />
                 {t('admin.viewDetails')}
               </DropdownMenuItem>
@@ -1015,15 +1446,16 @@ export default function CourseManagementPage() {
         </div>
 
         {/* Main Tabs */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'courses' | 'rooms')}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'courses' | 'rooms' | 'schedule')}>
           <TabsList className={cn(
-            "grid w-full grid-cols-2",
+            "grid w-full grid-cols-3",
             neoBrutalismMode 
               ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
               : ""
           )}>
             <TabsTrigger value="courses">{t('admin.courses')}</TabsTrigger>
             <TabsTrigger value="rooms">{t('admin.rooms') || 'Rooms'}</TabsTrigger>
+            <TabsTrigger value="schedule">{t('admin.schedule')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="courses" className="space-y-6 mt-6">
@@ -1503,7 +1935,7 @@ export default function CourseManagementPage() {
         />
 
         {/* Courses List Table */}
-        <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+        <Card ref={courseListRef} className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
           <CardHeader>
             <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1709,107 +2141,110 @@ export default function CourseManagementPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="course-id" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  {t('admin.courseId')} *
-                </Label>
-                <Input
-                  id="course-id"
-                  value={formData.Course_ID}
-                  onChange={(e) => setFormData({ ...formData, Course_ID: e.target.value })}
-                  disabled={!!editingCourse}
-                  placeholder="CS101"
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
+            <form onSubmit={handleSaveCourse}>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="course-id" className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.courseId')} *
+                  </Label>
+                  <Input
+                    id="course-id"
+                    value={formData.Course_ID}
+                    onChange={(e) => setFormData({ ...formData, Course_ID: e.target.value })}
+                    disabled={!!editingCourse}
+                    placeholder="CS101"
+                    className={cn(
+                      "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="course-name" className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.courseName')} *
+                  </Label>
+                  <Input
+                    id="course-name"
+                    value={formData.Name}
+                    onChange={(e) => setFormData({ ...formData, Name: e.target.value })}
+                    placeholder="Introduction to Computer Science"
+                    className={cn(
+                      "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="credit" className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.credit')}
+                  </Label>
+                  <Input
+                    id="credit"
+                    type="number"
+                    value={formData.Credit}
+                    onChange={(e) => setFormData({ ...formData, Credit: e.target.value })}
+                    placeholder="3"
+                    className={cn(
+                      "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="start-date" className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.startDate')}
+                  </Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={formData.Start_Date}
+                    onChange={(e) => setFormData({ ...formData, Start_Date: e.target.value })}
+                    className={cn(
+                      "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="course-name" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  {t('admin.courseName')} *
-                </Label>
-                <Input
-                  id="course-name"
-                  value={formData.Name}
-                  onChange={(e) => setFormData({ ...formData, Name: e.target.value })}
-                  placeholder="Introduction to Computer Science"
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="credit" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  {t('admin.credit')}
-                </Label>
-                <Input
-                  id="credit"
-                  type="number"
-                  value={formData.Credit}
-                  onChange={(e) => setFormData({ ...formData, Credit: e.target.value })}
-                  placeholder="3"
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="start-date" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  {t('admin.startDate')}
-                </Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={formData.Start_Date}
-                  onChange={(e) => setFormData({ ...formData, Start_Date: e.target.value })}
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
-              </div>
-            </div>
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                className={cn(
-                  "border-[#e5e7e7] dark:border-[#333]",
-                  neoBrutalismMode 
-                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
-                    : ""
-                )}
-              >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
-              </Button>
-              <Button
-                onClick={handleSaveCourse}
-                className={cn(
-                  neoBrutalismMode 
-                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
-                    : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
-                )}
-              >
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{editingCourse ? t('admin.update') : t('admin.addNew')}</span>
-              </Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  className={cn(
+                    "border-[#e5e7e7] dark:border-[#333]",
+                    neoBrutalismMode 
+                      ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                      : ""
+                  )}
+                >
+                  <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
+                </Button>
+                <Button
+                  type="submit"
+                  className={cn(
+                    neoBrutalismMode 
+                      ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                      : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+                  )}
+                >
+                  <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{editingCourse ? t('admin.update') : t('admin.addNew')}</span>
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
           </TabsContent>
@@ -3040,6 +3475,7 @@ export default function CourseManagementPage() {
                   </DialogDescription>
                 </DialogHeader>
 
+                <form onSubmit={handleSaveRoom}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="room-building" className={cn(
@@ -3106,10 +3542,72 @@ export default function CourseManagementPage() {
                       )}
                     />
                   </div>
+                  
+                  {/* Equipment Selection */}
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.equipment') || 'Equipment'}
+                    </Label>
+                    {loadingEquipmentTypes ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#3bafa8]" />
+                      </div>
+                    ) : equipmentTypes.length > 0 ? (
+                      <ScrollArea className={cn(
+                        "h-[200px] rounded-md border p-4",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : "border-[#e5e7e7] dark:border-[#333]"
+                      )}>
+                        <div className="space-y-2">
+                          {equipmentTypes.map((equipmentType) => (
+                            <div key={equipmentType} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`equipment-${equipmentType}`}
+                                checked={selectedEquipment.includes(equipmentType)}
+                                onCheckedChange={(checked: boolean) => {
+                                  if (checked) {
+                                    setSelectedEquipment([...selectedEquipment, equipmentType])
+                                  } else {
+                                    setSelectedEquipment(selectedEquipment.filter(eq => eq !== equipmentType))
+                                  }
+                                }}
+                                className={cn(
+                                  neoBrutalismMode 
+                                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                    : ""
+                                )}
+                              />
+                              <Label
+                                htmlFor={`equipment-${equipmentType}`}
+                                className={cn(
+                                  "text-sm font-normal cursor-pointer text-[#211c37] dark:text-white",
+                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                )}
+                              >
+                                {equipmentType}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <div className={cn(
+                        "text-sm text-gray-500 dark:text-gray-400 py-4 text-center",
+                        getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                      )}>
+                        {t('admin.noEquipmentTypes') || 'No equipment types available'}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <DialogFooter>
                   <Button
+                    type="button"
                     variant="outline"
                     onClick={() => setIsRoomDialogOpen(false)}
                     className={cn(
@@ -3122,7 +3620,7 @@ export default function CourseManagementPage() {
                     <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.cancel')}</span>
                   </Button>
                   <Button
-                    onClick={handleSaveRoom}
+                    type="submit"
                     disabled={!roomFormData.Building_Name || (!editingRoom && !roomFormData.Room_Name)}
                     className={cn(
                       neoBrutalismMode 
@@ -3135,6 +3633,981 @@ export default function CourseManagementPage() {
                     </span>
                   </Button>
                 </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          <TabsContent value="schedule" className="space-y-6 mt-6">
+            {/* Schedule Management Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className={cn(
+                  "text-2xl font-bold text-[#211c37] dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>
+                  {t('admin.scheduleManagement') || 'Schedule Management'}
+                </h2>
+                <p className={cn(
+                  "text-[#85878d] dark:text-gray-400 mt-1",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>
+                  {t('admin.scheduleManagementSubtitle') || 'Manage class schedules for all sections'}
+                </p>
+              </div>
+            </div>
+
+            {/* Schedule View Mode Toggle */}
+            <div className="flex items-center gap-4 mb-4">
+              <Button
+                variant={scheduleViewMode === 'calendar' ? 'default' : 'outline'}
+                onClick={() => setScheduleViewMode('calendar')}
+                className={cn(
+                  neoBrutalismMode 
+                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, scheduleViewMode === 'calendar' ? 'primary' : 'outline')
+                    : ""
+                )}
+              >
+                {t('admin.calendarView')}
+              </Button>
+              <Button
+                variant={scheduleViewMode === 'byRoom' ? 'default' : 'outline'}
+                onClick={() => setScheduleViewMode('byRoom')}
+                className={cn(
+                  neoBrutalismMode 
+                    ? getNeoBrutalismButtonClasses(neoBrutalismMode, scheduleViewMode === 'byRoom' ? 'primary' : 'outline')
+                    : ""
+                )}
+              >
+                {t('admin.byRoomView')}
+              </Button>
+            </div>
+
+            {/* Schedule Filters */}
+            <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+              <CardContent className="pt-6">
+                <div className={cn(
+                  "grid gap-4",
+                  scheduleViewMode === 'calendar' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-4"
+                )}>
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.course')}
+                    </Label>
+                    <Select
+                      value={selectedCourseFilter || 'all'}
+                      onValueChange={(value) => setSelectedCourseFilter(value === 'all' ? null : value)}
+                    >
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.allCourses')} />
+                      </SelectTrigger>
+                      <SelectContent className={cn(
+                        "bg-white dark:bg-[#1a1a1a]",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : ""
+                      )}>
+                        <SelectItem value="all">{t('admin.allCourses')}</SelectItem>
+                        {courses.map((course) => (
+                          <SelectItem key={course.Course_ID} value={course.Course_ID}>
+                            {course.Course_ID} - {course.Name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.semester')}
+                    </Label>
+                    <Select
+                      value={selectedSemesterFilter || 'all'}
+                      onValueChange={(value) => setSelectedSemesterFilter(value === 'all' ? null : value)}
+                    >
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.allSemesters')} />
+                      </SelectTrigger>
+                      <SelectContent className={cn(
+                        "bg-white dark:bg-[#1a1a1a]",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : ""
+                      )}>
+                        <SelectItem value="all">{t('admin.allSemesters')}</SelectItem>
+                        {availableSemesters.map((semester) => (
+                          <SelectItem key={semester} value={semester}>
+                            {semester}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {scheduleViewMode === 'byRoom' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          {t('admin.building')}
+                        </Label>
+                        <Select
+                          value={selectedScheduleBuildingFilter || 'all'}
+                          onValueChange={(value) => {
+                            setSelectedScheduleBuildingFilter(value === 'all' ? null : value)
+                            setSelectedRoomFilter(null) // Reset room when building changes
+                          }}
+                        >
+                          <SelectTrigger className={cn(
+                            "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                            getNeoBrutalismInputClasses(neoBrutalismMode)
+                          )}>
+                            <SelectValue placeholder={t('admin.allBuildings')} />
+                          </SelectTrigger>
+                          <SelectContent className={cn(
+                            "bg-white dark:bg-[#1a1a1a]",
+                            neoBrutalismMode 
+                              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                              : ""
+                          )}>
+                            <SelectItem value="all">{t('admin.allBuildings')}</SelectItem>
+                            {buildings.map((building) => (
+                              <SelectItem key={building.Building_Name} value={building.Building_Name}>
+                                {building.Building_Name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          {t('admin.room')}
+                        </Label>
+                        <Select
+                          value={selectedRoomFilter || 'all'}
+                          onValueChange={(value) => setSelectedRoomFilter(value === 'all' ? null : value)}
+                          disabled={!selectedScheduleBuildingFilter}
+                        >
+                          <SelectTrigger className={cn(
+                            "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                            getNeoBrutalismInputClasses(neoBrutalismMode)
+                          )}>
+                            <SelectValue placeholder={selectedScheduleBuildingFilter ? t('admin.allRooms') : t('admin.selectBuildingFirst')} />
+                          </SelectTrigger>
+                          <SelectContent className={cn(
+                            "bg-white dark:bg-[#1a1a1a]",
+                            neoBrutalismMode 
+                              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                              : ""
+                          )}>
+                            <SelectItem value="all">{t('admin.allRooms')}</SelectItem>
+                            {rooms
+                              .filter(room => !selectedScheduleBuildingFilter || room.Building_Name === selectedScheduleBuildingFilter)
+                              .map((room) => (
+                                <SelectItem key={`${room.Building_Name}-${room.Room_Name}`} value={room.Room_Name}>
+                                  {room.Building_Name} - {room.Room_Name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Schedule View Content */}
+            {scheduleViewMode === 'calendar' ? (
+              /* Calendar View */
+              <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+              <CardHeader>
+                <CardTitle className={cn(
+                  "text-xl text-[#1f1d39] dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>
+                  {t('admin.weeklySchedule')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingSchedules ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#3bafa8]" />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[900px]">
+                      {/* Calendar Header */}
+                      <div className="grid grid-cols-7 gap-px mb-px bg-gray-200 dark:bg-gray-700">
+                        <div className={cn(
+                          "p-3 text-center font-semibold text-sm bg-white dark:bg-[#1a1a1a]",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          {t('admin.time')}
+                        </div>
+                        {[
+                          { value: 1, key: 'monday' },
+                          { value: 2, key: 'tuesday' },
+                          { value: 3, key: 'wednesday' },
+                          { value: 4, key: 'thursday' },
+                          { value: 5, key: 'friday' },
+                          { value: 6, key: 'saturday' }
+                        ].map((day) => (
+                          <div key={day.value} className={cn(
+                            "p-3 text-center font-semibold text-sm text-[#211c37] dark:text-white bg-white dark:bg-[#1a1a1a]",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                          )}>
+                            {t(`admin.${day.key}`)}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Calendar Body - Time Slots with proper grid layout */}
+                      <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700">
+                        {/* Time column */}
+                        <div className="bg-white dark:bg-[#1a1a1a]">
+                          {Array.from({ length: 13 }, (_, i) => i + 1).map((period) => (
+                            <div 
+                              key={period} 
+                              className={cn(
+                                "p-2 text-xs text-right text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 min-h-[80px] flex flex-col justify-center items-end pr-2",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}
+                            >
+                              <div className="font-semibold">{period}</div>
+                              <div className="text-[10px] mt-0.5">{getPeriodTime(period)}</div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Day columns with proper grid structure */}
+                        {[1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+                          // Create a grid for this day column with 13 rows
+                          const daySchedules = schedules.filter(s => s.Day_of_Week === dayOfWeek)
+                          
+                          // Group schedules by time slot (start period)
+                          const schedulesByPeriod: { [period: number]: ScheduleEntry[] } = {}
+                          daySchedules.forEach(schedule => {
+                            if (!schedulesByPeriod[schedule.Start_Period]) {
+                              schedulesByPeriod[schedule.Start_Period] = []
+                            }
+                            schedulesByPeriod[schedule.Start_Period].push(schedule)
+                          })
+                          
+                          return (
+                            <div key={dayOfWeek} className="bg-white dark:bg-[#1a1a1a] relative">
+                              {/* Base grid cells for each period */}
+                              {Array.from({ length: 13 }, (_, i) => i + 1).map((period) => {
+                                const hasSchedule = daySchedules.some(
+                                  s => s.Start_Period <= period && s.End_Period >= period
+                                )
+                                const schedulesAtPeriod = schedulesByPeriod[period] || []
+                                
+                                // Only render base cell if no schedule starts here
+                                if (schedulesAtPeriod.length === 0) {
+                                  return (
+                                    <div
+                                      key={`cell-${dayOfWeek}-${period}`}
+                                      className={cn(
+                                        "p-2 text-xs border-b border-gray-200 dark:border-gray-700 min-h-[80px] flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors relative",
+                                        neoBrutalismMode 
+                                          ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB]"
+                                          : ""
+                                      )}
+                                      onClick={() => {
+                                        setEditingSchedule(null)
+                                        setScheduleFormData({
+                                          Section_ID: '',
+                                          Course_ID: selectedCourseFilter || '',
+                                          Semester: selectedSemesterFilter || '',
+                                          Day_of_Week: dayOfWeek,
+                                          Start_Period: period,
+                                          End_Period: period + 1,
+                                        })
+                                        setIsScheduleDialogOpen(true)
+                                      }}
+                                    >
+                                      {!hasSchedule && (
+                                        <div className="text-gray-300 dark:text-gray-600 text-lg">+</div>
+                                      )}
+                                    </div>
+                                  )
+                                }
+                                return null
+                              })}
+                              
+                              {/* Schedule cards positioned absolutely - handle overlapping schedules */}
+                              {Object.entries(schedulesByPeriod).map(([periodStr, periodSchedules]) => {
+                                const period = parseInt(periodStr)
+                                const totalSchedules = periodSchedules.length
+                                const showCount = 1 // Always show only first schedule
+                                const remainingCount = totalSchedules - showCount
+                                
+                                return (
+                                  <>
+                                    {/* Show first schedule or all if expanded */}
+                                    {periodSchedules.slice(0, showCount).map((scheduleEntry, index) => {
+                                      const duration = scheduleEntry.End_Period - scheduleEntry.Start_Period + 1
+                                      const height = duration * 80 // 80px per period
+                                      
+                                      // Generate color based on course ID hash for consistency
+                                      const courseIdHash = scheduleEntry.Course_ID.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+                                      const hue = (courseIdHash * 137.508) % 360 // Golden angle for color distribution
+                                      const color = `hsl(${hue}, 70%, 50%)`
+                                      
+                                      return (
+                                        <div
+                                          key={`schedule-${dayOfWeek}-${scheduleEntry.Start_Period}-${scheduleEntry.Course_ID}-${scheduleEntry.Section_ID}`}
+                                          className={cn(
+                                            "absolute left-0 right-0 mx-0.5 p-2 text-xs rounded cursor-pointer hover:opacity-90 transition-all text-white flex flex-col justify-start overflow-hidden",
+                                            neoBrutalismMode 
+                                              ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                              : "shadow-md"
+                                          )}
+                                          style={{ 
+                                            top: `${(scheduleEntry.Start_Period - 1) * 80 + 1}px`,
+                                            height: `${height - 2}px`,
+                                            backgroundColor: color,
+                                            zIndex: 10 + index
+                                          }}
+                                          onClick={() => {
+                                            setEditingSchedule(scheduleEntry)
+                                            setScheduleFormData({
+                                              Section_ID: scheduleEntry.Section_ID,
+                                              Course_ID: scheduleEntry.Course_ID,
+                                              Semester: scheduleEntry.Semester,
+                                              Day_of_Week: scheduleEntry.Day_of_Week,
+                                              Start_Period: scheduleEntry.Start_Period,
+                                              End_Period: scheduleEntry.End_Period,
+                                            })
+                                            setIsScheduleDialogOpen(true)
+                                          }}
+                                        >
+                                          <div className="font-bold text-sm mb-0.5 truncate">{scheduleEntry.Course_ID}</div>
+                                          <div className="text-xs opacity-95 mb-0.5 truncate">{scheduleEntry.Section_ID}</div>
+                                          {scheduleEntry.Course_Name && (
+                                            <div className="text-[10px] opacity-90 line-clamp-2 leading-tight">
+                                              {scheduleEntry.Course_Name}
+                                            </div>
+                                          )}
+                                          <div className="text-[10px] opacity-75 mt-auto pt-1">
+                                            {getScheduleTimeRange(scheduleEntry.Start_Period, scheduleEntry.End_Period)}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                    
+                                    {/* Show "+N" button if there are more schedules */}
+                                    {remainingCount > 0 && (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <div
+                                            className={cn(
+                                              "absolute right-0 mx-0.5 p-2 text-xs rounded cursor-pointer hover:opacity-90 transition-all text-white flex items-center justify-center",
+                                              neoBrutalismMode 
+                                                ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                : "shadow-md bg-gray-600 hover:bg-gray-700"
+                                            )}
+                                            style={{ 
+                                              top: `${(period - 1) * 80 + 1}px`,
+                                              height: `80px`,
+                                              zIndex: 15
+                                            }}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                            }}
+                                          >
+                                            <span className="font-semibold">+{remainingCount}</span>
+                                          </div>
+                                        </PopoverTrigger>
+                                        <PopoverContent 
+                                          className={cn(
+                                            "w-80 p-0",
+                                            neoBrutalismMode 
+                                              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                              : ""
+                                          )}
+                                          align="end"
+                                        >
+                                          <div className="p-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <h4 className={cn(
+                                                "font-semibold text-sm",
+                                                getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                              )}>
+                                                {t('admin.otherSections')} ({remainingCount})
+                                              </h4>
+                                            </div>
+                                            <ScrollArea className="h-[300px] pr-4">
+                                              <div className="space-y-2">
+                                                {periodSchedules.slice(showCount).map((scheduleEntry) => {
+                                                  const courseIdHash = scheduleEntry.Course_ID.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+                                                  const hue = (courseIdHash * 137.508) % 360
+                                                  const color = `hsl(${hue}, 70%, 50%)`
+                                                  
+                                                  return (
+                                                    <div 
+                                                      key={`list-${scheduleEntry.Course_ID}-${scheduleEntry.Section_ID}`}
+                                                      className={cn(
+                                                        "p-3 rounded-md border cursor-pointer hover:opacity-90 transition-all text-white",
+                                                        neoBrutalismMode 
+                                                          ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                          : "shadow-sm"
+                                                      )}
+                                                      style={{ backgroundColor: color }}
+                                                      onClick={() => {
+                                                        setEditingSchedule(scheduleEntry)
+                                                        setScheduleFormData({
+                                                          Section_ID: scheduleEntry.Section_ID,
+                                                          Course_ID: scheduleEntry.Course_ID,
+                                                          Semester: scheduleEntry.Semester,
+                                                          Day_of_Week: scheduleEntry.Day_of_Week,
+                                                          Start_Period: scheduleEntry.Start_Period,
+                                                          End_Period: scheduleEntry.End_Period,
+                                                        })
+                                                        setIsScheduleDialogOpen(true)
+                                                      }}
+                                                    >
+                                                      <div className="font-bold text-sm mb-1">{scheduleEntry.Course_ID}</div>
+                                                      <div className="text-xs opacity-95 mb-1">{scheduleEntry.Section_ID}</div>
+                                                      {scheduleEntry.Course_Name && (
+                                                        <div className="text-xs opacity-90 mb-1">
+                                                          {scheduleEntry.Course_Name}
+                                                        </div>
+                                                      )}
+                                                      <div className="text-[10px] opacity-75">
+                                                        {getScheduleTimeRange(scheduleEntry.Start_Period, scheduleEntry.End_Period)}
+                                                      </div>
+                                                    </div>
+                                                  )
+                                                })}
+                                              </div>
+                                            </ScrollArea>
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    )}
+                                  </>
+                                )
+                              })}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            ) : (
+              /* By Room View */
+              <Card className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+                <CardHeader>
+                  <CardTitle className={cn(
+                    "text-xl text-[#1f1d39] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                  )}>
+                    {t('admin.scheduleByRoom') || 'Schedule by Room'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingSchedulesByRoom ? (
+                    <div className="flex items-center justify-center h-64">
+                      <Loader2 className="h-6 w-6 animate-spin text-[#3bafa8]" />
+                    </div>
+                  ) : schedulesByRoom.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      {t('admin.noSchedulesFound') || 'No schedules found'}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {Object.entries(
+                        schedulesByRoom.reduce((acc, schedule) => {
+                          const key = `${schedule.Building_Name}-${schedule.Room_Name}`
+                          if (!acc[key]) {
+                            acc[key] = []
+                          }
+                          acc[key].push(schedule)
+                          return acc
+                        }, {} as Record<string, ScheduleByRoomEntry[]>)
+                      ).map(([roomKey, roomSchedules]) => {
+                        const [buildingName, roomName] = roomKey.split('-')
+                        return (
+                          <Card key={roomKey} className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
+                            <CardHeader>
+                              <CardTitle className={cn(
+                                "text-lg text-[#1f1d39] dark:text-white",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                              )}>
+                                {buildingName} - {roomName}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="overflow-x-auto">
+                                <div className="min-w-[900px]">
+                                  {/* Calendar Header */}
+                                  <div className="grid grid-cols-7 gap-px mb-px bg-gray-200 dark:bg-gray-700">
+                                    <div className={cn(
+                                      "p-3 text-center font-semibold text-sm bg-white dark:bg-[#1a1a1a]",
+                                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                    )}>
+                                      {t('admin.time')}
+                                    </div>
+                                    {[
+                                      { value: 1, key: 'monday' },
+                                      { value: 2, key: 'tuesday' },
+                                      { value: 3, key: 'wednesday' },
+                                      { value: 4, key: 'thursday' },
+                                      { value: 5, key: 'friday' },
+                                      { value: 6, key: 'saturday' }
+                                    ].map((day) => (
+                                      <div key={day.value} className={cn(
+                                        "p-3 text-center font-semibold text-sm text-[#211c37] dark:text-white bg-white dark:bg-[#1a1a1a]",
+                                        getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                      )}>
+                                        {t(`admin.${day.key}`)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  
+                                  {/* Calendar Body */}
+                                  <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700">
+                                    {/* Time column */}
+                                    <div className="bg-white dark:bg-[#1a1a1a]">
+                                      {Array.from({ length: 13 }, (_, i) => i + 1).map((period) => (
+                                        <div
+                                          key={period}
+                                          className={cn(
+                                            "p-2 text-xs border-b border-gray-200 dark:border-gray-700 min-h-[80px] flex flex-col items-center justify-start",
+                                            neoBrutalismMode 
+                                              ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB]"
+                                              : ""
+                                          )}
+                                          style={{ height: '80px' }}
+                                        >
+                                          <div className="font-semibold">Period {period}</div>
+                                          <div className="text-[10px] mt-0.5">{getPeriodTime(period)}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    
+                                    {/* Day columns */}
+                                    {[1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+                                      const daySchedules = roomSchedules.filter(s => s.Day_of_Week === dayOfWeek)
+                                      const schedulesByPeriod: { [key: number]: ScheduleByRoomEntry[] } = {}
+                                      daySchedules.forEach(s => {
+                                        if (!schedulesByPeriod[s.Start_Period]) {
+                                          schedulesByPeriod[s.Start_Period] = []
+                                        }
+                                        schedulesByPeriod[s.Start_Period].push(s)
+                                      })
+
+                                      return (
+                                        <div key={dayOfWeek} className="bg-white dark:bg-[#1a1a1a] relative">
+                                          {Array.from({ length: 13 }, (_, i) => i + 1).map((period) => {
+                                            const hasSchedule = daySchedules.some(
+                                              s => s.Start_Period <= period && s.End_Period >= period
+                                            )
+                                            
+                                            if (!schedulesByPeriod[period]) {
+                                              return (
+                                                <div
+                                                  key={`cell-${dayOfWeek}-${period}`}
+                                                  className={cn(
+                                                    "p-2 text-xs border-b border-gray-200 dark:border-gray-700 min-h-[80px] flex items-center justify-center",
+                                                    neoBrutalismMode 
+                                                      ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB]"
+                                                      : ""
+                                                  )}
+                                                  style={{ height: '80px' }}
+                                                >
+                                                  {!hasSchedule && (
+                                                    <div className="text-gray-300 dark:text-gray-600 text-lg">+</div>
+                                                  )}
+                                                </div>
+                                              )
+                                            }
+                                            return null
+                                          })}
+                                          
+                                          {/* Schedule cards */}
+                                          {Object.entries(schedulesByPeriod).map(([periodStr, periodSchedules]) => {
+                                            const period = parseInt(periodStr)
+                                            const showCount = 1
+                                            const remainingCount = periodSchedules.length - showCount
+                                            
+                                            return (
+                                              <>
+                                                {periodSchedules.slice(0, showCount).map((scheduleEntry, index) => {
+                                                  const duration = scheduleEntry.End_Period - scheduleEntry.Start_Period + 1
+                                                  const height = duration * 80
+                                                  
+                                                  const courseIdHash = scheduleEntry.Course_ID.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+                                                  const hue = (courseIdHash * 137.508) % 360
+                                                  const color = `hsl(${hue}, 70%, 50%)`
+                                                  
+                                                  return (
+                                                    <div
+                                                      key={`schedule-${dayOfWeek}-${scheduleEntry.Start_Period}-${scheduleEntry.Course_ID}-${scheduleEntry.Section_ID}`}
+                                                      className={cn(
+                                                        "absolute left-0 right-0 mx-0.5 p-2 text-xs rounded cursor-pointer hover:opacity-90 transition-all text-white flex flex-col justify-start overflow-hidden",
+                                                        neoBrutalismMode 
+                                                          ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                          : "shadow-md"
+                                                      )}
+                                                      style={{ 
+                                                        top: `${(scheduleEntry.Start_Period - 1) * 80 + 1}px`,
+                                                        height: `${height - 2}px`,
+                                                        backgroundColor: color,
+                                                        zIndex: 10 + index
+                                                      }}
+                                                    >
+                                                      <div className="font-bold text-sm mb-0.5 truncate">{scheduleEntry.Course_ID}</div>
+                                                      <div className="text-xs opacity-95 mb-0.5 truncate">{scheduleEntry.Section_ID}</div>
+                                                      {scheduleEntry.Course_Name && (
+                                                        <div className="text-[10px] opacity-90 line-clamp-2 leading-tight">
+                                                          {scheduleEntry.Course_Name}
+                                                        </div>
+                                                      )}
+                                                      <div className="text-[10px] opacity-75 mt-auto pt-1">
+                                                        {getScheduleTimeRange(scheduleEntry.Start_Period, scheduleEntry.End_Period)}
+                                                      </div>
+                                                    </div>
+                                                  )
+                                                })}
+                                                
+                                                {remainingCount > 0 && (
+                                                  <Popover>
+                                                    <PopoverTrigger asChild>
+                                                      <div
+                                                        className={cn(
+                                                          "absolute right-0 mx-0.5 p-2 text-xs rounded cursor-pointer hover:opacity-90 transition-all text-white flex items-center justify-center",
+                                                          neoBrutalismMode 
+                                                            ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                            : "shadow-md bg-gray-600 hover:bg-gray-700"
+                                                        )}
+                                                        style={{ 
+                                                          top: `${(period - 1) * 80 + 1}px`,
+                                                          height: `80px`,
+                                                          zIndex: 15
+                                                        }}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation()
+                                                        }}
+                                                      >
+                                                        <span className="font-semibold">+{remainingCount}</span>
+                                                      </div>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent 
+                                                      className={cn(
+                                                        "w-80 p-0",
+                                                        neoBrutalismMode 
+                                                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                          : ""
+                                                      )}
+                                                      align="end"
+                                                    >
+                                                      <div className="p-3">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                          <h4 className={cn(
+                                                            "font-semibold text-sm",
+                                                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                                          )}>
+                                                            {t('admin.otherSections')} ({remainingCount})
+                                                          </h4>
+                                                        </div>
+                                                        <ScrollArea className="h-[300px] pr-4">
+                                                          <div className="space-y-2">
+                                                            {periodSchedules.slice(showCount).map((scheduleEntry) => {
+                                                              const courseIdHash = scheduleEntry.Course_ID.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+                                                              const hue = (courseIdHash * 137.508) % 360
+                                                              const color = `hsl(${hue}, 70%, 50%)`
+                                                              
+                                                              return (
+                                                                <div 
+                                                                  key={`list-${scheduleEntry.Course_ID}-${scheduleEntry.Section_ID}`}
+                                                                  className={cn(
+                                                                    "p-3 rounded-md border cursor-pointer hover:opacity-90 transition-all text-white",
+                                                                    neoBrutalismMode 
+                                                                      ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                                      : "shadow-sm"
+                                                                  )}
+                                                                  style={{ backgroundColor: color }}
+                                                                >
+                                                                  <div className="font-bold text-sm mb-1">{scheduleEntry.Course_ID}</div>
+                                                                  <div className="text-xs opacity-95 mb-1">{scheduleEntry.Section_ID}</div>
+                                                                  {scheduleEntry.Course_Name && (
+                                                                    <div className="text-xs opacity-90 mb-1">
+                                                                      {scheduleEntry.Course_Name}
+                                                                    </div>
+                                                                  )}
+                                                                  <div className="text-[10px] opacity-75">
+                                                                    {getScheduleTimeRange(scheduleEntry.Start_Period, scheduleEntry.End_Period)}
+                                                                  </div>
+                                                                </div>
+                                                              )
+                                                            })}
+                                                          </div>
+                                                        </ScrollArea>
+                                                      </div>
+                                                    </PopoverContent>
+                                                  </Popover>
+                                                )}
+                                              </>
+                                            )
+                                          })}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Add/Edit Schedule Dialog */}
+            <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+              <DialogContent className={cn(
+                "bg-white dark:bg-[#1a1a1a] max-w-md",
+                neoBrutalismMode 
+                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[8px_8px_0px_0px_rgba(26,26,26,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,251,235,1)]"
+                  : "border-[#e5e7e7] dark:border-[#333]"
+              )}>
+                <DialogHeader>
+                  <DialogTitle className={cn(
+                    "text-[#211c37] dark:text-white text-xl",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                  )}>
+                    {editingSchedule ? t('admin.editSchedule') : t('admin.addSchedule')}
+                  </DialogTitle>
+                  <DialogDescription className={cn(
+                    "text-gray-600 dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {editingSchedule ? t('admin.updateScheduleInfo') : t('admin.fillInfoToCreateSchedule')}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSaveSchedule}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="schedule-section" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.sectionId')} *
+                    </Label>
+                    <Input
+                      id="schedule-section"
+                      value={scheduleFormData.Section_ID}
+                      onChange={(e) => setScheduleFormData({ ...scheduleFormData, Section_ID: e.target.value })}
+                      disabled={!!editingSchedule}
+                      placeholder="S01"
+                      className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="schedule-course" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.courseId') || 'Course ID'} *
+                    </Label>
+                    <Input
+                      id="schedule-course"
+                      value={scheduleFormData.Course_ID}
+                      onChange={(e) => setScheduleFormData({ ...scheduleFormData, Course_ID: e.target.value })}
+                      disabled={!!editingSchedule}
+                      placeholder="CS101"
+                      className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="schedule-semester" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.semester')} *
+                    </Label>
+                    <Input
+                      id="schedule-semester"
+                      value={scheduleFormData.Semester}
+                      onChange={(e) => setScheduleFormData({ ...scheduleFormData, Semester: e.target.value })}
+                      disabled={!!editingSchedule}
+                      placeholder={t('admin.semesterPlaceholder')}
+                      className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="schedule-day" className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.dayOfWeek')} *
+                    </Label>
+                    <Select
+                      value={scheduleFormData.Day_of_Week.toString()}
+                      onValueChange={(value) => setScheduleFormData({ ...scheduleFormData, Day_of_Week: parseInt(value) })}
+                    >
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.selectDay')} />
+                      </SelectTrigger>
+                      <SelectContent className={cn(
+                        "bg-white dark:bg-[#1a1a1a]",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : ""
+                      )}>
+                        <SelectItem value="1">{t('admin.monday')}</SelectItem>
+                        <SelectItem value="2">{t('admin.tuesday')}</SelectItem>
+                        <SelectItem value="3">{t('admin.wednesday')}</SelectItem>
+                        <SelectItem value="4">{t('admin.thursday')}</SelectItem>
+                        <SelectItem value="5">{t('admin.friday')}</SelectItem>
+                        <SelectItem value="6">{t('admin.saturday')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="schedule-start" className={cn(
+                        "text-[#211c37] dark:text-white",
+                        getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                      )}>
+                        {t('admin.startPeriod')} *
+                      </Label>
+                      <Input
+                        id="schedule-start"
+                        type="number"
+                        min="1"
+                        max="13"
+                        value={scheduleFormData.Start_Period}
+                        onChange={(e) => setScheduleFormData({ ...scheduleFormData, Start_Period: parseInt(e.target.value) || 1 })}
+                        className={cn(
+                          "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                          getNeoBrutalismInputClasses(neoBrutalismMode)
+                        )}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="schedule-end" className={cn(
+                        "text-[#211c37] dark:text-white",
+                        getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                      )}>
+                        {t('admin.endPeriod')} *
+                      </Label>
+                      <Input
+                        id="schedule-end"
+                        type="number"
+                        min="1"
+                        max="13"
+                        value={scheduleFormData.End_Period}
+                        onChange={(e) => setScheduleFormData({ ...scheduleFormData, End_Period: parseInt(e.target.value) || 2 })}
+                        className={cn(
+                          "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                          getNeoBrutalismInputClasses(neoBrutalismMode)
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  {editingSchedule && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsScheduleDialogOpen(false)
+                        handleDeleteSchedule(editingSchedule)
+                      }}
+                      className={cn(
+                        "border-red-500 text-red-600 dark:text-red-400",
+                        neoBrutalismMode 
+                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                          : ""
+                      )}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
+                        {t('admin.delete')}
+                      </span>
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsScheduleDialogOpen(false)
+                      setEditingSchedule(null)
+                      setScheduleFormData({
+                        Section_ID: '',
+                        Course_ID: '',
+                        Semester: '',
+                        Day_of_Week: 1,
+                        Start_Period: 1,
+                        End_Period: 2,
+                      })
+                    }}
+                    className={cn(
+                      "border-[#e5e7e7] dark:border-[#333]",
+                      neoBrutalismMode 
+                        ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')
+                        : ""
+                    )}
+                  >
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
+                      {t('admin.cancel')}
+                    </span>
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!scheduleFormData.Section_ID || !scheduleFormData.Course_ID || !scheduleFormData.Semester}
+                    className={cn(
+                      neoBrutalismMode 
+                        ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "bg-[#3bafa8] hover:bg-[#2a8d87] text-white")
+                        : "bg-[#3bafa8] hover:bg-[#2a8d87] text-white"
+                    )}
+                  >
+                    <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
+                      {editingSchedule ? t('admin.update') : t('admin.addNew')}
+                    </span>
+                  </Button>
+                </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
           </TabsContent>

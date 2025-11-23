@@ -48,9 +48,25 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
         
+        -- Truncate and validate values to match table schema constraints
+        DECLARE @Email_Truncated NVARCHAR(50) = LEFT(@Email, 50);
+        -- Phone_Number must be exactly 10 or 11 characters (CHECK constraint)
+        DECLARE @Phone_Number_Truncated NVARCHAR(11) = CASE 
+            WHEN @Phone_Number IS NOT NULL AND (LEN(@Phone_Number) = 10 OR LEN(@Phone_Number) = 11) 
+            THEN LEFT(@Phone_Number, 11) 
+            ELSE NULL 
+        END;
+        DECLARE @Address_Truncated NVARCHAR(50) = CASE WHEN @Address IS NOT NULL THEN LEFT(@Address, 50) ELSE NULL END;
+        -- National_ID must be exactly 12 characters (CHECK constraint)
+        DECLARE @National_ID_Truncated NVARCHAR(12) = CASE 
+            WHEN @National_ID IS NOT NULL AND LEN(@National_ID) = 12 
+            THEN LEFT(@National_ID, 12) 
+            ELSE NULL 
+        END;
+        
         -- Insert into Users
         INSERT INTO [Users] (University_ID, First_Name, Last_Name, Email, Phone_Number, Address, National_ID)
-        VALUES (@University_ID, @First_Name, @Last_Name, @Email, @Phone_Number, @Address, @National_ID);
+        VALUES (@University_ID, @First_Name, @Last_Name, @Email_Truncated, @Phone_Number_Truncated, @Address_Truncated, @National_ID_Truncated);
         
         -- Insert into Student
         INSERT INTO [Student] (University_ID, Major, Current_degree)
@@ -168,12 +184,69 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
         
-        DELETE FROM [Student] WHERE University_ID = @University_ID;
-        DELETE FROM [Account] WHERE University_ID = @University_ID;
-        DELETE FROM [Users] WHERE University_ID = @University_ID;
-        
-        IF @@ROWCOUNT = 0
+        -- Check if student exists first
+        IF NOT EXISTS (SELECT 1 FROM [Student] WHERE University_ID = @University_ID)
+        BEGIN
             THROW 50001, 'Student not found', 1;
+        END
+        
+        -- Delete related data first (to avoid foreign key constraint violations)
+        -- Delete Submissions (must be deleted before Assessment)
+        DELETE FROM [Submission] 
+        WHERE University_ID = @University_ID;
+        
+        -- Delete Assignments (references Assessment)
+        DELETE FROM [Assignment] 
+        WHERE University_ID = @University_ID;
+        
+        -- Delete Quizzes (references Assessment)
+        DELETE FROM [Quiz] 
+        WHERE University_ID = @University_ID;
+        
+        -- Delete Feedbacks (references Assessment)
+        DELETE FROM [Feedback] 
+        WHERE University_ID = @University_ID;
+        
+        -- Delete Assessments (after deleting dependent tables)
+        DELETE FROM [Assessment] 
+        WHERE University_ID = @University_ID;
+        
+        -- Delete Reference_To (if any)
+        DELETE FROM [Reference_To] 
+        WHERE University_ID = @University_ID;
+        
+        -- IMPORTANT: Delete from ALL role tables (user might have data in multiple roles)
+        -- Delete from Tutor table (if exists) - handle related data first
+        IF EXISTS (SELECT 1 FROM [Tutor] WHERE University_ID = @University_ID)
+        BEGIN
+            -- Update Department to remove this tutor as chair
+            UPDATE [Department] 
+            SET University_ID = NULL 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Reviews
+            DELETE FROM [review] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete Teaches relationships
+            DELETE FROM [Teaches] 
+            WHERE University_ID = @University_ID;
+            
+            -- Delete from Tutor table
+            DELETE FROM [Tutor] WHERE University_ID = @University_ID;
+        END
+        
+        -- Delete from Admin table (if exists)
+        DELETE FROM [Admin] WHERE University_ID = @University_ID;
+        
+        -- Delete from Student table
+        DELETE FROM [Student] WHERE University_ID = @University_ID;
+        
+        -- Delete from Account
+        DELETE FROM [Account] WHERE University_ID = @University_ID;
+        
+        -- Delete from Users (parent table) - now safe to delete
+        DELETE FROM [Users] WHERE University_ID = @University_ID;
         
         COMMIT TRANSACTION;
     END TRY

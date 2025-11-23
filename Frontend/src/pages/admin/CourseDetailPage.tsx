@@ -960,7 +960,11 @@ export default function CourseDetailPage() {
         <div className="text-center py-12">
           <p className={getNeoBrutalismTextClasses(neoBrutalismMode, 'body')}>{t('admin.courseNotFound')}</p>
           <Button
-            onClick={() => navigate('/admin/courses')}
+            onClick={() => {
+              // Set flag to scroll to course list when returning
+              sessionStorage.setItem('shouldScrollToCourseList', 'true')
+              navigate('/admin/courses')
+            }}
             className={cn(
               "mt-4",
               neoBrutalismMode 
@@ -984,7 +988,11 @@ export default function CourseDetailPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/admin/courses')}
+              onClick={() => {
+              // Set flag to scroll to course list when returning
+              sessionStorage.setItem('shouldScrollToCourseList', 'true')
+              navigate('/admin/courses')
+            }}
               className={cn(
                 neoBrutalismMode 
                   ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline')

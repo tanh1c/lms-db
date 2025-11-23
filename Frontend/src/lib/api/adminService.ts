@@ -279,8 +279,15 @@ export interface ScheduleEntry {
   Course_ID: string
   Semester: string
   Day_of_Week: number
+  Day_Name?: string
   Start_Period: number
   End_Period: number
+  Course_Name?: string
+}
+
+export interface ScheduleByRoomEntry extends ScheduleEntry {
+  Building_Name: string
+  Room_Name: string
 }
 
 // Audit Log
@@ -868,9 +875,20 @@ export const adminService = {
     await apiClient.put(`/admin/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}`, updates)
   },
 
+  async getEquipmentTypes(): Promise<string[]> {
+    const response = await apiClient.get('/admin/equipment-types')
+    return response.data
+  },
+
   async getRoomEquipment(buildingName: string, roomName: string): Promise<RoomEquipment[]> {
     const response = await apiClient.get(`/admin/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}/equipment`)
     return response.data
+  },
+
+  async updateRoomEquipment(buildingName: string, roomName: string, equipment: string[]): Promise<void> {
+    await apiClient.put(`/admin/rooms/${encodeURIComponent(buildingName)}/${encodeURIComponent(roomName)}/equipment`, {
+      equipment
+    })
   },
 
   async getRoomSections(buildingName: string, roomName: string): Promise<RoomSection[]> {
@@ -967,6 +985,25 @@ export const adminService = {
         End_Period: endPeriod
       }
     })
+  },
+
+  async getAllSchedules(params?: { course_id?: string; semester?: string }): Promise<ScheduleEntry[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.course_id) queryParams.append('course_id', params.course_id)
+    if (params?.semester) queryParams.append('semester', params.semester)
+    
+    const response = await apiClient.get(`/admin/schedules?${queryParams.toString()}`)
+    return response.data
+  },
+
+  async getAllSchedulesByRoom(params?: { building_name?: string; room_name?: string; semester?: string }): Promise<ScheduleByRoomEntry[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.building_name) queryParams.append('building_name', params.building_name)
+    if (params?.room_name) queryParams.append('room_name', params.room_name)
+    if (params?.semester) queryParams.append('semester', params.semester)
+    
+    const response = await apiClient.get(`/admin/schedules/by-room?${queryParams.toString()}`)
+    return response.data
   },
 
   // Audit Logs

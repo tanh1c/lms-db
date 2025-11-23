@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from config.database import get_db_connection
+from utils.jwt_utils import require_auth, require_role
 import bcrypt
 import time
 
@@ -8,6 +9,8 @@ admin_bp = Blueprint('admin', __name__)
 # ==================== COURSES MANAGEMENT ====================
 
 @admin_bp.route('/courses', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_courses():
     """Get all courses with statistics - Using stored procedure GetAllCoursesWithStats"""
     start_time = time.time()
@@ -42,6 +45,8 @@ def get_all_courses():
         return jsonify({'success': False, 'error': 'Failed to fetch courses'}), 500
 
 @admin_bp.route('/courses', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_course():
     """Create a new course - Using stored procedure"""
     try:
@@ -75,6 +80,8 @@ def create_course():
         return jsonify({'success': False, 'error': f'Failed to create course: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_course(course_id):
     """Update a course - Using stored procedure"""
     try:
@@ -108,6 +115,8 @@ def update_course(course_id):
         return jsonify({'success': False, 'error': f'Failed to update course: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_course(course_id):
     """Delete a course - Using stored procedure"""
     try:
@@ -124,6 +133,8 @@ def delete_course(course_id):
         return jsonify({'success': False, 'error': f'Failed to delete course: {str(e)}'}), 500
 
 @admin_bp.route('/courses/search', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def search_courses():
     """Search courses with advanced filters - Using stored procedure"""
     start_time = time.time()
@@ -175,6 +186,8 @@ def search_courses():
         return jsonify({'success': False, 'error': f'Failed to search courses: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>/details', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_details(course_id):
     """Get course details with statistics - Using stored procedure"""
     try:
@@ -205,6 +218,8 @@ def get_course_details(course_id):
         return jsonify({'success': False, 'error': f'Failed to get course details: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>/sections', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_sections(course_id):
     """Get all sections for a course - Using stored procedure"""
     start_time = time.time()
@@ -255,6 +270,8 @@ def get_course_sections(course_id):
         return jsonify({'success': False, 'error': f'Failed to get course sections: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>/students', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_students(course_id):
     """Get all students enrolled in a course - Using stored procedure"""
     try:
@@ -302,6 +319,8 @@ def get_course_students(course_id):
         return jsonify({'success': False, 'error': f'Failed to get course students: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>/tutors', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_tutors(course_id):
     """Get all tutors teaching a course - Using stored procedure"""
     try:
@@ -343,6 +362,8 @@ def get_course_tutors(course_id):
         return jsonify({'success': False, 'error': f'Failed to get course tutors: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>/statistics', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_statistics(course_id):
     """Get detailed statistics for a course - Using stored procedure"""
     try:
@@ -374,6 +395,8 @@ def get_course_statistics(course_id):
         return jsonify({'success': False, 'error': f'Failed to get course statistics: {str(e)}'}), 500
 
 @admin_bp.route('/courses/by-semester/<string:semester>', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_courses_by_semester(semester):
     """Get all courses for a specific semester - Using stored procedure"""
     try:
@@ -401,6 +424,8 @@ def get_courses_by_semester(semester):
         return jsonify({'success': False, 'error': f'Failed to get courses by semester: {str(e)}'}), 500
 
 @admin_bp.route('/courses/<string:course_id>/enrollment-trend', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_enrollment_trend(course_id):
     """Get enrollment trend for a course across semesters - Using stored procedure"""
     try:
@@ -436,6 +461,8 @@ def get_course_enrollment_trend(course_id):
 # ==================== SECTIONS MANAGEMENT ====================
 
 @admin_bp.route('/sections', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_sections():
     """Get all sections - Using stored procedure"""
     try:
@@ -460,6 +487,8 @@ def get_all_sections():
         return jsonify({'success': False, 'error': 'Failed to fetch sections'}), 500
 
 @admin_bp.route('/sections', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_section():
     """Create a new section - Using stored procedure"""
     try:
@@ -491,6 +520,8 @@ def create_section():
         return jsonify({'success': False, 'error': f'Failed to create section: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:course_id>/<string:section_id>/<string:semester>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_section(course_id, section_id, semester):
     """Update a section"""
     try:
@@ -507,6 +538,8 @@ def update_section(course_id, section_id, semester):
         return jsonify({'success': False, 'error': f'Failed to update section: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:course_id>/<string:section_id>/<string:semester>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_section(course_id, section_id, semester):
     """Delete a section"""
     try:
@@ -526,6 +559,8 @@ def delete_section(course_id, section_id, semester):
 # ==================== ASSIGNMENTS MANAGEMENT ====================
 
 @admin_bp.route('/assignments', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_assignments():
     """Get all assignments - Using stored procedure"""
     try:
@@ -557,6 +592,8 @@ def get_all_assignments():
         return jsonify({'success': False, 'error': 'Failed to fetch assignments'}), 500
 
 @admin_bp.route('/assignments', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_assignment():
     """Create a new assignment - Using stored procedure"""
     try:
@@ -617,6 +654,8 @@ def create_assignment():
         return jsonify({'success': False, 'error': f'Failed to create assignment: {str(e)}'}), 500
 
 @admin_bp.route('/assignments/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_assignment(university_id, section_id, course_id, semester, assessment_id):
     """Update an assignment - Using stored procedure"""
     try:
@@ -661,6 +700,8 @@ def update_assignment(university_id, section_id, course_id, semester, assessment
         return jsonify({'success': False, 'error': f'Failed to update assignment: {str(e)}'}), 500
 
 @admin_bp.route('/assignments/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_assignment(university_id, section_id, course_id, semester, assessment_id):
     """Delete an assignment - Using stored procedure"""
     try:
@@ -681,6 +722,8 @@ def delete_assignment(university_id, section_id, course_id, semester, assessment
 # ==================== QUIZZES MANAGEMENT ====================
 
 @admin_bp.route('/quizzes', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_quizzes():
     """Get all quizzes - Using stored procedure"""
     try:
@@ -720,6 +763,8 @@ def get_all_quizzes():
         return jsonify({'success': False, 'error': 'Failed to fetch quizzes'}), 500
 
 @admin_bp.route('/quizzes', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_quiz():
     """Create a new quiz - Using stored procedure"""
     try:
@@ -791,6 +836,8 @@ def create_quiz():
         return jsonify({'success': False, 'error': f'Failed to create quiz: {str(e)}'}), 500
 
 @admin_bp.route('/quizzes/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_quiz(university_id, section_id, course_id, semester, assessment_id):
     """Update a quiz - Using stored procedure"""
     try:
@@ -848,6 +895,8 @@ def update_quiz(university_id, section_id, course_id, semester, assessment_id):
         return jsonify({'success': False, 'error': f'Failed to update quiz: {str(e)}'}), 500
 
 @admin_bp.route('/quizzes/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_quiz(university_id, section_id, course_id, semester, assessment_id):
     """Delete a quiz - Using stored procedure"""
     try:
@@ -868,6 +917,8 @@ def delete_quiz(university_id, section_id, course_id, semester, assessment_id):
 # ==================== STUDENTS MANAGEMENT ====================
 
 @admin_bp.route('/students', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_students():
     """Get all students with user info"""
     try:
@@ -903,6 +954,8 @@ def get_all_students():
         return jsonify({'success': False, 'error': 'Failed to fetch students'}), 500
 
 @admin_bp.route('/students', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_student():
     """Create a new student - Using stored procedure"""
     try:
@@ -951,6 +1004,8 @@ def create_student():
         return jsonify({'success': False, 'error': f'Failed to create student: {str(e)}'}), 500
 
 @admin_bp.route('/students/<int:university_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_student(university_id):
     """Update a student - Using stored procedure"""
     try:
@@ -994,6 +1049,8 @@ def update_student(university_id):
         return jsonify({'success': False, 'error': f'Failed to update student: {str(e)}'}), 500
 
 @admin_bp.route('/students/<int:university_id>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_student(university_id):
     """Delete a student - Using stored procedure"""
     try:
@@ -1012,6 +1069,8 @@ def delete_student(university_id):
 # ==================== TUTORS MANAGEMENT ====================
 
 @admin_bp.route('/tutors', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_tutors():
     """Get all tutors with user info - Using stored procedure"""
     try:
@@ -1045,6 +1104,8 @@ def get_all_tutors():
         return jsonify({'success': False, 'error': 'Failed to fetch tutors'}), 500
 
 @admin_bp.route('/tutors', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_tutor():
     """Create a new tutor - Using stored procedure"""
     try:
@@ -1098,6 +1159,8 @@ def create_tutor():
         return jsonify({'success': False, 'error': f'Failed to create tutor: {str(e)}'}), 500
 
 @admin_bp.route('/tutors/<int:university_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_tutor(university_id):
     """Update a tutor - Using stored procedure"""
     try:
@@ -1146,6 +1209,8 @@ def update_tutor(university_id):
         return jsonify({'success': False, 'error': f'Failed to update tutor: {str(e)}'}), 500
 
 @admin_bp.route('/tutors/<int:university_id>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_tutor(university_id):
     """Delete a tutor - Using stored procedure"""
     try:
@@ -1164,6 +1229,8 @@ def delete_tutor(university_id):
 # ==================== ASSESSMENTS/GRADES MANAGEMENT ====================
 
 @admin_bp.route('/assessments', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_assessments():
     """Get all assessments with grades"""
     try:
@@ -1214,6 +1281,8 @@ def get_all_assessments():
         return jsonify({'success': False, 'error': f'Failed to fetch assessments: {str(e)}'}), 500
 
 @admin_bp.route('/assessments/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_assessment_grade(university_id, section_id, course_id, semester, assessment_id):
     """Update assessment grades - Using stored procedure"""
     try:
@@ -1266,6 +1335,8 @@ def update_assessment_grade(university_id, section_id, course_id, semester, asse
 # ==================== SUBMISSIONS MANAGEMENT ====================
 
 @admin_bp.route('/submissions', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_submissions():
     """Get all submissions"""
     try:
@@ -1310,6 +1381,8 @@ def get_all_submissions():
 # ==================== STATISTICS/DASHBOARD ====================
 
 @admin_bp.route('/statistics', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_statistics():
     """Get system statistics for admin dashboard - Using stored procedure"""
     start_time = time.time()
@@ -1381,6 +1454,8 @@ def get_statistics():
 # ==================== TEACHES MANAGEMENT (Assign Tutor to Section) ====================
 
 @admin_bp.route('/teaches', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_teaches():
     """Get all tutor-section assignments"""
     try:
@@ -1418,6 +1493,8 @@ def get_all_teaches():
         return jsonify({'success': False, 'error': 'Failed to fetch teaches'}), 500
 
 @admin_bp.route('/teaches', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_teaches():
     """Assign a tutor to a section"""
     try:
@@ -1449,6 +1526,8 @@ def create_teaches():
         return jsonify({'success': False, 'error': f'Failed to assign tutor: {str(e)}'}), 500
 
 @admin_bp.route('/teaches/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_teaches(university_id, section_id, course_id, semester):
     """Remove tutor from section"""
     try:
@@ -1471,6 +1550,8 @@ def delete_teaches(university_id, section_id, course_id, semester):
 # ==================== BUILDINGS & ROOMS MANAGEMENT ====================
 
 @admin_bp.route('/buildings', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_buildings():
     """Get all buildings"""
     try:
@@ -1492,6 +1573,8 @@ def get_all_buildings():
         return jsonify({'success': False, 'error': 'Failed to fetch buildings'}), 500
 
 @admin_bp.route('/buildings', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_building():
     """Create a new building"""
     try:
@@ -1519,6 +1602,8 @@ def create_building():
         return jsonify({'success': False, 'error': f'Failed to create building: {str(e)}'}), 500
 
 @admin_bp.route('/rooms', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_rooms():
     """Get all rooms with building info - Using stored procedure"""
     try:
@@ -1550,6 +1635,8 @@ def get_all_rooms():
         return jsonify({'success': False, 'error': 'Failed to fetch rooms'}), 500
 
 @admin_bp.route('/rooms', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_room():
     """Create a new room - Using stored procedure"""
     try:
@@ -1587,6 +1674,8 @@ def create_room():
         return jsonify({'success': False, 'error': f'Failed to create room: {str(e)}'}), 500
 
 @admin_bp.route('/rooms/<string:building_name>/<string:room_name>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_room(building_name, room_name):
     """Update a room - Using stored procedure"""
     try:
@@ -1613,6 +1702,8 @@ def update_room(building_name, room_name):
         return jsonify({'success': False, 'error': f'Failed to update room: {str(e)}'}), 500
 
 @admin_bp.route('/rooms/<string:building_name>/<string:room_name>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_room(building_name, room_name):
     """Delete a room - Using stored procedure"""
     try:
@@ -1633,7 +1724,32 @@ def delete_room(building_name, room_name):
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to delete room: {str(e)}'}), 500
 
+@admin_bp.route('/equipment-types', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_equipment_types():
+    """Get all equipment types - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetAllEquipmentTypes')
+        equipment_types = cursor.fetchall()
+        conn.close()
+
+        result = []
+        for eq in equipment_types:
+            result.append(eq[0])  # Equipment_Name
+
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get equipment types error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch equipment types: {str(e)}'}), 500
+
 @admin_bp.route('/rooms/<string:building_name>/<string:room_name>/equipment', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_room_equipment(building_name, room_name):
     """Get equipment for a specific room - Using stored procedure"""
     try:
@@ -1658,7 +1774,39 @@ def get_room_equipment(building_name, room_name):
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to fetch room equipment: {str(e)}'}), 500
 
+@admin_bp.route('/rooms/<string:building_name>/<string:room_name>/equipment', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
+def update_room_equipment(building_name, room_name):
+    """Update equipment for a specific room - Using stored procedure"""
+    try:
+        data = request.get_json()
+        equipment_list = data.get('equipment', [])
+        
+        # Convert list to JSON string
+        import json
+        equipment_json = json.dumps(equipment_list)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC UpdateRoomEquipment %s, %s, %s', (building_name, room_name, equipment_json))
+        result = cursor.fetchone()
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': result[0] if result else 'Room equipment updated successfully'
+        })
+    except Exception as e:
+        print(f'Update room equipment error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to update room equipment: {str(e)}'}), 500
+
 @admin_bp.route('/rooms/<string:building_name>/<string:room_name>/sections', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_room_sections(building_name, room_name):
     """Get sections that use a specific room - Using stored procedure"""
     try:
@@ -1685,6 +1833,8 @@ def get_room_sections(building_name, room_name):
         return jsonify({'success': False, 'error': f'Failed to fetch room sections: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/rooms', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_section_rooms(section_id, course_id, semester):
     """Get rooms assigned to a section - Using stored procedure"""
     try:
@@ -1711,6 +1861,8 @@ def get_section_rooms(section_id, course_id, semester):
         return jsonify({'success': False, 'error': f'Failed to fetch section rooms: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/rooms', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def assign_room_to_section(section_id, course_id, semester):
     """Assign a room to a section - Using stored procedure"""
     try:
@@ -1735,6 +1887,8 @@ def assign_room_to_section(section_id, course_id, semester):
         return jsonify({'success': False, 'error': f'Failed to assign room: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/rooms/<string:building_name>/<string:room_name>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def remove_room_from_section(section_id, course_id, semester, building_name, room_name):
     """Remove a room from a section - Using stored procedure"""
     try:
@@ -1759,6 +1913,8 @@ def remove_room_from_section(section_id, course_id, semester, building_name, roo
 # ==================== SCHEDULE MANAGEMENT ====================
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/schedule', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_section_schedule(section_id, course_id, semester):
     """Get schedule for a section - Using stored procedure"""
     try:
@@ -1787,6 +1943,8 @@ def get_section_schedule(section_id, course_id, semester):
         return jsonify({'success': False, 'error': f'Failed to fetch section schedule: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/schedule', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_schedule_entry(section_id, course_id, semester):
     """Create a schedule entry for a section - Using stored procedure"""
     try:
@@ -1811,6 +1969,8 @@ def create_schedule_entry(section_id, course_id, semester):
         return jsonify({'success': False, 'error': f'Failed to create schedule entry: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/schedule', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_schedule_entry(section_id, course_id, semester):
     """Update a schedule entry for a section - Using stored procedure"""
     try:
@@ -1836,6 +1996,8 @@ def update_schedule_entry(section_id, course_id, semester):
         return jsonify({'success': False, 'error': f'Failed to update schedule entry: {str(e)}'}), 500
 
 @admin_bp.route('/sections/<string:section_id>/<string:course_id>/<string:semester>/schedule', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_schedule_entry(section_id, course_id, semester):
     """Delete a schedule entry for a section - Using stored procedure"""
     try:
@@ -1859,9 +2021,84 @@ def delete_schedule_entry(section_id, course_id, semester):
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to delete schedule entry: {str(e)}'}), 500
 
+@admin_bp.route('/schedules', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_all_schedules():
+    """Get all schedules with optional filters - Using stored procedure"""
+    try:
+        course_id = request.args.get('course_id', type=str)
+        semester = request.args.get('semester', type=str)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetAllSchedules %s, %s', (course_id, semester))
+        schedules = cursor.fetchall()
+        conn.close()
+
+        result = []
+        for schedule in schedules:
+            result.append({
+                'Section_ID': schedule[0],
+                'Course_ID': schedule[1],
+                'Semester': schedule[2],
+                'Day_of_Week': schedule[3],
+                'Day_Name': schedule[4],
+                'Start_Period': schedule[5],
+                'End_Period': schedule[6],
+                'Course_Name': schedule[7],
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get all schedules error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch schedules: {str(e)}'}), 500
+
+@admin_bp.route('/schedules/by-room', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_schedules_by_room():
+    """Get schedules grouped by room - Using stored procedure"""
+    try:
+        building_name = request.args.get('building_name', type=str)
+        room_name = request.args.get('room_name', type=str)
+        semester = request.args.get('semester', type=str)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetSchedulesByRoom %s, %s, %s', (building_name, room_name, semester))
+        schedules = cursor.fetchall()
+        conn.close()
+
+        result = []
+        for schedule in schedules:
+            result.append({
+                'Building_Name': schedule[0],
+                'Room_Name': schedule[1],
+                'Section_ID': schedule[2],
+                'Course_ID': schedule[3],
+                'Semester': schedule[4],
+                'Day_of_Week': schedule[5],
+                'Day_Name': schedule[6],
+                'Start_Period': schedule[7],
+                'End_Period': schedule[8],
+                'Course_Name': schedule[9],
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get schedules by room error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch schedules by room: {str(e)}'}), 500
+
 # ==================== ADMIN ACCOUNTS MANAGEMENT ====================
 
 @admin_bp.route('/admins', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_admins():
     """Get all admin accounts - Using stored procedure"""
     try:
@@ -1891,6 +2128,8 @@ def get_all_admins():
         return jsonify({'success': False, 'error': 'Failed to fetch admins'}), 500
 
 @admin_bp.route('/admins', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_admin():
     """Create a new admin account - Using stored procedure"""
     try:
@@ -1937,6 +2176,8 @@ def create_admin():
         return jsonify({'success': False, 'error': f'Failed to create admin: {str(e)}'}), 500
 
 @admin_bp.route('/admins/<int:university_id>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_admin(university_id):
     """Update an admin - Using stored procedure"""
     try:
@@ -1978,6 +2219,8 @@ def update_admin(university_id):
         return jsonify({'success': False, 'error': f'Failed to update admin: {str(e)}'}), 500
 
 @admin_bp.route('/admins/<int:university_id>', methods=['DELETE'])
+@require_auth
+@require_role(['admin'])
 def delete_admin(university_id):
     """Delete an admin - Using stored procedure"""
     try:
@@ -1996,6 +2239,8 @@ def delete_admin(university_id):
 # ==================== REVIEW MANAGEMENT (Grade Submissions) ====================
 
 @admin_bp.route('/reviews', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_all_reviews():
     """Get all reviews (graded submissions)"""
     try:
@@ -2038,6 +2283,8 @@ def get_all_reviews():
         return jsonify({'success': False, 'error': 'Failed to fetch reviews'}), 500
 
 @admin_bp.route('/reviews', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def create_review():
     """Create a review (grade a submission)"""
     try:
@@ -2068,6 +2315,8 @@ def create_review():
         return jsonify({'success': False, 'error': f'Failed to create review: {str(e)}'}), 500
 
 @admin_bp.route('/reviews/<int:submission_no>', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_review(submission_no):
     """Update a review"""
     try:
@@ -2097,6 +2346,8 @@ def update_review(submission_no):
 # ==================== FILTER USERS ====================
 
 @admin_bp.route('/users/filter', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def filter_users():
     """Filter users with advanced filters - Using stored procedure"""
     try:
@@ -2156,6 +2407,8 @@ def filter_users():
         return jsonify({'success': False, 'error': f'Failed to filter users: {str(e)}'}), 500
 
 @admin_bp.route('/users/filter-options', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_filter_options():
     """Get filter options (majors, departments, admin types)"""
     try:
@@ -2190,6 +2443,8 @@ def get_filter_options():
 # ==================== UPDATE USER ROLE ====================
 
 @admin_bp.route('/users/<int:university_id>/role', methods=['PUT'])
+@require_auth
+@require_role(['admin'])
 def update_user_role(university_id):
     """Update user role - Using stored procedure"""
     try:
@@ -2308,6 +2563,8 @@ def update_user_role(university_id):
 # ==================== RESET USER PASSWORD ====================
 
 @admin_bp.route('/users/<int:university_id>/reset-password', methods=['POST'])
+@require_auth
+@require_role(['admin'])
 def reset_user_password(university_id):
     """Reset user password - Using stored procedure"""
     try:
@@ -2353,6 +2610,8 @@ def reset_user_password(university_id):
 # ==================== GET USER DETAILS ====================
 
 @admin_bp.route('/users/<int:university_id>/details', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_user_details(university_id):
     """Get detailed information about a user - Using stored procedures"""
     try:
@@ -2454,6 +2713,8 @@ def get_user_details(university_id):
 # ==================== AUDIT LOG MANAGEMENT ====================
 
 @admin_bp.route('/audit-logs', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_audit_logs():
     """Get audit logs with filters - Using stored procedure"""
     try:
@@ -2514,6 +2775,8 @@ def get_audit_logs():
         return jsonify({'success': False, 'error': f'Failed to get audit logs: {str(e)}'}), 500
 
 @admin_bp.route('/audit-logs/<int:university_id>', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_audit_logs_by_user(university_id):
     """Get audit logs for a specific user - Using stored procedure"""
     try:
@@ -2573,6 +2836,8 @@ def get_audit_logs_by_user(university_id):
         return jsonify({'success': False, 'error': f'Failed to get audit logs: {str(e)}'}), 500
 
 @admin_bp.route('/audit-logs/statistics', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_audit_log_statistics():
     """Get audit log statistics - Using stored procedure"""
     try:
@@ -2610,6 +2875,8 @@ def get_audit_log_statistics():
 # ==================== ADVANCED STATISTICS & ANALYTICS ====================
 
 @admin_bp.route('/statistics/gpa-by-major', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_gpa_statistics_by_major():
     """Get GPA statistics grouped by major - Using stored procedure"""
     try:
@@ -2639,6 +2906,8 @@ def get_gpa_statistics_by_major():
         return jsonify({'success': False, 'error': f'Failed to get GPA statistics: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/gpa-by-department', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_gpa_statistics_by_department():
     """Get GPA statistics grouped by department - Using stored procedure"""
     try:
@@ -2668,6 +2937,8 @@ def get_gpa_statistics_by_department():
         return jsonify({'success': False, 'error': f'Failed to get GPA statistics: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/course-enrollment', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_enrollment_statistics():
     """Get course enrollment statistics - Using stored procedure"""
     try:
@@ -2696,6 +2967,8 @@ def get_course_enrollment_statistics():
         return jsonify({'success': False, 'error': f'Failed to get enrollment statistics: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/completion-rates', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_completion_rate_statistics():
     """Get completion rate statistics for quizzes and assignments - Using stored procedure"""
     try:
@@ -2725,6 +2998,8 @@ def get_completion_rate_statistics():
         return jsonify({'success': False, 'error': f'Failed to get completion rate statistics: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/performance-over-time', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_performance_over_time():
     """Get performance statistics over time - Using stored procedure"""
     try:
@@ -2756,6 +3031,8 @@ def get_performance_over_time():
         return jsonify({'success': False, 'error': f'Failed to get performance statistics: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/top-students', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_top_students():
     """Get top students by GPA - Using stored procedure"""
     try:
@@ -2788,6 +3065,8 @@ def get_top_students():
         return jsonify({'success': False, 'error': f'Failed to get top students: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/top-tutors', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_top_tutors():
     """Get top tutors by student count and average GPA - Using stored procedure"""
     try:
@@ -2823,6 +3102,8 @@ def get_top_tutors():
 # ==================== COURSE STATISTICS & ANALYTICS ====================
 
 @admin_bp.route('/statistics/courses/enrollment-by-course', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_enrollment_by_course():
     """Get enrollment statistics by course - Using stored procedure"""
     start_time = time.time()
@@ -2865,6 +3146,8 @@ def get_course_enrollment_by_course():
         return jsonify({'success': False, 'error': f'Failed to get course enrollment: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/courses/distribution-by-credit', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_distribution_by_credit():
     """Get course distribution by credit value - Using stored procedure"""
     start_time = time.time()
@@ -2896,6 +3179,8 @@ def get_course_distribution_by_credit():
         return jsonify({'success': False, 'error': f'Failed to get course distribution: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/courses/top-by-enrollment', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_top_courses_by_enrollment():
     """Get top courses by enrollment - Using stored procedure"""
     start_time = time.time()
@@ -2935,6 +3220,8 @@ def get_top_courses_by_enrollment():
         return jsonify({'success': False, 'error': f'Failed to get top courses: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/courses/average-grade', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_average_grade():
     """Get average grade statistics by course - Using stored procedure"""
     start_time = time.time()
@@ -2974,6 +3261,8 @@ def get_course_average_grade():
         return jsonify({'success': False, 'error': f'Failed to get course average grade: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/courses/enrollment-trend', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_enrollment_trend_over_time():
     """Get course enrollment trend over time - Using stored procedure"""
     start_time = time.time()
@@ -3010,6 +3299,8 @@ def get_course_enrollment_trend_over_time():
         return jsonify({'success': False, 'error': f'Failed to get enrollment trend: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/courses/status-distribution', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_status_distribution():
     """Get course enrollment status distribution - Using stored procedure"""
     start_time = time.time()
@@ -3042,6 +3333,8 @@ def get_course_status_distribution():
         return jsonify({'success': False, 'error': f'Failed to get status distribution: {str(e)}'}), 500
 
 @admin_bp.route('/statistics/courses/activity', methods=['GET'])
+@require_auth
+@require_role(['admin'])
 def get_course_activity_statistics():
     """Get course activity statistics (assignments, quizzes, submissions) - Using stored procedure"""
     start_time = time.time()

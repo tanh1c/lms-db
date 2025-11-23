@@ -668,6 +668,112 @@ BEGIN
 END
 GO
 
+-- ==================== GET ALL EQUIPMENT TYPES ====================
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetAllEquipmentTypes]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[GetAllEquipmentTypes]
+GO
+
+CREATE PROCEDURE [dbo].[GetAllEquipmentTypes]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT DISTINCT Equipment_Name
+    FROM [Room_Equipment]
+    ORDER BY Equipment_Name;
+END
+GO
+
+-- ==================== UPDATE ROOM EQUIPMENT ====================
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UpdateRoomEquipment]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[UpdateRoomEquipment]
+GO
+
+CREATE PROCEDURE [dbo].[UpdateRoomEquipment]
+    @Building_Name NVARCHAR(10),
+    @Room_Name NVARCHAR(10),
+    @EquipmentList NVARCHAR(MAX) = NULL  -- JSON array string like '["Equipment1","Equipment2"]'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        -- Check if room exists
+        IF NOT EXISTS (SELECT 1 FROM [Room] WHERE Room_Name = @Room_Name AND Building_Name = @Building_Name)
+        BEGIN
+            RAISERROR('Room does not exist', 16, 1)
+            RETURN
+        END
+        
+        -- Delete all existing equipment for this room
+        DELETE FROM [Room_Equipment]
+        WHERE Building_Name = @Building_Name AND Room_Name = @Room_Name
+        
+        -- Insert new equipment if provided
+        IF @EquipmentList IS NOT NULL AND @EquipmentList != '' AND @EquipmentList != '[]'
+        BEGIN
+            -- Use OPENJSON if available (SQL Server 2016+), otherwise parse manually
+            IF (SELECT CAST(SERVERPROPERTY('ProductMajorVersion') AS INT)) >= 13
+            BEGIN
+                -- SQL Server 2016+ - Use OPENJSON
+                INSERT INTO [Room_Equipment] (Equipment_Name, Building_Name, Room_Name)
+                SELECT 
+                    LTRIM(RTRIM(value)) as Equipment_Name,
+                    @Building_Name,
+                    @Room_Name
+                FROM OPENJSON(@EquipmentList)
+                WHERE LTRIM(RTRIM(value)) != '' AND LTRIM(RTRIM(value)) IS NOT NULL
+            END
+            ELSE
+            BEGIN
+                -- SQL Server 2014 or earlier - Parse manually
+                DECLARE @EquipmentTable TABLE (Equipment_Name NVARCHAR(100))
+                DECLARE @JsonData NVARCHAR(MAX) = @EquipmentList
+                DECLARE @StartPos INT = 2  -- Skip opening bracket '['
+                DECLARE @EndPos INT
+                DECLARE @CurrentValue NVARCHAR(100)
+                
+                -- Remove outer brackets and quotes
+                SET @JsonData = LTRIM(RTRIM(@JsonData))
+                IF LEFT(@JsonData, 1) = '['
+                    SET @JsonData = SUBSTRING(@JsonData, 2, LEN(@JsonData) - 2)
+                
+                -- Split by comma
+                WHILE @StartPos <= LEN(@JsonData)
+                BEGIN
+                    SET @EndPos = CHARINDEX(',', @JsonData, @StartPos)
+                    IF @EndPos = 0
+                        SET @EndPos = LEN(@JsonData) + 1
+                    
+                    SET @CurrentValue = SUBSTRING(@JsonData, @StartPos, @EndPos - @StartPos)
+                    SET @CurrentValue = REPLACE(REPLACE(REPLACE(LTRIM(RTRIM(@CurrentValue)), '"', ''), '''', ''), '[', '')
+                    SET @CurrentValue = REPLACE(@CurrentValue, ']', '')
+                    
+                    IF @CurrentValue != '' AND @CurrentValue IS NOT NULL
+                    BEGIN
+                        INSERT INTO @EquipmentTable (Equipment_Name)
+                        VALUES (@CurrentValue)
+                    END
+                    
+                    SET @StartPos = @EndPos + 1
+                END
+                
+                -- Insert equipment into Room_Equipment table
+                INSERT INTO [Room_Equipment] (Equipment_Name, Building_Name, Room_Name)
+                SELECT Equipment_Name, @Building_Name, @Room_Name
+                FROM @EquipmentTable
+                WHERE Equipment_Name IS NOT NULL AND Equipment_Name != ''
+            END
+        END
+        
+        SELECT 'Room equipment updated successfully' as Message
+    END TRY
+    BEGIN CATCH
+        THROW
+    END CATCH
+END
+GO
+
 -- ==================== GET ROOM SECTIONS ====================
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetRoomSections]') AND type in (N'P', N'PC'))
     DROP PROCEDURE [dbo].[GetRoomSections]
@@ -941,5 +1047,91 @@ BEGIN
     END
     
     SELECT 'Schedule entry deleted successfully' as Message
+END
+GO
+
+-- ==================== GET ALL SCHEDULES ====================
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetAllSchedules]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[GetAllSchedules]
+GO
+
+CREATE PROCEDURE [dbo].[GetAllSchedules]
+    @Course_ID NVARCHAR(15) = NULL,
+    @Semester NVARCHAR(10) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        s.Section_ID,
+        s.Course_ID,
+        s.Semester,
+        s.Day_of_Week,
+        CASE s.Day_of_Week
+            WHEN 1 THEN 'Monday'
+            WHEN 2 THEN 'Tuesday'
+            WHEN 3 THEN 'Wednesday'
+            WHEN 4 THEN 'Thursday'
+            WHEN 5 THEN 'Friday'
+            WHEN 6 THEN 'Saturday'
+        END AS Day_Name,
+        s.Start_Period,
+        s.End_Period,
+        c.Name as Course_Name,
+        sec.Section_ID as Section_Exists
+    FROM [Scheduler] s
+    INNER JOIN [Course] c ON s.Course_ID = c.Course_ID
+    INNER JOIN [Section] sec ON s.Section_ID = sec.Section_ID 
+        AND s.Course_ID = sec.Course_ID 
+        AND s.Semester = sec.Semester
+    WHERE (@Course_ID IS NULL OR s.Course_ID = @Course_ID)
+        AND (@Semester IS NULL OR s.Semester = @Semester)
+    ORDER BY s.Day_of_Week, s.Start_Period, s.Course_ID, s.Section_ID;
+END
+GO
+
+-- ==================== GET SCHEDULES BY ROOM ====================
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetSchedulesByRoom]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[GetSchedulesByRoom]
+GO
+
+CREATE PROCEDURE [dbo].[GetSchedulesByRoom]
+    @Building_Name NVARCHAR(10) = NULL,
+    @Room_Name NVARCHAR(10) = NULL,
+    @Semester NVARCHAR(10) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        tp.Building_Name,
+        tp.Room_Name,
+        s.Section_ID,
+        s.Course_ID,
+        s.Semester,
+        s.Day_of_Week,
+        CASE s.Day_of_Week
+            WHEN 1 THEN 'Monday'
+            WHEN 2 THEN 'Tuesday'
+            WHEN 3 THEN 'Wednesday'
+            WHEN 4 THEN 'Thursday'
+            WHEN 5 THEN 'Friday'
+            WHEN 6 THEN 'Saturday'
+        END AS Day_Name,
+        s.Start_Period,
+        s.End_Period,
+        c.Name as Course_Name
+    FROM [Scheduler] s
+    INNER JOIN [Course] c ON s.Course_ID = c.Course_ID
+    INNER JOIN [Section] sec ON s.Section_ID = sec.Section_ID 
+        AND s.Course_ID = sec.Course_ID 
+        AND s.Semester = sec.Semester
+    INNER JOIN [takes_place] tp ON s.Section_ID = tp.Section_ID
+        AND s.Course_ID = tp.Course_ID
+        AND s.Semester = tp.Semester
+    WHERE (@Building_Name IS NULL OR tp.Building_Name = @Building_Name)
+        AND (@Room_Name IS NULL OR tp.Room_Name = @Room_Name)
+        AND (@Semester IS NULL OR s.Semester = @Semester)
+    ORDER BY tp.Building_Name, tp.Room_Name, s.Day_of_Week, s.Start_Period;
 END
 GO
