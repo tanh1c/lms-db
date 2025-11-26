@@ -261,7 +261,7 @@ export default function AdvancedSearchPanel({
                 )}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addCourse')}</span>
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addQuiz')}</span>
               </Button>
             )}
           </div>

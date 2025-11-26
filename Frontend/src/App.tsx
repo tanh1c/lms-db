@@ -26,7 +26,6 @@ import CourseManagementPage from './pages/admin/CourseManagementPage'
 import CourseDetailPageAdmin from './pages/admin/CourseDetailPage'
 import AssignmentManagementPage from './pages/admin/AssignmentManagementPage'
 import QuizManagementPage from './pages/admin/QuizManagementPage'
-import AssessmentManagementPage from './pages/admin/AssessmentManagementPage'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import AutoLogoutProvider from './components/auth/AutoLogoutProvider'
 
@@ -233,15 +232,6 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <QuizManagementPage />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path={ROUTES.ADMIN_ASSESSMENTS}
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AssessmentManagementPage />
               </ProtectedRoute>
             }
           />

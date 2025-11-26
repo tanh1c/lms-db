@@ -19,6 +19,7 @@ export interface AdminCourse {
   Course_ID: string
   Name: string
   Credit: number | null
+  CCategory?: string | null
   SectionCount?: number
   StudentCount?: number
   TutorCount?: number
@@ -123,14 +124,23 @@ export interface AdminAssignment {
   instructions: string | null
 }
 
+// Quiz Question Interface
+export interface QuizQuestion {
+  question: {
+    vi: string
+    en: string
+  }
+  answers: Record<string, { vi: string; en: string }>  // Dynamic answers (A, B, C, D, E, F, ...)
+  correct: string
+}
+
 // Quiz
 export interface AdminQuiz {
-  University_ID: number
+  QuizID: number  // Primary key for Quiz_Questions
   Section_ID: string
   Course_ID: string
   Course_Name?: string
   Semester: string
-  Assessment_ID: number
   Grading_method: string | null
   pass_score: number | null
   Time_limits: string | null
@@ -140,6 +150,24 @@ export interface AdminQuiz {
   types: string | null
   Weight: number | null
   Correct_answer: string
+  Questions?: string | null  // JSON string of QuizQuestion[]
+  StudentCount?: number  // Number of students who have taken this quiz
+}
+
+// Quiz Answer (Student Response)
+export interface QuizAnswer {
+  University_ID: number
+  First_Name: string
+  Last_Name: string
+  QuizID: number
+  Assessment_ID: number
+  Responses: string | null
+  completion_status: string | null
+  score: number | null
+  Quiz_Content: string
+  pass_score: number | null
+  Start_Date: string | null
+  End_Date: string | null
 }
 
 // Student
@@ -476,9 +504,37 @@ export const adminService = {
     return response.data
   },
 
+  async getCategories(): Promise<string[]> {
+    const response = await apiClient.get('/admin/categories')
+    return response.data
+  },
+
   async createCourse(course: Omit<AdminCourse, 'Course_ID'> & { Course_ID: string }): Promise<AdminCourse> {
     const response = await apiClient.post('/admin/courses', course)
     return response.data.course
+  },
+
+  async previewSectionIds(params: {
+    cc_count?: number
+    l_count?: number
+    kstn_count?: number
+  }): Promise<string[]> {
+    const response = await apiClient.get('/admin/courses/preview-sections', { params })
+    return response.data
+  },
+
+  async createCourseWithSections(course: {
+    Course_ID: string
+    Name: string
+    Credit?: number | null
+    CCategory?: string | null
+    Semester?: string
+    CC_Count?: number
+    L_Count?: number
+    KSTN_Count?: number
+  }): Promise<{ course: AdminCourse; sections: Array<{ Section_ID: string; Prefix: string; Number: number; Course_ID: string; Semester: string }> }> {
+    const response = await apiClient.post('/admin/courses/with-sections', course)
+    return response.data
   },
 
   async updateCourse(courseId: string, updates: Partial<AdminCourse>): Promise<void> {
@@ -584,8 +640,19 @@ export const adminService = {
 
   // Assignments
   async getAssignments(): Promise<AdminAssignment[]> {
-    const response = await apiClient.get('/admin/assignments')
-    return response.data
+    const response = await apiClient.get('/admin/assignments', {
+      timeout: 10000, // 10 seconds timeout
+    })
+    return response.data || []
+  },
+
+  async getAssignmentsByCourse(courseId?: string): Promise<AdminAssignment[]> {
+    const params = courseId ? { course_id: courseId } : {}
+    const response = await apiClient.get('/admin/assignments/by-course', {
+      params,
+      timeout: 10000, // 10 seconds timeout
+    })
+    return response.data || []
   },
 
   async createAssignment(assignment: Omit<AdminAssignment, 'Course_Name'>): Promise<AdminAssignment> {
@@ -616,34 +683,40 @@ export const adminService = {
 
   // Quizzes
   async getQuizzes(): Promise<AdminQuiz[]> {
-    const response = await apiClient.get('/admin/quizzes')
-    return response.data
+    const response = await apiClient.get('/admin/quizzes', {
+      timeout: 10000, // 10 seconds timeout
+    })
+    return response.data || []
   },
 
-  async createQuiz(quiz: Omit<AdminQuiz, 'Course_Name'>): Promise<AdminQuiz> {
+  async getQuizzesByCourse(courseId?: string): Promise<AdminQuiz[]> {
+    const params = courseId ? { course_id: courseId } : {}
+    const response = await apiClient.get('/admin/quizzes/by-course', {
+      params,
+      timeout: 10000, // 10 seconds timeout
+    })
+    return response.data || []
+  },
+
+  async createQuiz(quiz: Omit<AdminQuiz, 'Course_Name' | 'QuizID' | 'StudentCount'>): Promise<AdminQuiz> {
     const response = await apiClient.post('/admin/quizzes', quiz)
     return response.data.quiz
   },
 
   async updateQuiz(
-    universityId: number,
-    sectionId: string,
-    courseId: string,
-    semester: string,
-    assessmentId: number,
+    quizId: number,
     updates: Partial<AdminQuiz>
   ): Promise<void> {
-    await apiClient.put(`/admin/quizzes/${universityId}/${sectionId}/${courseId}/${semester}/${assessmentId}`, updates)
+    await apiClient.put(`/admin/quizzes/${quizId}`, updates)
   },
 
-  async deleteQuiz(
-    universityId: number,
-    sectionId: string,
-    courseId: string,
-    semester: string,
-    assessmentId: number
-  ): Promise<void> {
-    await apiClient.delete(`/admin/quizzes/${universityId}/${sectionId}/${courseId}/${semester}/${assessmentId}`)
+  async deleteQuiz(quizId: number): Promise<void> {
+    await apiClient.delete(`/admin/quizzes/${quizId}`)
+  },
+
+  async getQuizAnswersByQuizID(quizId: number): Promise<QuizAnswer[]> {
+    const response = await apiClient.get(`/admin/quizzes/${quizId}/answers`)
+    return response.data
   },
 
   // Students

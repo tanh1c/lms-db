@@ -200,3 +200,33 @@ BEGIN
 END
 GO
 
+-- ==================== GET ASSIGNMENTS BY COURSE ====================
+-- Description: Get all assignments grouped by course and section for course management view
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetAssignmentsByCourse]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[GetAssignmentsByCourse]
+GO
+
+CREATE PROCEDURE [dbo].[GetAssignmentsByCourse]
+    @Course_ID NVARCHAR(15) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        a.University_ID,
+        a.Section_ID,
+        a.Course_ID,
+        a.Semester,
+        a.Assessment_ID,
+        a.MaxScore,
+        a.accepted_specification,
+        a.submission_deadline,
+        a.instructions,
+        c.Name as Course_Name
+    FROM [Assignment] a
+    INNER JOIN [Course] c ON a.Course_ID = c.Course_ID
+    WHERE (@Course_ID IS NULL OR a.Course_ID = @Course_ID)
+    ORDER BY a.Course_ID, a.Section_ID, a.Semester, a.submission_deadline DESC;
+END
+GO
+

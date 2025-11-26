@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
@@ -117,7 +117,22 @@ export default function CourseManagementPage() {
     Course_ID: '',
     Name: '',
     Credit: '',
+    CCategory: '',
   })
+  const [categories, setCategories] = useState<string[]>([])
+  const [groupByCategory, setGroupByCategory] = useState(false)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  
+  // Section creation state (only for new courses)
+  const [createWithSections, setCreateWithSections] = useState(false)
+  const [sectionCounts, setSectionCounts] = useState({
+    CC_Count: 0,
+    L_Count: 0,
+    KSTN_Count: 0,
+  })
+  const [semester, setSemester] = useState('242')
+  const [previewSectionIds, setPreviewSectionIds] = useState<string[]>([])
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   // Room Management state
   const [rooms, setRooms] = useState<Room[]>([])
@@ -183,7 +198,17 @@ export default function CourseManagementPage() {
   useEffect(() => {
     loadCourses()
     loadStatistics()
+    loadCategories()
   }, [])
+
+  const loadCategories = async () => {
+    try {
+      const data = await adminService.getCategories()
+      setCategories(data)
+    } catch (error) {
+      console.error('[CourseManagement] ❌ API getCategories failed:', error)
+    }
+  }
 
   // Scroll to course list when returning from detail page
   useEffect(() => {
@@ -1112,7 +1137,16 @@ export default function CourseManagementPage() {
       Course_ID: '',
       Name: '',
       Credit: '',
+      CCategory: '',
     })
+    setCreateWithSections(false)
+    setSectionCounts({
+      CC_Count: 0,
+      L_Count: 0,
+      KSTN_Count: 0,
+    })
+    setSemester('242')
+    setPreviewSectionIds([])
     setIsDialogOpen(true)
   }
 
@@ -1122,6 +1156,7 @@ export default function CourseManagementPage() {
       Course_ID: course.Course_ID,
       Name: course.Name,
       Credit: course.Credit?.toString() || '',
+      CCategory: course.CCategory || '',
     })
     setIsDialogOpen(true)
   }
@@ -1163,6 +1198,38 @@ export default function CourseManagementPage() {
     }
   }
 
+  // Preview sections when counts change
+  useEffect(() => {
+    if (!createWithSections || editingCourse) {
+      setPreviewSectionIds([])
+      return
+    }
+
+    if (sectionCounts.CC_Count === 0 && sectionCounts.L_Count === 0 && sectionCounts.KSTN_Count === 0) {
+      setPreviewSectionIds([])
+      return
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setLoadingPreview(true)
+        const sectionIds = await adminService.previewSectionIds({
+          cc_count: sectionCounts.CC_Count,
+          l_count: sectionCounts.L_Count,
+          kstn_count: sectionCounts.KSTN_Count,
+        })
+        setPreviewSectionIds(sectionIds)
+      } catch (error) {
+        console.error('Error previewing sections:', error)
+        setPreviewSectionIds([])
+      } finally {
+        setLoadingPreview(false)
+      }
+    }, 300) // Debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [sectionCounts.CC_Count, sectionCounts.L_Count, sectionCounts.KSTN_Count, createWithSections, editingCourse])
+
   const handleSaveCourse = async (e?: React.FormEvent) => {
     // Prevent form submission and page reload
     if (e) {
@@ -1180,13 +1247,29 @@ export default function CourseManagementPage() {
         await adminService.updateCourse(formData.Course_ID, {
           Name: formData.Name,
           Credit: formData.Credit ? parseInt(formData.Credit) : null,
+          CCategory: formData.CCategory || null,
+        })
+      } else {
+        // Check if creating with sections
+        if (createWithSections && (sectionCounts.CC_Count > 0 || sectionCounts.L_Count > 0 || sectionCounts.KSTN_Count > 0)) {
+          await adminService.createCourseWithSections({
+            Course_ID: formData.Course_ID,
+            Name: formData.Name,
+            Credit: formData.Credit ? parseInt(formData.Credit) : null,
+            CCategory: formData.CCategory || null,
+            Semester: semester,
+            CC_Count: sectionCounts.CC_Count,
+            L_Count: sectionCounts.L_Count,
+            KSTN_Count: sectionCounts.KSTN_Count,
         })
       } else {
         await adminService.createCourse({
           Course_ID: formData.Course_ID,
           Name: formData.Name,
           Credit: formData.Credit ? parseInt(formData.Credit) : null,
+            CCategory: formData.CCategory || null,
         })
+        }
       }
 
       // Close dialog immediately
@@ -1205,6 +1288,7 @@ export default function CourseManagementPage() {
           Course_ID: formData.Course_ID,
           Name: formData.Name,
           Credit: formData.Credit ? parseInt(formData.Credit) : null,
+          CCategory: formData.CCategory || null,
           SectionCount: editingCourse.SectionCount,
           StudentCount: editingCourse.StudentCount,
           TutorCount: editingCourse.TutorCount,
@@ -1460,6 +1544,34 @@ export default function CourseManagementPage() {
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [t, neoBrutalismMode, navigate, isDeleting, deleteCourseId])
+
+  // Group courses by category
+  const coursesByCategory = useMemo(() => {
+    if (!groupByCategory) return null
+    
+    const grouped: { [category: string]: AdminCourse[] } = {}
+    courses.forEach(course => {
+      const category = course.CCategory || t('admin.noCategory') || 'Uncategorized'
+      if (!grouped[category]) {
+        grouped[category] = []
+      }
+      grouped[category].push(course)
+    })
+    return grouped
+  }, [courses, groupByCategory, t])
+
+  // Toggle category expansion
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(category)) {
+        newSet.delete(category)
+      } else {
+        newSet.add(category)
+      }
+      return newSet
+    })
+  }
 
   const table = useReactTable({
     data: courses,
@@ -2073,6 +2185,24 @@ export default function CourseManagementPage() {
                 )}
             </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant={groupByCategory ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setGroupByCategory(!groupByCategory)
+                    if (!groupByCategory) {
+                      setExpandedCategories(new Set())
+                    }
+                  }}
+                  className={cn(
+                    groupByCategory && "bg-[#3bafa8] text-white",
+                    neoBrutalismMode 
+                      ? getNeoBrutalismButtonClasses(neoBrutalismMode, groupByCategory ? 'primary' : 'outline')
+                      : ""
+                  )}
+                >
+                  {t('admin.groupByCategory') || 'Group by Category'}
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="ml-auto">
@@ -2162,7 +2292,195 @@ export default function CourseManagementPage() {
                     ))}
                   </TableHeader>
                   <TableBody>
-                    {table.getRowModel().rows?.length ? (
+                    {groupByCategory && coursesByCategory ? (
+                      Object.entries(coursesByCategory).map(([category, categoryCourses]) => {
+                        const isExpanded = expandedCategories.has(category)
+                        return (
+                          <Fragment key={`category-${category}`}>
+                            <TableRow
+                              className={cn(
+                                "bg-[#f5f5f5] dark:bg-[#2a2a2a] cursor-pointer hover:bg-[#e5e5e5] dark:hover:bg-[#333]",
+                                neoBrutalismMode 
+                                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB]"
+                                  : ""
+                              )}
+                              onClick={() => toggleCategory(category)}
+                            >
+                              <TableCell colSpan={columns.length} className="p-3">
+                                <div className="flex items-center gap-2">
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-5 w-5 text-[#3bafa8]" />
+                                  ) : (
+                                    <ChevronRight className="h-5 w-5 text-[#3bafa8]" />
+                                  )}
+                                  <span className={cn(
+                                    "font-bold text-lg text-[#211c37] dark:text-white flex-1",
+                                    getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                                  )}>
+                                    {category}
+                                  </span>
+                                  <Badge variant="secondary" className="ml-2">
+                                    {categoryCourses.length} {t('admin.courses')}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && categoryCourses.map((course) => {
+                              // Find the row from table to get proper row context
+                              const row = table.getRowModel().rows.find(r => r.original.Course_ID === course.Course_ID)
+                              if (!row) {
+                                // If course not found in table rows, render directly from course data
+                                return (
+                                  <TableRow
+                                    key={`course-${course.Course_ID}`}
+                                    className="pl-6"
+                                  >
+                                    {columns.map((column, colIndex) => {
+                                      const isCenterColumn = ['Credit', 'SectionCount', 'StudentCount', 'TutorCount'].includes(column.id || '')
+                                      const columnId = column.id || ''
+                                      const accessorKey = ('accessorKey' in column && column.accessorKey) ? String(column.accessorKey) : null
+                                      
+                                      return (
+                                        <TableCell 
+                                          key={columnId || accessorKey || `cell-${colIndex}`}
+                                          className={cn(isCenterColumn && 'text-center')}
+                                        >
+                                          {columnId === 'actions' ? (
+                                            // Render actions column
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                  <span className="sr-only">Open menu</span>
+                                                  <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>{t('admin.actions')}</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => {
+                                                  sessionStorage.setItem('shouldScrollToCourseList', 'true')
+                                                  navigate(`/admin/courses/${course.Course_ID}`)
+                                                }}>
+                                                  <Eye className="mr-2 h-4 w-4" />
+                                                  {t('admin.viewDetails')}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleEditCourse(course)}>
+                                                  <Edit2 className="mr-2 h-4 w-4" />
+                                                  {t('admin.edit')}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                  onClick={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    handleDeleteCourse(course.Course_ID)
+                                                  }}
+                                                  className="text-red-600 dark:text-red-400"
+                                                >
+                                                  <Trash2 className="mr-2 h-4 w-4" />
+                                                  {t('admin.delete')}
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          ) : accessorKey === 'Course_ID' ? (
+                                            <div className="flex items-center gap-3">
+                                              <div className={cn(
+                                                "w-8 h-8 bg-[#3bafa8] dark:bg-[#3bafa8]/30 flex items-center justify-center flex-shrink-0",
+                                                neoBrutalismMode 
+                                                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                  : "rounded-full"
+                                              )}>
+                                                <BookOpen className="h-4 w-4 text-white dark:text-[#3bafa8]" />
+                                              </div>
+                                              <div className="font-medium">{course.Course_ID}</div>
+                                            </div>
+                                          ) : accessorKey === 'Name' ? (
+                                            <div className="flex items-center gap-3">
+                                              <div className={cn(
+                                                "w-8 h-8 bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0",
+                                                neoBrutalismMode 
+                                                  ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                                                  : "rounded-full"
+                                              )}>
+                                                <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                              </div>
+                                              <div className="font-medium">{course.Name}</div>
+                                            </div>
+                                          ) : accessorKey === 'Credit' ? (
+                                            <div className="text-center">{course.Credit ?? t('admin.noData')}</div>
+                                          ) : columnId === 'SectionCount' ? (
+                                            course.SectionCount === undefined || course.SectionCount === null 
+                                              ? <div className="text-center">{t('admin.noData')}</div>
+                                              : (
+                                                <div className="flex justify-center">
+                                                  <Badge className={cn(
+                                                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                                    neoBrutalismMode ? "border-2 border-blue-600 dark:border-blue-400 rounded-none" : ""
+                                                  )}>
+                                                    {course.SectionCount} {t('admin.sections')}
+                                                  </Badge>
+                                                </div>
+                                              )
+                                          ) : columnId === 'StudentCount' ? (
+                                            course.StudentCount === undefined || course.StudentCount === null 
+                                              ? <div className="text-center">{t('admin.noData')}</div>
+                                              : (
+                                                <div className="flex justify-center">
+                                                  <Badge className={cn(
+                                                    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                                    neoBrutalismMode ? "border-2 border-green-600 dark:border-green-400 rounded-none" : ""
+                                                  )}>
+                                                    {course.StudentCount} {t('admin.students')}
+                                                  </Badge>
+                                                </div>
+                                              )
+                                          ) : columnId === 'TutorCount' ? (
+                                            course.TutorCount === undefined || course.TutorCount === null 
+                                              ? <div className="text-center">{t('admin.noData')}</div>
+                                              : (
+                                                <div className="flex justify-center">
+                                                  <Badge className={cn(
+                                                    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+                                                    neoBrutalismMode ? "border-2 border-purple-600 dark:border-purple-400 rounded-none" : ""
+                                                  )}>
+                                                    {course.TutorCount} {t('admin.tutors')}
+                                                  </Badge>
+                                                </div>
+                                              )
+                                          ) : (
+                                            String(course[accessorKey as keyof AdminCourse] ?? '')
+                                          )}
+                                        </TableCell>
+                                      )
+                                    })}
+                                  </TableRow>
+                                )
+                              }
+                              return (
+                                <TableRow
+                                  key={row.id}
+                                  data-state={row.getIsSelected() && 'selected'}
+                                  className="pl-6"
+                                >
+                                  {row.getVisibleCells().map((cell) => {
+                                    const isCenterColumn = ['Credit', 'SectionCount', 'StudentCount', 'TutorCount'].includes(cell.column.id)
+                                    return (
+                                      <TableCell 
+                                        key={cell.id}
+                                        className={cn(isCenterColumn && 'text-center')}
+                                      >
+                                        {flexRender(
+                                          cell.column.columnDef.cell,
+                                          cell.getContext()
+                                        )}
+                                      </TableCell>
+                                    )
+                                  })}
+                                </TableRow>
+                              )
+                            })}
+                          </Fragment>
+                        )
+                      })
+                    ) : table.getRowModel().rows?.length ? (
                       table.getRowModel().rows.map((row) => (
                         <TableRow
                           key={row.id}
@@ -2314,7 +2632,197 @@ export default function CourseManagementPage() {
                     )}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category" className={cn(
+                    "text-[#211c37] dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.category') || 'Category'}
+                </Label>
+                  <Select
+                    value={formData.CCategory || 'none'}
+                    onValueChange={(value) => setFormData({ ...formData, CCategory: value === 'none' ? '' : value })}
+                  >
+                    <SelectTrigger className={cn(
+                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                    getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}>
+                      <SelectValue placeholder={t('admin.selectCategory') || 'Select a category'} />
+                    </SelectTrigger>
+                    <SelectContent className={cn(
+                      "bg-white dark:bg-[#1a1a1a]",
+                      neoBrutalismMode 
+                        ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                        : ""
+                    )}>
+                      <SelectItem value="none">{t('admin.noCategory') || 'No Category'}</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
               </div>
+            </div>
+
+            {/* Section Creation Section - Only show when adding new course */}
+            {!editingCourse && (
+              <div className="space-y-4 py-4 border-t border-[#e5e7e7] dark:border-[#333]">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="create-with-sections"
+                    checked={createWithSections}
+                    onCheckedChange={(checked) => {
+                      setCreateWithSections(checked as boolean)
+                      if (!checked) {
+                        setSectionCounts({ CC_Count: 0, L_Count: 0, KSTN_Count: 0 })
+                        setPreviewSectionIds([])
+                      }
+                    }}
+                  />
+                  <Label htmlFor="create-with-sections" className={cn(
+                    "text-[#211c37] dark:text-white cursor-pointer",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.createWithSections') || 'Create with Sections'}
+                  </Label>
+                </div>
+
+                {createWithSections && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="semester" className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          {t('admin.semester') || 'Semester'} *
+                  </Label>
+                  <Input
+                          id="semester"
+                          value={semester}
+                          onChange={(e) => setSemester(e.target.value)}
+                          placeholder="242"
+                    className={cn(
+                      "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                      getNeoBrutalismInputClasses(neoBrutalismMode)
+                    )}
+                  />
+                </div>
+              </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cc-count" className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          CC Sections
+                        </Label>
+                        <Input
+                          id="cc-count"
+                          type="number"
+                          min="0"
+                          value={sectionCounts.CC_Count}
+                          onChange={(e) => setSectionCounts({ ...sectionCounts, CC_Count: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                          className={cn(
+                            "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                            getNeoBrutalismInputClasses(neoBrutalismMode)
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="l-count" className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          L Sections
+                        </Label>
+                        <Input
+                          id="l-count"
+                          type="number"
+                          min="0"
+                          value={sectionCounts.L_Count}
+                          onChange={(e) => setSectionCounts({ ...sectionCounts, L_Count: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                          className={cn(
+                            "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                            getNeoBrutalismInputClasses(neoBrutalismMode)
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="kstn-count" className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          KSTN Sections
+                        </Label>
+                        <Input
+                          id="kstn-count"
+                          type="number"
+                          min="0"
+                          value={sectionCounts.KSTN_Count}
+                          onChange={(e) => setSectionCounts({ ...sectionCounts, KSTN_Count: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                          className={cn(
+                            "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                            getNeoBrutalismInputClasses(neoBrutalismMode)
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Preview Section IDs */}
+                    {previewSectionIds.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className={cn(
+                          "text-[#211c37] dark:text-white",
+                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                        )}>
+                          {t('admin.previewSectionIds') || 'Preview Section IDs'}:
+                        </Label>
+                        <div className={cn(
+                          "p-3 bg-[#f5f5f5] dark:bg-[#2a2a2a] rounded-md",
+                          neoBrutalismMode 
+                            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                            : ""
+                        )}>
+                          {loadingPreview ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span className={cn(
+                                "text-[#211c37] dark:text-white",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}>
+                                {t('admin.loading') || 'Loading...'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {previewSectionIds.map((sectionId, index) => (
+                                <Badge
+                                  key={index}
+                                  variant="secondary"
+                                  className={cn(
+                                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                    neoBrutalismMode ? "border-2 border-blue-600 dark:border-blue-400 rounded-none" : ""
+                                  )}
+                                >
+                                  {sectionId}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
               <DialogFooter>
                 <Button
@@ -3802,38 +4310,38 @@ export default function CourseManagementPage() {
                 )}>
                   {scheduleViewMode !== 'byUser' && (
                     <>
-                      <div className="space-y-2">
-                        <Label className={cn(
-                          "text-[#211c37] dark:text-white",
-                          getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                        )}>
-                          {t('admin.course')}
-                        </Label>
-                        <Select
-                          value={selectedCourseFilter || 'all'}
-                          onValueChange={(value) => setSelectedCourseFilter(value === 'all' ? null : value)}
-                        >
-                          <SelectTrigger className={cn(
-                            "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                            getNeoBrutalismInputClasses(neoBrutalismMode)
-                          )}>
-                            <SelectValue placeholder={t('admin.allCourses')} />
-                          </SelectTrigger>
-                          <SelectContent className={cn(
-                            "bg-white dark:bg-[#1a1a1a]",
-                            neoBrutalismMode 
-                              ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
-                              : ""
-                          )}>
-                            <SelectItem value="all">{t('admin.allCourses')}</SelectItem>
-                            {courses.map((course) => (
-                              <SelectItem key={course.Course_ID} value={course.Course_ID}>
-                                {course.Course_ID} - {course.Name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <div className="space-y-2">
+                    <Label className={cn(
+                      "text-[#211c37] dark:text-white",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.course')}
+                    </Label>
+                    <Select
+                      value={selectedCourseFilter || 'all'}
+                      onValueChange={(value) => setSelectedCourseFilter(value === 'all' ? null : value)}
+                    >
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
+                        getNeoBrutalismInputClasses(neoBrutalismMode)
+                      )}>
+                        <SelectValue placeholder={t('admin.allCourses')} />
+                      </SelectTrigger>
+                      <SelectContent className={cn(
+                        "bg-white dark:bg-[#1a1a1a]",
+                        neoBrutalismMode 
+                          ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : ""
+                      )}>
+                        <SelectItem value="all">{t('admin.allCourses')}</SelectItem>
+                        {courses.map((course) => (
+                          <SelectItem key={course.Course_ID} value={course.Course_ID}>
+                            {course.Course_ID} - {course.Name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                     </>
                   )}
                   <div className="space-y-2">
@@ -4285,7 +4793,7 @@ export default function CourseManagementPage() {
                           const isExpanded = expandedScheduleBuildings.has(buildingName)
                           const roomCount = Object.keys(rooms).length
                           
-                          return (
+                        return (
                             <div key={buildingName} className="space-y-2">
                               {/* Building Header - Clickable to expand/collapse */}
                               <div 
@@ -4319,15 +4827,15 @@ export default function CourseManagementPage() {
                                 <div className="space-y-4 pl-6">
                                   {Object.entries(rooms).map(([roomName, roomSchedules]) => (
                                     <Card key={`${buildingName}-${roomName}`} className={getNeoBrutalismCardClasses(neoBrutalismMode)}>
-                                      <CardHeader>
-                                        <CardTitle className={cn(
-                                          "text-lg text-[#1f1d39] dark:text-white",
-                                          getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                                        )}>
-                                          {buildingName} - {roomName}
-                                        </CardTitle>
-                                      </CardHeader>
-                                      <CardContent>
+                            <CardHeader>
+                              <CardTitle className={cn(
+                                "text-lg text-[#1f1d39] dark:text-white",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                              )}>
+                                {buildingName} - {roomName}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
                               <div className="overflow-x-auto">
                                 <div className="min-w-[900px]">
                                   {/* Calendar Header */}
@@ -4547,14 +5055,14 @@ export default function CourseManagementPage() {
                                   </div>
                                 </div>
                               </div>
-                                      </CardContent>
-                                    </Card>
+                            </CardContent>
+                          </Card>
                                   ))}
                                 </div>
                               )}
                             </div>
-                          )
-                        })}
+                        )
+                      })}
                     </div>
                   )}
                 </CardContent>

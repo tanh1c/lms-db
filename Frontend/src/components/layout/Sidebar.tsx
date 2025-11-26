@@ -42,7 +42,6 @@ const adminNavItems: NavItem[] = [
   { titleKey: 'sidebar.courses', href: ROUTES.ADMIN_COURSES, icon: BookOpen },
   { titleKey: 'sidebar.assignments', href: ROUTES.ADMIN_ASSIGNMENTS, icon: FileText },
   { titleKey: 'sidebar.quizzes', href: ROUTES.ADMIN_QUIZZES, icon: HelpCircle },
-  { titleKey: 'sidebar.grades', href: ROUTES.ADMIN_ASSESSMENTS, icon: BarChart3 },
   { titleKey: 'sidebar.settings', href: ROUTES.SETTINGS, icon: Settings },
 ]
 

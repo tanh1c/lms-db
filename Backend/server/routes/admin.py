@@ -28,20 +28,113 @@ def get_all_courses():
 
         result = []
         for course in courses:
-            # Tuple access: Course_ID, Name, Credit, SectionCount, StudentCount, TutorCount
+            # Tuple access: Course_ID, Name, Credit, CCategory, SectionCount, StudentCount, TutorCount
             result.append({
                 'Course_ID': course[0],
                 'Name': course[1],
                 'Credit': course[2] if course[2] is not None else None,
-                'SectionCount': int(course[3]) if len(course) > 3 and course[3] is not None else 0,
-                'StudentCount': int(course[4]) if len(course) > 4 and course[4] is not None else 0,
-                'TutorCount': int(course[5]) if len(course) > 5 and course[5] is not None else 0,
+                'CCategory': course[3] if len(course) > 3 and course[3] is not None else None,
+                'SectionCount': int(course[4]) if len(course) > 4 and course[4] is not None else 0,
+                'StudentCount': int(course[5]) if len(course) > 5 and course[5] is not None else 0,
+                'TutorCount': int(course[6]) if len(course) > 6 and course[6] is not None else 0,
             })
 
         return jsonify(result)
     except Exception as e:
         print(f'Get all courses error: {e}')
         return jsonify({'success': False, 'error': 'Failed to fetch courses'}), 500
+
+@admin_bp.route('/courses/preview-sections', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def preview_section_ids():
+    """Preview section IDs that will be created based on counts - Using stored procedure sp_GetSectionIDsByCount"""
+    try:
+        cc_count = request.args.get('cc_count', type=int, default=0)
+        l_count = request.args.get('l_count', type=int, default=0)
+        kstn_count = request.args.get('kstn_count', type=int, default=0)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('EXEC sp_GetSectionIDsByCount %s, %s, %s', (
+            cc_count,
+            l_count,
+            kstn_count
+        ))
+        
+        sections = cursor.fetchall()
+        conn.close()
+        
+        result = [section[0] for section in sections]  # Extract Section_ID from each row
+        return jsonify(result)
+    except Exception as e:
+        print(f'Preview section IDs error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to preview section IDs: {str(e)}'}), 500
+
+@admin_bp.route('/courses/with-sections', methods=['POST'])
+@require_auth
+@require_role(['admin'])
+def create_course_with_sections():
+    """Create a new course with sections - Using stored procedure sp_CreateCourseWithSections"""
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Call sp_CreateCourseWithSections
+        cursor.execute('EXEC sp_CreateCourseWithSections %s, %s, %s, %s, %s, %s, %s', (
+            data['Course_ID'],
+            data['Name'],
+            data.get('Credit'),
+            data.get('Semester', '242'),  # Default semester
+            data.get('CC_Count', 0),
+            data.get('L_Count', 0),
+            data.get('KSTN_Count', 0)
+        ))
+
+        sections = cursor.fetchall()  # Get created sections
+        conn.commit()
+        
+        # If CCategory is provided, update the course
+        if data.get('CCategory'):
+            cursor.execute('EXEC UpdateCourse %s, %s, %s, %s', (
+                data['Course_ID'],
+                None,  # Name - keep existing
+                None,  # Credit - keep existing
+                data.get('CCategory')
+            ))
+            conn.commit()
+        
+        # Get the created course
+        cursor.execute('SELECT Course_ID, Name, Credit, CCategory FROM [Course] WHERE Course_ID = %s', (data['Course_ID'],))
+        course_result = cursor.fetchone()
+        
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Course with sections created successfully',
+            'course': {
+                'Course_ID': course_result[0],
+                'Name': course_result[1],
+                'Credit': course_result[2],
+                'CCategory': course_result[3] if len(course_result) > 3 else None,
+            },
+            'sections': [
+                {
+                    'Section_ID': section[0],
+                    'Prefix': section[1],
+                    'Number': section[2],
+                    'Course_ID': section[3],
+                    'Semester': section[4]
+                }
+                for section in sections
+            ]
+        }), 201
+    except Exception as e:
+        print(f'Create course with sections error: {e}')
+        return jsonify({'success': False, 'error': f'Failed to create course with sections: {str(e)}'}), 500
 
 @admin_bp.route('/courses', methods=['POST'])
 @require_auth
@@ -53,10 +146,11 @@ def create_course():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('EXEC CreateCourse %s, %s, %s', (
+        cursor.execute('EXEC CreateCourse %s, %s, %s, %s', (
             data['Course_ID'],
             data['Name'],
-            data.get('Credit')
+            data.get('Credit'),
+            data.get('CCategory')
         ))
 
         result = cursor.fetchone()
@@ -70,6 +164,7 @@ def create_course():
                 'Course_ID': result[0],
                 'Name': result[1],
                 'Credit': result[2],
+                'CCategory': result[3] if len(result) > 3 else None,
             }
         }), 201
     except Exception as e:
@@ -86,10 +181,11 @@ def update_course(course_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('EXEC UpdateCourse %s, %s, %s', (
+        cursor.execute('EXEC UpdateCourse %s, %s, %s, %s', (
             course_id,
             data.get('Name'),
-            data.get('Credit')
+            data.get('Credit'),
+            data.get('CCategory')
         ))
 
         result = cursor.fetchone()
@@ -103,6 +199,7 @@ def update_course(course_id):
                 'Course_ID': result[0],
                 'Name': result[1],
                 'Credit': result[2],
+                'CCategory': result[3] if len(result) > 3 else None,
             }
         })
     except Exception as e:
@@ -126,6 +223,24 @@ def delete_course(course_id):
     except Exception as e:
         print(f'Delete course error: {e}')
         return jsonify({'success': False, 'error': f'Failed to delete course: {str(e)}'}), 500
+
+@admin_bp.route('/categories', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_all_categories():
+    """Get all distinct categories from courses - Using stored procedure GetAllCategories"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetAllCategories')
+        categories = cursor.fetchall()
+        conn.close()
+        
+        result = [category[0] for category in categories if category[0]]
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get all categories error: {e}')
+        return jsonify({'success': False, 'error': 'Failed to fetch categories'}), 500
 
 @admin_bp.route('/courses/search', methods=['GET'])
 @require_auth
@@ -552,32 +667,89 @@ def delete_section(course_id, section_id, semester):
 def get_all_assignments():
     """Get all assignments - Using stored procedure"""
     try:
+        print('[Backend] get_all_assignments called')
         conn = get_db_connection()
         cursor = conn.cursor()
+        print('[Backend] Executing GetAllAssignments procedure...')
         cursor.execute('EXEC GetAllAssignments')
         assignments = cursor.fetchall()
+        print(f'[Backend] GetAllAssignments returned {len(assignments)} assignments')
         conn.close()
 
         result = []
         for assignment in assignments:
-            # Tuple access: University_ID, Section_ID, Course_ID, Semester, Assessment_ID, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name
-            result.append({
-                'University_ID': assignment[0],
-                'Section_ID': assignment[1],
-                'Course_ID': assignment[2],
-                'Semester': assignment[3],
-                'Assessment_ID': assignment[4],
-                'MaxScore': assignment[5],
-                'accepted_specification': assignment[6],
-                'submission_deadline': str(assignment[7]) if assignment[7] else None,
-                'instructions': assignment[8],
-                'Course_Name': assignment[9],
-            })
+            try:
+                # Tuple access: University_ID, Section_ID, Course_ID, Semester, Assessment_ID, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name
+                result.append({
+                    'University_ID': assignment[0],
+                    'Section_ID': assignment[1],
+                    'Course_ID': assignment[2],
+                    'Semester': assignment[3],
+                    'Assessment_ID': assignment[4],
+                    'MaxScore': assignment[5],
+                    'accepted_specification': assignment[6],
+                    'submission_deadline': str(assignment[7]) if assignment[7] else None,
+                    'instructions': assignment[8],
+                    'Course_Name': assignment[9] if len(assignment) > 9 else None,
+                })
+            except Exception as parse_error:
+                print(f'[Backend] Error parsing assignment: {parse_error}, assignment data: {assignment}')
+                continue
 
+        print(f'[Backend] Returning {len(result)} assignments')
         return jsonify(result)
     except Exception as e:
-        print(f'Get all assignments error: {e}')
-        return jsonify({'success': False, 'error': 'Failed to fetch assignments'}), 500
+        print(f'[Backend] Get all assignments error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch assignments: {str(e)}'}), 500
+
+@admin_bp.route('/assignments/by-course', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_assignments_by_course():
+    """Get assignments grouped by course - Using stored procedure"""
+    try:
+        course_id = request.args.get('course_id', None)
+        print(f'[Backend] get_assignments_by_course called with course_id={course_id}')
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        print('[Backend] Executing GetAssignmentsByCourse procedure...')
+        if course_id:
+            cursor.execute('EXEC GetAssignmentsByCourse %s', (course_id,))
+        else:
+            cursor.execute('EXEC GetAssignmentsByCourse NULL')
+        assignments = cursor.fetchall()
+        print(f'[Backend] GetAssignmentsByCourse returned {len(assignments)} assignments')
+        conn.close()
+
+        result = []
+        for assignment in assignments:
+            try:
+                # Tuple access: University_ID, Section_ID, Course_ID, Semester, Assessment_ID, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name
+                result.append({
+                    'University_ID': assignment[0],
+                    'Section_ID': assignment[1],
+                    'Course_ID': assignment[2],
+                    'Semester': assignment[3],
+                    'Assessment_ID': assignment[4],
+                    'MaxScore': assignment[5],
+                    'accepted_specification': assignment[6],
+                    'submission_deadline': str(assignment[7]) if assignment[7] else None,
+                    'instructions': assignment[8],
+                    'Course_Name': assignment[9] if len(assignment) > 9 else None,
+                })
+            except Exception as parse_error:
+                print(f'[Backend] Error parsing assignment: {parse_error}, assignment data: {assignment}')
+                continue
+
+        print(f'[Backend] Returning {len(result)} assignments')
+        return jsonify(result)
+    except Exception as e:
+        print(f'[Backend] Get assignments by course error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch assignments: {str(e)}'}), 500
 
 @admin_bp.route('/assignments', methods=['POST'])
 @require_auth
@@ -715,80 +887,166 @@ def delete_assignment(university_id, section_id, course_id, semester, assessment
 def get_all_quizzes():
     """Get all quizzes - Using stored procedure"""
     try:
+        print('[Backend] get_all_quizzes called')
         conn = get_db_connection()
         cursor = conn.cursor()
+        print('[Backend] Executing GetAllQuizzes procedure...')
         cursor.execute('EXEC GetAllQuizzes')
         quizzes = cursor.fetchall()
+        print(f'[Backend] GetAllQuizzes returned {len(quizzes)} quizzes')
         conn.close()
 
         result = []
         for quiz in quizzes:
-            # Tuple access: University_ID, Section_ID, Course_ID, Semester, Assessment_ID, Grading_method, pass_score, Time_limits, Start_Date, End_Date, Responses, completion_status, score, content, types, Weight, Correct_answer, Course_Name
-            result.append({
-                'University_ID': quiz[0],
-                'Section_ID': quiz[1],
-                'Course_ID': quiz[2],
-                'Semester': quiz[3],
-                'Assessment_ID': quiz[4],
-                'Grading_method': quiz[5],
-                'pass_score': float(quiz[6]) if quiz[6] else None,
-                'Time_limits': str(quiz[7]) if quiz[7] else None,
-                'Start_Date': str(quiz[8]) if quiz[8] else None,
-                'End_Date': str(quiz[9]) if quiz[9] else None,
-                'Responses': quiz[10],
-                'completion_status': quiz[11],
-                'score': float(quiz[12]) if quiz[12] else None,
-                'content': quiz[13],
-                'types': quiz[14],
-                'Weight': float(quiz[15]) if quiz[15] else None,
-                'Correct_answer': quiz[16],
-                'Course_Name': quiz[17],
-            })
+            try:
+                # Tuple access: QuizID, Section_ID, Course_ID, Semester, Grading_method, pass_score, Time_limits, Start_Date, End_Date, content, types, Weight, Correct_answer, Questions, Course_Name, StudentCount
+                result.append({
+                    'QuizID': quiz[0],
+                    'Section_ID': quiz[1],
+                    'Course_ID': quiz[2],
+                    'Semester': quiz[3],
+                    'Grading_method': quiz[4],
+                    'pass_score': float(quiz[5]) if quiz[5] else None,
+                    'Time_limits': str(quiz[6]) if quiz[6] else None,
+                    'Start_Date': str(quiz[7]) if quiz[7] else None,
+                    'End_Date': str(quiz[8]) if quiz[8] else None,
+                    'content': quiz[9],
+                    'types': quiz[10],
+                    'Weight': float(quiz[11]) if quiz[11] else None,
+                    'Correct_answer': quiz[12],
+                    'Questions': quiz[13] if len(quiz) > 13 else None,
+                    'Course_Name': quiz[14] if len(quiz) > 14 else None,
+                    'StudentCount': quiz[15] if len(quiz) > 15 else 0,
+                })
+            except Exception as parse_error:
+                print(f'[Backend] Error parsing quiz: {parse_error}, quiz data: {quiz}')
+                continue
 
+        print(f'[Backend] Returning {len(result)} quizzes')
         return jsonify(result)
     except Exception as e:
-        print(f'Get all quizzes error: {e}')
-        return jsonify({'success': False, 'error': 'Failed to fetch quizzes'}), 500
+        print(f'[Backend] Get all quizzes error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch quizzes: {str(e)}'}), 500
+
+@admin_bp.route('/quizzes/by-course', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_quizzes_by_course():
+    """Get quizzes grouped by course - Using stored procedure"""
+    try:
+        course_id = request.args.get('course_id', None)
+        print(f'[Backend] get_quizzes_by_course called with course_id={course_id}')
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        print('[Backend] Executing GetQuizzesByCourse procedure...')
+        if course_id:
+            cursor.execute('EXEC GetQuizzesByCourse %s', (course_id,))
+        else:
+            cursor.execute('EXEC GetQuizzesByCourse NULL')
+        quizzes = cursor.fetchall()
+        print(f'[Backend] GetQuizzesByCourse returned {len(quizzes)} quizzes')
+        conn.close()
+
+        result = []
+        for quiz in quizzes:
+            try:
+                # Tuple access: QuizID, Section_ID, Course_ID, Semester, Grading_method, pass_score, Time_limits, Start_Date, End_Date, content, types, Weight, Correct_answer, Questions, Course_Name, StudentCount
+                result.append({
+                    'QuizID': quiz[0],
+                    'Section_ID': quiz[1],
+                    'Course_ID': quiz[2],
+                    'Semester': quiz[3],
+                    'Grading_method': quiz[4],
+                    'pass_score': float(quiz[5]) if quiz[5] else None,
+                    'Time_limits': str(quiz[6]) if quiz[6] else None,
+                    'Start_Date': str(quiz[7]) if quiz[7] else None,
+                    'End_Date': str(quiz[8]) if quiz[8] else None,
+                    'content': quiz[9],
+                    'types': quiz[10],
+                    'Weight': float(quiz[11]) if quiz[11] else None,
+                    'Correct_answer': quiz[12],
+                    'Questions': quiz[13] if len(quiz) > 13 else None,
+                    'Course_Name': quiz[14] if len(quiz) > 14 else None,
+                    'StudentCount': quiz[15] if len(quiz) > 15 else 0,
+                })
+            except Exception as parse_error:
+                print(f'[Backend] Error parsing quiz: {parse_error}, quiz data: {quiz}')
+                continue
+
+        print(f'[Backend] Returning {len(result)} quizzes')
+        return jsonify(result)
+    except Exception as e:
+        print(f'[Backend] Get quizzes by course error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch quizzes: {str(e)}'}), 500
 
 @admin_bp.route('/quizzes', methods=['POST'])
 @require_auth
 @require_role(['admin'])
 def create_quiz():
-    """Create a new quiz - Using stored procedure"""
+    """Create a new quiz - Using stored procedure (creates Quiz_Questions)"""
     try:
         data = request.get_json()
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get next Assessment_ID (similar to CreateAssignment)
-        cursor.execute("""
-            SELECT ISNULL(MAX(Assessment_ID), 0) + 1
-            FROM [Assessment]
-            WHERE University_ID = %s AND Section_ID = %s AND Course_ID = %s AND Semester = %s
-        """, (
-            data['University_ID'],
-            data['Section_ID'],
-            data['Course_ID'],
-            data['Semester']
-        ))
-        next_id = cursor.fetchone()[0]
-        data['Assessment_ID'] = next_id
-
-        cursor.execute('EXEC CreateQuiz %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s', (
-            data['University_ID'],
+        # Convert Questions array to JSON string if provided
+        questions_json = None
+        if data.get('Questions'):
+            import json
+            questions_json = json.dumps(data['Questions'], ensure_ascii=False)
+        
+        # Convert datetime strings to proper format
+        from datetime import datetime
+        start_date = None
+        end_date = None
+        
+        if data.get('Start_Date'):
+            try:
+                start_date_str = data.get('Start_Date').strip()
+                if start_date_str:
+                    # Handle datetime-local format: "YYYY-MM-DDTHH:mm"
+                    if 'T' in start_date_str:
+                        start_date_str = start_date_str.replace('T', ' ')
+                    if len(start_date_str) == 16:  # "YYYY-MM-DD HH:mm"
+                        start_date_str += ':00'  # Add seconds
+                    start_date = start_date_str
+            except Exception as e:
+                print(f'Error parsing Start_Date: {e}')
+                start_date = None
+        
+        if data.get('End_Date'):
+            try:
+                end_date_str = data.get('End_Date').strip()
+                if end_date_str:
+                    # Handle datetime-local format: "YYYY-MM-DDTHH:mm"
+                    if 'T' in end_date_str:
+                        end_date_str = end_date_str.replace('T', ' ')
+                    if len(end_date_str) == 16:  # "YYYY-MM-DD HH:mm"
+                        end_date_str += ':00'  # Add seconds
+                    end_date = end_date_str
+            except Exception as e:
+                print(f'Error parsing End_Date: {e}')
+                end_date = None
+        
+        # Call stored procedure - QuizID is OUTPUT parameter
+        cursor.execute('EXEC CreateQuiz %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s', (
             data['Section_ID'],
             data['Course_ID'],
             data['Semester'],
-            data['Assessment_ID'],
             data.get('Grading_method', 'Highest Attemp'),
             data.get('pass_score', 5),
             data['Time_limits'],
-            data['Start_Date'],
-            data['End_Date'],
+            start_date,
+            end_date,
             data['content'],
             data.get('types'),
             data.get('Weight'),
-            data['Correct_answer']
+            data['Correct_answer'],
+            questions_json
         ))
 
         result = cursor.fetchone()
@@ -799,101 +1057,248 @@ def create_quiz():
             'success': True,
             'message': 'Quiz created successfully',
             'quiz': {
-                'University_ID': result[0],
+                'QuizID': result[0],
                 'Section_ID': result[1],
                 'Course_ID': result[2],
                 'Semester': result[3],
-                'Assessment_ID': result[4],
-                'Grading_method': result[5],
-                'pass_score': float(result[6]) if result[6] else None,
-                'Time_limits': str(result[7]) if result[7] else None,
-                'Start_Date': str(result[8]) if result[8] else None,
-                'End_Date': str(result[9]) if result[9] else None,
-                'Responses': result[10],
-                'completion_status': result[11],
-                'score': float(result[12]) if result[12] else None,
-                'content': result[13],
-                'types': result[14],
-                'Weight': float(result[15]) if result[15] else None,
-                'Correct_answer': result[16],
-                'Course_Name': result[17],
+                'Grading_method': result[4],
+                'pass_score': float(result[5]) if result[5] else None,
+                'Time_limits': str(result[6]) if result[6] else None,
+                'Start_Date': str(result[7]) if result[7] else None,
+                'End_Date': str(result[8]) if result[8] else None,
+                'content': result[9],
+                'types': result[10],
+                'Weight': float(result[11]) if result[11] else None,
+                'Correct_answer': result[12],
+                'Questions': result[13] if len(result) > 13 else None,
+                'Course_Name': result[14] if len(result) > 14 else None,
+                'StudentCount': result[15] if len(result) > 15 else 0,
             }
         }), 201
     except Exception as e:
         print(f'Create quiz error: {e}')
         return jsonify({'success': False, 'error': f'Failed to create quiz: {str(e)}'}), 500
 
-@admin_bp.route('/quizzes/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['PUT'])
+@admin_bp.route('/quizzes/<int:quiz_id>', methods=['PUT'])
 @require_auth
 @require_role(['admin'])
-def update_quiz(university_id, section_id, course_id, semester, assessment_id):
+def update_quiz(quiz_id):
     """Update a quiz - Using stored procedure"""
     try:
         data = request.get_json()
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('EXEC UpdateQuiz %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s', (
-            university_id,
-            section_id,
-            course_id,
-            semester,
-            assessment_id,
+        # Convert Questions to JSON string if provided
+        # Frontend sends JSON string directly, so we need to handle both string and object/array
+        questions_json = None
+        questions_data = data.get('Questions')
+        print(f'[Backend] UpdateQuiz - Received Questions data: {questions_data}')
+        print(f'[Backend] UpdateQuiz - Questions data type: {type(questions_data)}')
+        print(f'[Backend] UpdateQuiz - Questions data is None: {questions_data is None}')
+        
+        if questions_data is not None:
+            import json
+            # If it's already a string (JSON), use it directly
+            if isinstance(questions_data, str):
+                questions_json = questions_data
+                print(f'[Backend] UpdateQuiz - Questions is already JSON string, length: {len(questions_json)}')
+            else:
+                # If it's a list/dict, convert to JSON string
+                questions_json = json.dumps(questions_data, ensure_ascii=False)
+                print(f'[Backend] UpdateQuiz - Questions converted to JSON string, length: {len(questions_json)}')
+            
+            # Check for answer E in the JSON string
+            if '"E"' in questions_json or "'E'" in questions_json:
+                print(f'[Backend] UpdateQuiz - Answer E found in JSON string!')
+            else:
+                print(f'[Backend] UpdateQuiz - Answer E NOT found in JSON string!')
+            
+            if len(questions_json) < 500:
+                print(f'[Backend] UpdateQuiz - Full Questions JSON: {questions_json}')
+            else:
+                print(f'[Backend] UpdateQuiz - Questions JSON preview: {questions_json[:500]}...')
+        else:
+            print(f'[Backend] UpdateQuiz - Questions data is None, will not update Questions column')
+        
+        # Convert datetime strings to proper format or None
+        from datetime import datetime
+        start_date = None
+        end_date = None
+        
+        if data.get('Start_Date'):
+            try:
+                # Handle datetime-local format: "YYYY-MM-DDTHH:mm"
+                start_date_str = data.get('Start_Date').strip()
+                if start_date_str:
+                    # Replace 'T' with space and add seconds if needed
+                    if 'T' in start_date_str:
+                        start_date_str = start_date_str.replace('T', ' ')
+                    if len(start_date_str) == 16:  # "YYYY-MM-DD HH:mm"
+                        start_date_str += ':00'  # Add seconds
+                    start_date = start_date_str
+            except Exception as e:
+                print(f'Error parsing Start_Date: {e}')
+                start_date = None
+        
+        if data.get('End_Date'):
+            try:
+                # Handle datetime-local format: "YYYY-MM-DDTHH:mm"
+                end_date_str = data.get('End_Date').strip()
+                if end_date_str:
+                    # Replace 'T' with space and add seconds if needed
+                    if 'T' in end_date_str:
+                        end_date_str = end_date_str.replace('T', ' ')
+                    if len(end_date_str) == 16:  # "YYYY-MM-DD HH:mm"
+                        end_date_str += ':00'  # Add seconds
+                    end_date = end_date_str
+            except Exception as e:
+                print(f'Error parsing End_Date: {e}')
+                end_date = None
+        
+        # Log parameters before executing
+        print(f'[Backend] UpdateQuiz - Executing with questions_json: {questions_json[:200] if questions_json and len(questions_json) > 200 else questions_json}')
+        print(f'[Backend] UpdateQuiz - questions_json parameter type: {type(questions_json)}')
+        print(f'[Backend] UpdateQuiz - questions_json is None: {questions_json is None}')
+        print(f'[Backend] UpdateQuiz - questions_json length: {len(questions_json) if questions_json else 0}')
+        
+        # Check if "Test thay đổi answer" is in the JSON
+        if questions_json and "Test thay đổi answer" in questions_json:
+            print(f'[Backend] UpdateQuiz - "Test thay đổi answer" FOUND in questions_json before execution!')
+        else:
+            print(f'[Backend] UpdateQuiz - "Test thay đổi answer" NOT found in questions_json before execution!')
+
+        # Execute procedure - pymssql uses positional parameters
+        # Ensure questions_json is not None when we have data
+        exec_params = (
+            quiz_id,
+            data.get('Section_ID'),
+            data.get('Course_ID'),
+            data.get('Semester'),
             data.get('Grading_method'),
             data.get('pass_score'),
             data.get('Time_limits'),
-            data.get('Start_Date'),
-            data.get('End_Date'),
+            start_date,
+            end_date,
+            data.get('content'),
+            data.get('types'),
+            data.get('Weight'),
+            data.get('Correct_answer'),
+            questions_json  # This should be the JSON string or None
+        )
+        
+        print(f'[Backend] UpdateQuiz - Parameter 13 (Questions) type: {type(exec_params[13])}')
+        print(f'[Backend] UpdateQuiz - Parameter 13 (Questions) is None: {exec_params[13] is None}')
+        print(f'[Backend] UpdateQuiz - Parameter 13 (Questions) length: {len(exec_params[13]) if exec_params[13] else 0}')
+        
+        try:
+            # First, update Questions directly if provided (to avoid pymssql NVARCHAR(MAX) issues)
+            if questions_json is not None:
+                print(f'[Backend] UpdateQuiz - Updating Questions directly with SQL...')
+                cursor.execute('UPDATE [Quiz_Questions] SET Questions = %s WHERE QuizID = %s', (questions_json, quiz_id))
+                rows_affected = cursor.rowcount
+                print(f'[Backend] UpdateQuiz - Direct Questions UPDATE affected {rows_affected} rows')
+                if rows_affected == 0:
+                    print(f'[Backend] UpdateQuiz - WARNING: No rows updated for Questions! QuizID might not exist.')
+            
+            # Then update other fields using procedure
+            cursor.execute('EXEC UpdateQuiz %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL', (
+                quiz_id,
+                data.get('Section_ID'),
+                data.get('Course_ID'),
+                data.get('Semester'),
+                data.get('Grading_method'),
+                data.get('pass_score'),
+                data.get('Time_limits'),
+                start_date,
+                end_date,
             data.get('content'),
             data.get('types'),
             data.get('Weight'),
             data.get('Correct_answer')
         ))
+        except Exception as exec_error:
+            print(f'[Backend] UpdateQuiz - Error executing procedure: {exec_error}')
+            import traceback
+            traceback.print_exc()
+            conn.rollback()
+            conn.close()
+            raise
 
         result = cursor.fetchone()
         conn.commit()
+        
+        # Log the saved Questions to verify
+        # Tuple access: QuizID, Section_ID, Course_ID, Semester, Grading_method, pass_score, Time_limits, Start_Date, End_Date, content, types, Weight, Correct_answer, Questions, Course_Name, StudentCount
+        saved_questions = result[13] if len(result) > 13 else None
+        print(f'[Backend] UpdateQuiz - Saved Questions length: {len(saved_questions) if saved_questions else 0}')
+        print(f'[Backend] UpdateQuiz - Saved Questions type: {type(saved_questions)}')
+        print(f'[Backend] UpdateQuiz - Saved Questions is None: {saved_questions is None}')
+        
+        # Also query directly from database to verify
+        cursor.execute('SELECT Questions FROM [Quiz_Questions] WHERE QuizID = %s', (quiz_id,))
+        direct_result = cursor.fetchone()
+        direct_questions = direct_result[0] if direct_result else None
+        print(f'[Backend] UpdateQuiz - Direct query Questions length: {len(direct_questions) if direct_questions else 0}')
+        if direct_questions and "Test thay đổi answer" in direct_questions:
+            print(f'[Backend] UpdateQuiz - "Test thay đổi answer" FOUND in direct query!')
+        else:
+            print(f'[Backend] UpdateQuiz - "Test thay đổi answer" NOT found in direct query!')
+            if direct_questions:
+                print(f'[Backend] UpdateQuiz - Direct query Questions preview: {direct_questions[:300]}...')
+        
+        if saved_questions:
+            # Check if answer E exists in saved data
+            if '"E"' in saved_questions:
+                print(f'[Backend] UpdateQuiz - Answer E found in saved Questions!')
+            else:
+                print(f'[Backend] UpdateQuiz - Answer E NOT found in saved Questions!')
+            
+            if len(saved_questions) < 500:
+                print(f'[Backend] UpdateQuiz - Full Saved Questions JSON: {saved_questions}')
+            else:
+                print(f'[Backend] UpdateQuiz - Saved Questions preview: {saved_questions[:500]}...')
+        else:
+            print(f'[Backend] UpdateQuiz - No Questions saved (saved_questions is None)')
+        
         conn.close()
 
         return jsonify({
             'success': True,
             'message': 'Quiz updated successfully',
             'quiz': {
-                'University_ID': result[0],
+                'QuizID': result[0],
                 'Section_ID': result[1],
                 'Course_ID': result[2],
                 'Semester': result[3],
-                'Assessment_ID': result[4],
-                'Grading_method': result[5],
-                'pass_score': float(result[6]) if result[6] else None,
-                'Time_limits': str(result[7]) if result[7] else None,
-                'Start_Date': str(result[8]) if result[8] else None,
-                'End_Date': str(result[9]) if result[9] else None,
-                'Responses': result[10],
-                'completion_status': result[11],
-                'score': float(result[12]) if result[12] else None,
-                'content': result[13],
-                'types': result[14],
-                'Weight': float(result[15]) if result[15] else None,
-                'Correct_answer': result[16],
-                'Course_Name': result[17],
+                'Grading_method': result[4],
+                'pass_score': float(result[5]) if result[5] else None,
+                'Time_limits': str(result[6]) if result[6] else None,
+                'Start_Date': str(result[7]) if result[7] else None,
+                'End_Date': str(result[8]) if result[8] else None,
+                'content': result[9],
+                'types': result[10],
+                'Weight': float(result[11]) if result[11] else None,
+                'Correct_answer': result[12],
+                'Questions': result[13] if len(result) > 13 else None,
+                'Course_Name': result[14] if len(result) > 14 else None,
+                'StudentCount': result[15] if len(result) > 15 else 0,
             }
         })
     except Exception as e:
         print(f'Update quiz error: {e}')
         return jsonify({'success': False, 'error': f'Failed to update quiz: {str(e)}'}), 500
 
-@admin_bp.route('/quizzes/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['DELETE'])
+@admin_bp.route('/quizzes/<int:quiz_id>', methods=['DELETE'])
 @require_auth
 @require_role(['admin'])
-def delete_quiz(university_id, section_id, course_id, semester, assessment_id):
-    """Delete a quiz - Using stored procedure"""
+def delete_quiz(quiz_id):
+    """Delete a quiz - Using stored procedure (deletes Quiz_Questions and cascades to Quiz_Answer)"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('EXEC DeleteQuiz %s, %s, %s, %s, %s', (
-            university_id, section_id, course_id, semester, assessment_id
-        ))
+        cursor.execute('EXEC DeleteQuiz %s', (quiz_id,))
         conn.commit()
         conn.close()
 
@@ -901,6 +1306,46 @@ def delete_quiz(university_id, section_id, course_id, semester, assessment_id):
     except Exception as e:
         print(f'Delete quiz error: {e}')
         return jsonify({'success': False, 'error': f'Failed to delete quiz: {str(e)}'}), 500
+
+@admin_bp.route('/quizzes/<int:quiz_id>/answers', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_quiz_answers(quiz_id):
+    """Get all student answers for a quiz - Using stored procedure"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        print(f'[Backend] get_quiz_answers called with quiz_id={quiz_id}')
+        cursor.execute('EXEC GetQuizAnswersByQuizID %s', (quiz_id,))
+        answers = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for answer in answers:
+            # Tuple access: University_ID, First_Name, Last_Name, QuizID, Assessment_ID, Responses, completion_status, score, Quiz_Content, pass_score, Start_Date, End_Date
+            result.append({
+                'University_ID': int(answer[0]),
+                'First_Name': answer[1],
+                'Last_Name': answer[2],
+                'QuizID': answer[3],
+                'Assessment_ID': answer[4],
+                'Responses': answer[5],
+                'completion_status': answer[6],
+                'score': float(answer[7]) if answer[7] else None,
+                'Quiz_Content': answer[8],
+                'pass_score': float(answer[9]) if answer[9] else None,
+                'Start_Date': str(answer[10]) if answer[10] else None,
+                'End_Date': str(answer[11]) if answer[11] else None,
+            })
+        
+        print(f'[Backend] Returning {len(result)} quiz answers')
+        return jsonify(result)
+    except Exception as e:
+        print(f'Get quiz answers error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch quiz answers: {str(e)}'}), 500
 
 # ==================== STUDENTS MANAGEMENT ====================
 

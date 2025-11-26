@@ -31,6 +31,7 @@ BEGIN
         c.Course_ID,
         c.Name,
         c.Credit,
+        c.CCategory,
         -- Count distinct sections for this course
         (SELECT COUNT(*) 
          FROM [Section] s 
@@ -50,7 +51,7 @@ BEGIN
              AND t.Semester = s.Semester
          WHERE s.Course_ID = c.Course_ID) as TutorCount
     FROM [Course] c
-    ORDER BY c.Course_ID;
+    ORDER BY c.CCategory, c.Course_ID;
 END
 GO
 
@@ -62,16 +63,17 @@ GO
 CREATE PROCEDURE [dbo].[CreateCourse]
     @Course_ID NVARCHAR(15),
     @Name NVARCHAR(100),
-    @Credit INT = NULL
+    @Credit INT = NULL,
+    @CCategory NVARCHAR(50) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     
     BEGIN TRY
-        INSERT INTO [Course] (Course_ID, Name, Credit)
-        VALUES (@Course_ID, @Name, @Credit);
+        INSERT INTO [Course] (Course_ID, Name, Credit, CCategory)
+        VALUES (@Course_ID, @Name, @Credit, @CCategory);
         
-        SELECT @Course_ID as Course_ID, @Name as Name, @Credit as Credit;
+        SELECT @Course_ID as Course_ID, @Name as Name, @Credit as Credit, @CCategory as CCategory;
     END TRY
     BEGIN CATCH
         THROW;
@@ -87,7 +89,8 @@ GO
 CREATE PROCEDURE [dbo].[UpdateCourse]
     @Course_ID NVARCHAR(15),
     @Name NVARCHAR(100) = NULL,
-    @Credit INT = NULL
+    @Credit INT = NULL,
+    @CCategory NVARCHAR(50) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -99,10 +102,17 @@ BEGIN
             Credit = ISNULL(@Credit, Credit)
         WHERE Course_ID = @Course_ID;
         
-        IF @@ROWCOUNT = 0
+        IF @CCategory IS NOT NULL
+        BEGIN
+            UPDATE [Course]
+            SET CCategory = @CCategory
+            WHERE Course_ID = @Course_ID;
+        END
+        
+        IF NOT EXISTS (SELECT 1 FROM [Course] WHERE Course_ID = @Course_ID)
             THROW 50001, 'Course not found', 1;
             
-        SELECT Course_ID, Name, Credit
+        SELECT Course_ID, Name, Credit, CCategory
         FROM [Course] 
         WHERE Course_ID = @Course_ID;
     END TRY
@@ -124,6 +134,94 @@ BEGIN
     SET NOCOUNT ON;
     
     BEGIN TRY
+        -- Check if course exists
+        IF NOT EXISTS (SELECT 1 FROM [Course] WHERE Course_ID = @Course_ID)
+            THROW 50001, 'Course not found', 1;
+        
+        -- Delete all related data in correct order to avoid foreign key violations
+        
+        -- 1. Delete Submission (references Assignment, which references Assessment)
+        DELETE FROM [Submission]
+        WHERE EXISTS (
+            SELECT 1
+            FROM [Assignment] a
+            INNER JOIN [Assessment] ass ON a.University_ID = ass.University_ID 
+                AND a.Section_ID = ass.Section_ID 
+                AND a.Course_ID = ass.Course_ID 
+                AND a.Semester = ass.Semester 
+                AND a.Assessment_ID = ass.Assessment_ID
+            WHERE ass.Course_ID = @Course_ID
+                AND [Submission].University_ID = a.University_ID
+                AND [Submission].Section_ID = a.Section_ID
+                AND [Submission].Course_ID = a.Course_ID
+                AND [Submission].Semester = a.Semester
+                AND [Submission].Assessment_ID = a.Assessment_ID
+        );
+        
+        -- 2. Delete Assignment (references Assessment)
+        DELETE FROM [Assignment]
+        WHERE EXISTS (
+            SELECT 1
+            FROM [Assessment] ass
+            WHERE ass.Course_ID = @Course_ID
+                AND [Assignment].University_ID = ass.University_ID
+                AND [Assignment].Section_ID = ass.Section_ID
+                AND [Assignment].Course_ID = ass.Course_ID
+                AND [Assignment].Semester = ass.Semester
+                AND [Assignment].Assessment_ID = ass.Assessment_ID
+        );
+        
+        -- 3. Delete Quiz (references Assessment)
+        DELETE FROM [Quiz]
+        WHERE EXISTS (
+            SELECT 1
+            FROM [Assessment] ass
+            WHERE ass.Course_ID = @Course_ID
+                AND [Quiz].University_ID = ass.University_ID
+                AND [Quiz].Section_ID = ass.Section_ID
+                AND [Quiz].Course_ID = ass.Course_ID
+                AND [Quiz].Semester = ass.Semester
+                AND [Quiz].Assessment_ID = ass.Assessment_ID
+        );
+        
+        -- 4. Delete Feedback (references Assessment)
+        DELETE FROM [Feedback]
+        WHERE EXISTS (
+            SELECT 1
+            FROM [Assessment] ass
+            WHERE ass.Course_ID = @Course_ID
+                AND [Feedback].University_ID = ass.University_ID
+                AND [Feedback].Section_ID = ass.Section_ID
+                AND [Feedback].Course_ID = ass.Course_ID
+                AND [Feedback].Semester = ass.Semester
+                AND [Feedback].Assessment_ID = ass.Assessment_ID
+        );
+        
+        -- 5. Delete Assessment (references Section)
+        DELETE FROM [Assessment]
+        WHERE Course_ID = @Course_ID;
+        
+        -- 6. Delete Teaches (references Section)
+        DELETE FROM [Teaches]
+        WHERE Course_ID = @Course_ID;
+        
+        -- 7. Delete Scheduler (references Section)
+        DELETE FROM [Scheduler]
+        WHERE Course_ID = @Course_ID;
+        
+        -- 8. Delete takes_place (references Section)
+        DELETE FROM [takes_place]
+        WHERE Course_ID = @Course_ID;
+        
+        -- 9. Delete Online (references Section)
+        DELETE FROM [Online]
+        WHERE Course_ID = @Course_ID;
+        
+        -- 10. Delete Section (references Course)
+        DELETE FROM [Section]
+        WHERE Course_ID = @Course_ID;
+        
+        -- 11. Finally, delete Course
         DELETE FROM [Course] 
         WHERE Course_ID = @Course_ID;
         
@@ -136,3 +234,19 @@ BEGIN
 END
 GO
 
+-- ==================== GET ALL CATEGORIES ====================
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetAllCategories]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[GetAllCategories]
+GO
+
+CREATE PROCEDURE [dbo].[GetAllCategories]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT DISTINCT CCategory
+    FROM [Course]
+    WHERE CCategory IS NOT NULL AND CCategory != ''
+    ORDER BY CCategory;
+END
+GO

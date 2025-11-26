@@ -27,6 +27,7 @@ BEGIN
         q.types,
         q.Weight,
         q.Correct_answer,
+        q.Questions,
         c.Name as Course_Name
     FROM [Quiz] q
     INNER JOIN [Course] c ON q.Course_ID = c.Course_ID
@@ -53,7 +54,8 @@ CREATE PROCEDURE [dbo].[CreateQuiz]
     @content NVARCHAR(100),
     @types NVARCHAR(50) = NULL,
     @Weight FLOAT = NULL,
-    @Correct_answer NVARCHAR(50)
+    @Correct_answer NVARCHAR(50),
+    @Questions NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -76,10 +78,10 @@ BEGIN
         -- Insert into Quiz
         INSERT INTO [Quiz] (University_ID, Section_ID, Course_ID, Semester, Assessment_ID,
                            Grading_method, pass_score, Time_limits, Start_Date, End_Date,
-                           content, types, Weight, Correct_answer)
+                           content, types, Weight, Correct_answer, Questions)
         VALUES (@University_ID, @Section_ID, @Course_ID, @Semester, @Assessment_ID,
                 @Grading_method, @pass_score, @Time_limits, @Start_Date, @End_Date,
-                @content, @types, @Weight, @Correct_answer);
+                @content, @types, @Weight, @Correct_answer, @Questions);
         
         COMMIT TRANSACTION;
         
@@ -101,6 +103,7 @@ BEGIN
             q.types,
             q.Weight,
             q.Correct_answer,
+            q.Questions,
             c.Name as Course_Name
         FROM [Quiz] q
         INNER JOIN [Course] c ON q.Course_ID = c.Course_ID
@@ -137,7 +140,8 @@ CREATE PROCEDURE [dbo].[UpdateQuiz]
     @content NVARCHAR(100) = NULL,
     @types NVARCHAR(50) = NULL,
     @Weight FLOAT = NULL,
-    @Correct_answer NVARCHAR(50) = NULL
+    @Correct_answer NVARCHAR(50) = NULL,
+    @Questions NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -153,7 +157,11 @@ BEGIN
             content = ISNULL(@content, content),
             types = ISNULL(@types, types),
             Weight = ISNULL(@Weight, Weight),
-            Correct_answer = ISNULL(@Correct_answer, Correct_answer)
+            Correct_answer = ISNULL(@Correct_answer, Correct_answer),
+            Questions = CASE 
+                WHEN @Questions IS NOT NULL AND LEN(@Questions) > 0 THEN @Questions 
+                ELSE Questions 
+            END
         WHERE University_ID = @University_ID
           AND Section_ID = @Section_ID
           AND Course_ID = @Course_ID
@@ -181,6 +189,7 @@ BEGIN
             q.types,
             q.Weight,
             q.Correct_answer,
+            q.Questions,
             c.Name as Course_Name
         FROM [Quiz] q
         INNER JOIN [Course] c ON q.Course_ID = c.Course_ID
@@ -238,6 +247,45 @@ BEGIN
             ROLLBACK TRANSACTION;
         THROW;
     END CATCH
+END
+GO
+
+-- ==================== GET QUIZZES BY COURSE ====================
+-- Description: Get all quizzes grouped by course and section for course management view
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GetQuizzesByCourse]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[GetQuizzesByCourse]
+GO
+
+CREATE PROCEDURE [dbo].[GetQuizzesByCourse]
+    @Course_ID NVARCHAR(15) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        q.University_ID,
+        q.Section_ID,
+        q.Course_ID,
+        q.Semester,
+        q.Assessment_ID,
+        q.Grading_method,
+        q.pass_score,
+        q.Time_limits,
+        q.Start_Date,
+        q.End_Date,
+        q.Responses,
+        q.completion_status,
+        q.score,
+        q.content,
+        q.types,
+        q.Weight,
+        q.Correct_answer,
+        q.Questions,
+        c.Name as Course_Name
+    FROM [Quiz] q
+    INNER JOIN [Course] c ON q.Course_ID = c.Course_ID
+    WHERE (@Course_ID IS NULL OR q.Course_ID = @Course_ID)
+    ORDER BY q.Course_ID, q.Section_ID, q.Semester, q.Start_Date DESC;
 END
 GO
 
