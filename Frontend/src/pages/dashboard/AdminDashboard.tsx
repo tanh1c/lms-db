@@ -9,12 +9,11 @@ import { courseService } from '@/lib/api/courseService'
 import { adminService, type Statistics } from '@/lib/api/adminService'
 import { ROUTES } from '@/constants/routes'
 import type { Course } from '@/types'
-import { Search, Bell, BookOpen, Users, Settings, BarChart3, ChevronDown, Check, Edit2, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
+import { BookOpen, Users, Settings, BarChart3, ChevronDown, Edit2, ChevronLeft, ChevronRight, TrendingUp, Plus, FileText, AlertCircle, Zap, GraduationCap, UserCheck } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
-import { useNeoBrutalismMode, getNeoBrutalismCardClasses, getNeoBrutalismInputClasses, getNeoBrutalismStatCardClasses, getNeoBrutalismCourseCardClasses, getNeoBrutalismTextClasses } from '@/lib/utils/theme-utils'
+import { useNeoBrutalismMode, getNeoBrutalismCardClasses, getNeoBrutalismStatCardClasses, getNeoBrutalismTextClasses } from '@/lib/utils/theme-utils'
 import { cn } from '@/lib/utils'
 import '@/lib/animations/gsap-setup'
 
@@ -29,7 +28,10 @@ export default function AdminDashboard() {
   const [courses, setCourses] = useState<Course[]>([])
   const [statistics, setStatistics] = useState<Statistics | null>(null)
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [topStudents, setTopStudents] = useState<any[]>([])
+  const [topTutors, setTopTutors] = useState<any[]>([])
+  const [loadingTopPerformers, setLoadingTopPerformers] = useState(false)
+  const [currentMonth, setCurrentMonth] = useState(new Date())
   const containerRef = useRef<HTMLDivElement>(null)
   const neoBrutalismMode = useNeoBrutalismMode()
 
@@ -44,6 +46,7 @@ export default function AdminDashboard() {
       })
     }
   }, { scope: containerRef })
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -74,15 +77,33 @@ export default function AdminDashboard() {
     loadData()
   }, [user])
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">{t('common.loading')}</div>
-        </div>
-      </DashboardLayout>
-    )
-  }
+  useEffect(() => {
+    const loadTopPerformers = async () => {
+      if (!user) return
+      
+      try {
+        setLoadingTopPerformers(true)
+        const [studentsData, tutorsData] = await Promise.all([
+          adminService.getTopStudents(3).catch((error) => {
+            console.error('Error fetching top students:', error)
+            return []
+          }),
+          adminService.getTopTutors(3).catch((error) => {
+            console.error('Error fetching top tutors:', error)
+            return []
+          }),
+        ])
+        setTopStudents(studentsData || [])
+        setTopTutors(tutorsData || [])
+      } catch (error) {
+        console.error('Error loading top performers:', error)
+      } finally {
+        setLoadingTopPerformers(false)
+      }
+    }
+
+    loadTopPerformers()
+  }, [user])
 
   // Use statistics if available, otherwise calculate from courses or show 0
   const totalUsers = statistics ? statistics.total_users : 0
@@ -95,69 +116,60 @@ export default function AdminDashboard() {
     : 0
   const systemStatus = t('dashboard.active')
 
-  // Mock course cards data
-  const cardConfigs = [
-    { 
-      color: 'bg-[#e1e2f6]', 
-      iconBg: 'bg-[#fcf9ff]', 
-      icon: '< >',
-      iconColor: 'text-purple-600'
-    },
-    { 
-      color: 'bg-[#f8efe2]', 
-      iconBg: 'bg-[#faf5ec]', 
-      icon: '↑',
-      iconColor: 'text-orange-600'
-    },
-    { 
-      color: 'bg-[#eff7e2]', 
-      iconBg: 'bg-[#f6fbee]', 
-      icon: '~',
-      iconColor: 'text-green-600'
-    },
-  ]
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">{t('common.loading')}</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
-  const fallbackCourses = [
-    { title: 'System Overview', courseId: 1 },
-    { title: 'User Management', courseId: 2 },
-    { title: 'Course Analytics', courseId: 3 },
-  ]
+  const handleCalendarNavigation = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev)
+      if (direction === 'prev') {
+        newDate.setMonth(prev.getMonth() - 1)
+      } else {
+        newDate.setMonth(prev.getMonth() + 1)
+      }
+      return newDate
+    })
+  }
 
-  const courseCards = courses.length > 0
-    ? courses.slice(0, 3).map((course, index) => ({
-        ...cardConfigs[index] || cardConfigs[0],
-        title: course.Name,
-        courseId: course.Course_ID,
-      }))
-    : fallbackCourses.map((course, index) => ({
-        ...cardConfigs[index] || cardConfigs[0],
-        ...course,
-      }))
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      navigate(`${ROUTES.COURSES}?search=${encodeURIComponent(searchQuery)}`)
-    } else {
-      navigate(ROUTES.COURSES)
+  // Get calendar days for current month
+  const getCalendarDays = () => {
+    const year = currentMonth.getFullYear()
+    const month = currentMonth.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
+    
+    // Get the first week's days (may include previous month's days)
+    const days: (number | null)[] = []
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null)
     }
-  }
-
-  const handleCourseClick = (courseId: number) => {
-    navigate(ROUTES.COURSE_DETAIL.replace(':courseId', courseId.toString()))
-  }
-
-  const handleTodoClick = (todo: typeof todos[0]) => {
-    if (todo.text.toLowerCase().includes('user')) {
-      navigate('/admin/users')
-    } else {
-      navigate(ROUTES.SETTINGS)
+    
+    // Add all days of the current month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(day)
     }
+    
+    return days
   }
 
-  const handleCalendarNavigation = (_direction: 'prev' | 'next') => {
-    // Calendar navigation
-  }
+  const calendarDays = getCalendarDays()
+  const today = new Date()
+  const isCurrentMonth = currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()
+  const todayDate = today.getDate()
+
+  // Format month and year for display
+  const monthYearString = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   // Chart data for system stats
   const chartData = [
@@ -180,17 +192,6 @@ export default function AdminDashboard() {
     },
   } satisfies ChartConfig
 
-  // Calendar days
-  const calendarDays = [24, 25, 26, 27, 28, 29, 30]
-
-  // Mock todo list for admin
-  const todos = [
-    { id: 1, text: t('dashboard.todoReviewNewUserRegistrations'), category: t('dashboard.users'), time: '09:00 AM', checked: false },
-    { id: 2, text: t('dashboard.todoUpdateSystemSettings'), category: t('dashboard.todoSystem'), time: '10:30 AM', checked: false },
-    { id: 3, text: t('dashboard.todoApproveCourseSubmissions'), category: t('dashboard.courses'), time: '02:00 PM', checked: false },
-    { id: 4, text: t('dashboard.todoGenerateMonthlyReport'), category: t('dashboard.todoReports'), time: '03:30 PM', checked: false },
-    { id: 5, text: t('dashboard.todoBackupDatabase'), category: t('dashboard.todoSystem'), time: '04:50 PM', checked: true },
-  ]
 
   // Right Sidebar Content
   const rightSidebarContent = (
@@ -266,9 +267,9 @@ export default function AdminDashboard() {
             }}
           />
           <span className={cn(
-            "text-sm font-semibold text-black dark:text-white",
+            "text-sm font-semibold text-black dark:text-white capitalize",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-          )}>{t('dashboard.december2021')}</span>
+          )}>{monthYearString}</span>
           <ChevronRight 
             className="w-4 h-4 cursor-pointer text-[#676767] dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
             onClick={(e) => {
@@ -277,159 +278,64 @@ export default function AdminDashboard() {
             }}
           />
         </div>
-        <div className="grid grid-cols-7 gap-2 mb-2 text-[9.712px] text-center text-[#676767] dark:text-gray-400 font-medium">
+        <div className="grid grid-cols-7 gap-2 mb-2">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-            <div key={i} className={i === 1 ? 'text-[#d2edfd] dark:text-[#3bafa8]' : ''}>{day}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((day) => (
-            <div
-              key={day}
+            <div 
+              key={i} 
               className={cn(
-                "w-8 h-8 flex items-center justify-center text-[10px] font-medium transition-all cursor-pointer",
-                neoBrutalismMode
-                  ? day === 25
-                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-black dark:bg-white text-white dark:text-black shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,251,235,1)] rounded-none"
-                    : "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#1a1a1a] text-[#676767] dark:text-gray-400 rounded-none hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                  : `rounded-full transition-colors ${
-                      day === 25 
-                        ? 'bg-black dark:bg-white text-white dark:text-black' 
-                        : 'text-[#676767] dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-                    }`
+                "w-8 h-8 flex items-center justify-center text-[9.712px] text-center text-[#676767] dark:text-gray-400 font-medium",
+                i === 1 ? 'text-[#d2edfd] dark:text-[#3bafa8]' : ''
               )}
             >
               {day}
             </div>
           ))}
         </div>
-      </Card>
-
-      {/* To Do List */}
-      <div>
-        <h3 className={cn(
-          "text-lg font-semibold text-black dark:text-white text-center mb-4",
-          getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-        )}>{t('dashboard.tasks')}</h3>
-        <div className="space-y-3">
-          {todos.map((todo) => (
-            <div
-              key={todo.id}
-              className={cn(
-                "flex gap-3 items-start cursor-pointer p-2 transition-all",
-                neoBrutalismMode
-                  ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                  : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
-              )}
-              onClick={() => handleTodoClick(todo)}
-            >
+        <div className="grid grid-cols-7 gap-2">
+          {calendarDays.map((day, index) => {
+            if (day === null) {
+              return <div key={`empty-${index}`} className="w-8 h-8" />
+            }
+            const isToday = isCurrentMonth && day === todayDate
+            return (
               <div
+                key={day}
                 className={cn(
-                  "w-[18px] h-[18px] border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all",
+                  "w-8 h-8 flex items-center justify-center text-[10px] font-medium transition-all cursor-pointer",
                   neoBrutalismMode
-                    ? todo.checked
-                      ? "border-[#1a1a1a] dark:border-[#FFFBEB] bg-[#3bafa8] dark:bg-[#3bafa8] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                      : "border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#1a1a1a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
-                    : `rounded transition-colors ${
-                        todo.checked
-                          ? 'bg-[#3bafa8] border-[#3bafa8]'
-                          : 'border-[#676767] dark:border-gray-500 hover:border-[#3bafa8]'
+                    ? isToday
+                      ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-black dark:bg-white text-white dark:text-black shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,251,235,1)] rounded-none"
+                      : "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#1a1a1a] text-[#676767] dark:text-gray-400 rounded-none hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
+                    : `rounded-full transition-colors ${
+                        isToday
+                          ? 'bg-black dark:bg-white text-white dark:text-black' 
+                          : 'text-[#676767] dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
                       }`
                 )}
-                onClick={(e) => {
-                  e.stopPropagation()
-                }}
               >
-                {todo.checked && <Check className="w-3 h-3 text-white" />}
+                {day}
               </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={cn(
-                    "text-sm font-semibold text-[#42404c] dark:text-white",
-                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'),
-                    todo.checked && 'line-through'
-                  )}
-                >
-                  {todo.text}
-                </p>
-                {todo.category && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={cn(
-                      "text-sm text-[#676767] dark:text-gray-400 font-medium",
-                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>{todo.category}</span>
-                    <span className="text-[#676767] dark:text-gray-400">•</span>
-                    <span className={cn(
-                      "text-sm font-semibold text-[#fe764b]",
-                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                    )}>{todo.time}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
-      </div>
+      </Card>
+
     </>
   )
 
   return (
     <DashboardLayout showRightSidebar={true} rightSidebarContent={rightSidebarContent}>
       <div ref={containerRef} className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <h1 className={cn(
-                  "text-2xl font-semibold text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                )}>
-                  {t('dashboard.hello')} {user?.First_Name || 'Admin'} 👋
-                </h1>
-              </div>
-              <p className={cn(
-                "text-[#85878d] dark:text-gray-400 text-sm font-medium",
-                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>{t('dashboard.overview')}</p>
-            </div>
-            <div className="flex items-center gap-5">
-              <form onSubmit={handleSearch} className="relative">
-                <Input
-                  placeholder={t('dashboard.searchUsersOrCourses')}
-                  className={cn(
-                    "w-[322px] pl-4 pr-10 h-12 text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Search className="w-6 h-6 text-[#85878d] dark:text-gray-400" />
-                </button>
-              </form>
-              <div className="relative">
-                <Link
-                  to={ROUTES.SETTINGS}
-                  className={cn(
-                    "w-12 h-12 flex items-center justify-center cursor-pointer transition-all",
-                    neoBrutalismMode
-                      ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                      : "border border-[#e7eae9] dark:border-[#333] bg-white dark:bg-[#1a1a1a] rounded-xl hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
-                  )}
-                >
-                  <Bell className="w-6 h-6 text-[#85878d] dark:text-gray-400" />
-                </Link>
-                <div className={cn(
-                  "absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white dark:border-[#1a1a1a]",
-                  neoBrutalismMode ? "rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]" : "rounded-full"
-                )}></div>
-              </div>
-          </div>
-        </div>
-
         {/* Stats Cards */}
         <div className="flex gap-5 mb-6">
-            <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+            <Card 
+              className={cn(
+                "flex-1 p-6 cursor-pointer transition-all",
+                getNeoBrutalismStatCardClasses(neoBrutalismMode),
+                !neoBrutalismMode && "hover:shadow-lg dark:hover:shadow-xl"
+              )}
+              onClick={() => navigate(ROUTES.USERS_MANAGEMENT)}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.totalUsers')}</p>
@@ -446,7 +352,14 @@ export default function AdminDashboard() {
               </div>
             </Card>
 
-            <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+            <Card 
+              className={cn(
+                "flex-1 p-6 cursor-pointer transition-all",
+                getNeoBrutalismStatCardClasses(neoBrutalismMode),
+                !neoBrutalismMode && "hover:shadow-lg dark:hover:shadow-xl"
+              )}
+              onClick={() => navigate(ROUTES.ADMIN_COURSES)}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.totalCourses')}</p>
@@ -458,11 +371,23 @@ export default function AdminDashboard() {
               </div>
             </Card>
 
-            <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+            <Card 
+              className={cn(
+                "flex-1 p-6 cursor-pointer transition-all",
+                getNeoBrutalismStatCardClasses(neoBrutalismMode),
+                !neoBrutalismMode && "hover:shadow-lg dark:hover:shadow-xl"
+              )}
+              onClick={() => navigate(ROUTES.ADMIN_ASSIGNMENTS)}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.completionRate')}</p>
                   <p className={cn("text-3xl font-bold text-black dark:text-white", getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'))}>{completionRate}%</p>
+                  {statistics && (
+                    <p className="text-xs text-[#85878d] dark:text-gray-400 mt-1">
+                      {statistics.completed_assignments} / {statistics.total_assignments} {t('dashboard.completed')}
+                    </p>
+                  )}
                 </div>
                 <div className="w-12 h-12 bg-[#eff7e2] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
                   <BarChart3 className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -470,58 +395,259 @@ export default function AdminDashboard() {
               </div>
             </Card>
 
-            <Card className={cn("flex-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+            <Card 
+              className={cn(
+                "flex-1 p-6 cursor-pointer transition-all",
+                getNeoBrutalismStatCardClasses(neoBrutalismMode),
+                !neoBrutalismMode && "hover:shadow-lg dark:hover:shadow-xl"
+              )}
+              onClick={() => {
+                if (statistics && statistics.pending_assessments > 0) {
+                  navigate(ROUTES.ADMIN_ASSIGNMENTS)
+                }
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">{t('dashboard.systemStatus')}</p>
-                  <p className="text-3xl font-bold text-black dark:text-white">{systemStatus}</p>
+                  <p className="text-sm text-[#85878d] dark:text-gray-400 font-medium mb-1">
+                    {statistics && statistics.pending_assessments > 0 ? t('dashboard.pendingAssessments') : t('dashboard.systemStatus')}
+                  </p>
+                  <p className={cn("text-3xl font-bold text-black dark:text-white", getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'))}>
+                    {statistics && statistics.pending_assessments > 0 ? statistics.pending_assessments : systemStatus}
+                  </p>
+                  {statistics && statistics.pending_assessments > 0 && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {t('dashboard.requiresAttention')}
+                    </p>
+                  )}
                 </div>
-                <div className="w-12 h-12 bg-[#e1e2f6] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
+                <div className={cn(
+                  "w-12 h-12 rounded-lg flex items-center justify-center",
+                  statistics && statistics.pending_assessments > 0 
+                    ? "bg-[#fef3e2] dark:bg-[#2a2a2a]" 
+                    : "bg-[#e1e2f6] dark:bg-[#2a2a2a]"
+                )}>
+                  {statistics && statistics.pending_assessments > 0 ? (
+                    <AlertCircle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  ) : (
                   <Settings className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  )}
                 </div>
               </div>
           </Card>
         </div>
 
-        {/* Course Cards */}
-        <div className="flex gap-5 mb-6">
-            {courseCards.map((course, index) => (
-              <Card
-                key={index}
+        {/* Quick Actions & Recent Activity */}
+        <div className="grid grid-cols-3 gap-5 mb-6">
+          {/* Quick Actions */}
+          <Card className={cn("col-span-1 p-6", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="w-5 h-5 text-[#3bafa8] dark:text-[#3bafa8]" />
+              <h3 className={cn(
+                "text-lg font-semibold text-black dark:text-white",
+                getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+              )}>{t('dashboard.quickActions')}</h3>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate(ROUTES.ADMIN_COURSES)}
                 className={cn(
-                  neoBrutalismMode 
-                    ? getNeoBrutalismCourseCardClasses(neoBrutalismMode, "h-[177px] relative overflow-hidden flex-shrink-0 w-[240px]")
-                    : `${course.color} dark:bg-[#2a2a2a] border-0 dark:border-[#333] h-[177px] relative overflow-hidden flex-shrink-0 w-[240px] cursor-pointer hover:shadow-lg dark:hover:shadow-xl transition-shadow`,
-                  !neoBrutalismMode && course.color
+                  "w-full flex items-center gap-3 p-3 transition-all text-left",
+                  neoBrutalismMode
+                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
+                    : "bg-[#f8f8f8] dark:bg-[#1a1a1a] rounded-lg hover:bg-[#e5e7e9] dark:hover:bg-[#2a2a2a] transition-colors"
                 )}
-                onClick={() => handleCourseClick(course.courseId)}
               >
-                <div className="p-4 h-full flex flex-col justify-between">
-                  <div className="flex flex-col gap-4">
-                    <div className={`${course.iconBg} dark:bg-[#1a1a1a] w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold ${course.iconColor} dark:text-white`}>
-                      {course.icon}
-                    </div>
-                    <h3 className="font-semibold text-[#1f1d39] dark:text-white text-base">{course.title}</h3>
-                  </div>
-                  <div className={`${course.iconBg} dark:bg-[#1a1a1a] rounded-[11px] px-6 py-3 flex items-center justify-between`}>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-[#1f1d39] dark:text-gray-300" />
-                      <span className="text-[10px] font-semibold text-[#1f1d39] dark:text-gray-300">{totalUsers}</span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300 dark:bg-[#444]"></div>
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-[#1f1d39] dark:text-gray-300" />
-                      <span className="text-[10px] font-semibold text-[#1f1d39] dark:text-gray-300">{totalCourses}</span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300 dark:bg-[#444]"></div>
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-[#1f1d39] dark:text-gray-300" />
-                      <span className="text-[10px] font-semibold text-[#1f1d39] dark:text-gray-300">{completionRate}%</span>
-                    </div>
-                  </div>
+                <div className="w-10 h-10 bg-[#e1e2f6] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
-              </Card>
-          ))}
+                <div className="flex-1">
+                  <p className={cn(
+                    "text-sm font-semibold text-black dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>{t('dashboard.quickActionCreateCourse')}</p>
+                  <p className={cn(
+                    "text-xs text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>{t('dashboard.quickActionCreateCourseDesc')}</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate(ROUTES.USERS_MANAGEMENT)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 transition-all text-left",
+                  neoBrutalismMode
+                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
+                    : "bg-[#f8f8f8] dark:bg-[#1a1a1a] rounded-lg hover:bg-[#e5e7e9] dark:hover:bg-[#2a2a2a] transition-colors"
+                )}
+              >
+                <div className="w-10 h-10 bg-[#f8efe2] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <p className={cn(
+                    "text-sm font-semibold text-black dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>{t('dashboard.quickActionManageUsers')}</p>
+                  <p className={cn(
+                    "text-xs text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>{t('dashboard.quickActionManageUsersDesc')}</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate(ROUTES.ADMIN_ASSIGNMENTS)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 transition-all text-left",
+                  neoBrutalismMode 
+                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
+                    : "bg-[#f8f8f8] dark:bg-[#1a1a1a] rounded-lg hover:bg-[#e5e7e9] dark:hover:bg-[#2a2a2a] transition-colors"
+                )}
+              >
+                <div className="w-10 h-10 bg-[#eff7e2] dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <p className={cn(
+                    "text-sm font-semibold text-black dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>{t('dashboard.quickActionViewAssignments')}</p>
+                  <p className={cn(
+                    "text-xs text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>{t('dashboard.quickActionViewAssignmentsDesc')}</p>
+                    </div>
+              </button>
+                  </div>
+          </Card>
+
+          {/* Top Performers */}
+          <div className="col-span-2 grid grid-cols-2 gap-5">
+            {/* Top Students */}
+            <Card className={cn("p-4", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+              <div className="flex items-center gap-2 mb-4">
+                <GraduationCap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 className={cn(
+                  "text-base font-semibold text-black dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>{t('admin.topStudents')}</h3>
+              </div>
+              {loadingTopPerformers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className={cn(
+                    "text-sm text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>{t('common.loading')}</div>
+                </div>
+              ) : topStudents.length > 0 ? (
+                <div className="space-y-3">
+                  {topStudents.map((student: any, index: number) => (
+                    <div key={student.University_ID} className={cn(
+                      "p-3 border rounded-lg",
+                      neoBrutalismMode 
+                        ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                        : "border-[#e5e7e7] dark:border-[#333]"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-7 h-7 bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0",
+                          neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : "rounded-full"
+                        )}>
+                          <span className={cn(
+                            "text-xs font-bold text-blue-600 dark:text-blue-400",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                          )}>#{index + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={cn(
+                            "text-sm font-semibold truncate",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                          )}>
+                            {student.Last_Name} {student.First_Name}
+                          </div>
+                          <div className={cn(
+                            "text-xs text-[#85878d] dark:text-gray-400 truncate",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                          )}>
+                            ID: {student.University_ID}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={cn(
+                  "text-center text-[#85878d] dark:text-gray-400 py-4",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>{t('admin.noData')}</p>
+              )}
+            </Card>
+
+            {/* Top Tutors */}
+            <Card className={cn("p-4", getNeoBrutalismStatCardClasses(neoBrutalismMode))}>
+              <div className="flex items-center gap-2 mb-4">
+                <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <h3 className={cn(
+                  "text-base font-semibold text-black dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>{t('admin.topTutors')}</h3>
+              </div>
+              {loadingTopPerformers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className={cn(
+                    "text-sm text-[#85878d] dark:text-gray-400",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>{t('common.loading')}</div>
+                </div>
+              ) : topTutors.length > 0 ? (
+                <div className="space-y-3">
+                  {topTutors.map((tutor: any, index: number) => (
+                    <div key={tutor.University_ID} className={cn(
+                      "p-3 border rounded-lg",
+                      neoBrutalismMode 
+                        ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                        : "border-[#e5e7e7] dark:border-[#333]"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-7 h-7 bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0",
+                          neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : "rounded-full"
+                        )}>
+                          <span className={cn(
+                            "text-xs font-bold text-green-600 dark:text-green-400",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                          )}>#{index + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={cn(
+                            "text-sm font-semibold truncate",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                          )}>
+                            {tutor.Last_Name} {tutor.First_Name}
+                          </div>
+                          <div className={cn(
+                            "text-xs text-[#85878d] dark:text-gray-400 truncate",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                          )}>
+                            ID: {tutor.University_ID}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={cn(
+                  "text-center text-[#85878d] dark:text-gray-400 py-4",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>{t('admin.noData')}</p>
+              )}
+            </Card>
+          </div>
         </div>
 
         {/* Analytics Section */}
