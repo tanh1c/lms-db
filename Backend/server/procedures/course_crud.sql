@@ -140,36 +140,18 @@ BEGIN
         
         -- Delete all related data in correct order to avoid foreign key violations
         
-        -- 1. Delete Submission (references Assignment, which references Assessment)
-        DELETE FROM [Submission]
+        -- 1. Delete Assignment_Submission (references Assignment_Definition)
+        DELETE FROM [Assignment_Submission]
         WHERE EXISTS (
             SELECT 1
-            FROM [Assignment] a
-            INNER JOIN [Assessment] ass ON a.University_ID = ass.University_ID 
-                AND a.Section_ID = ass.Section_ID 
-                AND a.Course_ID = ass.Course_ID 
-                AND a.Semester = ass.Semester 
-                AND a.Assessment_ID = ass.Assessment_ID
-            WHERE ass.Course_ID = @Course_ID
-                AND [Submission].University_ID = a.University_ID
-                AND [Submission].Section_ID = a.Section_ID
-                AND [Submission].Course_ID = a.Course_ID
-                AND [Submission].Semester = a.Semester
-                AND [Submission].Assessment_ID = a.Assessment_ID
+            FROM [Assignment_Definition] ad
+            WHERE ad.Course_ID = @Course_ID
+                AND [Assignment_Submission].AssignmentID = ad.AssignmentID
         );
         
-        -- 2. Delete Assignment (references Assessment)
-        DELETE FROM [Assignment]
-        WHERE EXISTS (
-            SELECT 1
-            FROM [Assessment] ass
-            WHERE ass.Course_ID = @Course_ID
-                AND [Assignment].University_ID = ass.University_ID
-                AND [Assignment].Section_ID = ass.Section_ID
-                AND [Assignment].Course_ID = ass.Course_ID
-                AND [Assignment].Semester = ass.Semester
-                AND [Assignment].Assessment_ID = ass.Assessment_ID
-        );
+        -- 2. Delete Assignment_Definition (course-wide assignments)
+        DELETE FROM [Assignment_Definition]
+        WHERE Course_ID = @Course_ID;
         
         -- 3. Delete Quiz_Answer (student answers, references Assessment via QuizID)
         DELETE FROM [Quiz_Answer]

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Check, Moon, Sun, Palette, Square } from 'lucide-react'
+import { Check, Moon, Sun, Palette, Square, ZapOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getNeoBrutalismButtonClasses, getNeoBrutalismInputClasses, getNeoBrutalismTextClasses } from '@/lib/utils/theme-utils'
 
@@ -26,13 +26,14 @@ const COLOR_PRESETS = [
 
 export default function ThemeCustomizer() {
   const { t } = useTranslation()
-  const { primaryColor, fontFamily, darkMode, neoBrutalismMode, setPrimaryColor, setFontFamily, toggleDarkMode, setNeoBrutalismMode, resetTheme } = useThemeStore()
+  const { primaryColor, fontFamily, darkMode, neoBrutalismMode, minimalMode, setPrimaryColor, setFontFamily, toggleDarkMode, setNeoBrutalismMode, setMinimalMode, resetTheme } = useThemeStore()
   const [showSuccess, setShowSuccess] = useState(false)
   const [tempFontFamily, setTempFontFamily] = useState(fontFamily)
   const [tempPrimaryColor, setTempPrimaryColor] = useState(primaryColor)
   const [tempCustomColor, setTempCustomColor] = useState('#1e293b')
   const [tempDarkMode, setTempDarkMode] = useState(darkMode)
   const [tempNeoBrutalismMode, setTempNeoBrutalismMode] = useState(neoBrutalismMode)
+  const [tempMinimalMode, setTempMinimalMode] = useState(minimalMode)
 
   useEffect(() => {
     // Initialize customColor from primaryColor
@@ -42,7 +43,8 @@ export default function ThemeCustomizer() {
     setTempPrimaryColor(primaryColor)
     setTempDarkMode(darkMode)
     setTempNeoBrutalismMode(neoBrutalismMode)
-  }, [primaryColor, fontFamily, darkMode, neoBrutalismMode])
+    setTempMinimalMode(minimalMode)
+  }, [primaryColor, fontFamily, darkMode, neoBrutalismMode, minimalMode])
 
   const handleColorChange = (color: string) => {
     // Convert hex to HSL
@@ -69,6 +71,7 @@ export default function ThemeCustomizer() {
       toggleDarkMode()
     }
     setNeoBrutalismMode(tempNeoBrutalismMode)
+    setMinimalMode(tempMinimalMode)
     setShowSuccess(true)
     setTimeout(() => {
       setShowSuccess(false)
@@ -76,7 +79,7 @@ export default function ThemeCustomizer() {
   }
 
   const hasChanges = () => {
-    return tempPrimaryColor !== primaryColor || tempFontFamily !== fontFamily || tempDarkMode !== darkMode || tempNeoBrutalismMode !== neoBrutalismMode
+    return tempPrimaryColor !== primaryColor || tempFontFamily !== fontFamily || tempDarkMode !== darkMode || tempNeoBrutalismMode !== neoBrutalismMode || tempMinimalMode !== minimalMode
   }
 
   return (
@@ -171,6 +174,54 @@ export default function ThemeCustomizer() {
               className={cn(
                 "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
                 tempNeoBrutalismMode ? "translate-x-6" : "translate-x-1"
+              )}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Minimal Mode Toggle */}
+      <div className="space-y-4">
+        <Label className={cn(
+          "text-sm font-medium text-[#211c37] dark:text-white mb-4 block",
+          getNeoBrutalismTextClasses(tempNeoBrutalismMode, 'bold')
+        )}>
+          {t('theme.performance')}
+        </Label>
+        <div className={cn(
+          "flex items-center justify-between p-4 bg-[#f5f7f9] dark:bg-[#1a1a1a]",
+          tempNeoBrutalismMode
+            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)]"
+            : "rounded-xl border border-[#e7eae9] dark:border-[#333]"
+        )}>
+          <div className="flex items-center gap-3">
+            <ZapOff className="w-5 h-5 text-[#211c37] dark:text-white" />
+            <div className="flex flex-col">
+              <span className={cn(
+                "text-sm font-medium text-[#211c37] dark:text-white",
+                getNeoBrutalismTextClasses(tempNeoBrutalismMode, 'bold')
+              )}>
+                {tempMinimalMode ? t('theme.minimalMode') : t('theme.animationsEnabled')}
+              </span>
+              <span className={cn(
+                "text-xs text-[#85878d] dark:text-gray-400",
+                getNeoBrutalismTextClasses(tempNeoBrutalismMode, 'body')
+              )}>
+                {tempMinimalMode ? t('theme.disableAllAnimations') : t('theme.enableAllAnimations')}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setTempMinimalMode(!tempMinimalMode)}
+            className={cn(
+              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+              tempMinimalMode ? "bg-[#3bafa8]" : "bg-gray-300"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                tempMinimalMode ? "translate-x-6" : "translate-x-1"
               )}
             />
           </button>

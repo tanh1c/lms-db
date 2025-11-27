@@ -187,14 +187,10 @@ BEGIN
         ),
         AssignmentStats AS (
             SELECT 
-                COUNT(DISTINCT CAST(a.University_ID AS NVARCHAR) + '-' + a.Section_ID + '-' + a.Course_ID + '-' + a.Semester + '-' + CAST(a.Assessment_ID AS NVARCHAR)) AS TotalAssignments,
-                SUM(CASE WHEN s.status = 'Submitted' THEN 1 ELSE 0 END) AS SubmittedAssignments
-            FROM [Assignment] a
-            LEFT JOIN [Submission] s ON a.University_ID = s.University_ID 
-                AND a.Section_ID = s.Section_ID 
-                AND a.Course_ID = s.Course_ID 
-                AND a.Semester = s.Semester 
-                AND a.Assessment_ID = s.Assessment_ID
+                COUNT(DISTINCT ad.AssignmentID) AS TotalAssignments,
+                SUM(CASE WHEN asub.status = 'Submitted' THEN 1 ELSE 0 END) AS SubmittedAssignments
+            FROM [Assignment_Definition] ad
+            LEFT JOIN [Assignment_Submission] asub ON ad.AssignmentID = asub.AssignmentID
         )
         SELECT 
             'Quiz' AS Type,

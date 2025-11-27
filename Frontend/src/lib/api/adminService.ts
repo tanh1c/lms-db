@@ -112,16 +112,15 @@ export interface Section {
 
 // Assignment
 export interface AdminAssignment {
-  University_ID: number
-  Section_ID: string
+  AssignmentID: number  // Primary key for Assignment_Definition
   Course_ID: string
   Course_Name?: string
   Semester: string
-  Assessment_ID: number
   MaxScore: number | null
   accepted_specification: string | null
   submission_deadline: string
   instructions: string | null
+  StudentCount?: number  // Number of students who have submitted
 }
 
 // Quiz Question Interface
@@ -655,30 +654,26 @@ export const adminService = {
     return response.data || []
   },
 
-  async createAssignment(assignment: Omit<AdminAssignment, 'Course_Name'>): Promise<AdminAssignment> {
+  async createAssignment(assignment: Omit<AdminAssignment, 'Course_Name' | 'AssignmentID' | 'StudentCount'>): Promise<AdminAssignment> {
     const response = await apiClient.post('/admin/assignments', assignment)
     return response.data.assignment
   },
 
   async updateAssignment(
-    universityId: number,
-    sectionId: string,
-    courseId: string,
-    semester: string,
-    assessmentId: number,
+    assignmentId: number,
     updates: Partial<AdminAssignment>
-  ): Promise<void> {
-    await apiClient.put(`/admin/assignments/${universityId}/${sectionId}/${courseId}/${semester}/${assessmentId}`, updates)
+  ): Promise<AdminAssignment> {
+    const response = await apiClient.put(`/admin/assignments/${assignmentId}`, updates)
+    return response.data.assignment
   },
 
-  async deleteAssignment(
-    universityId: number,
-    sectionId: string,
-    courseId: string,
-    semester: string,
-    assessmentId: number
-  ): Promise<void> {
-    await apiClient.delete(`/admin/assignments/${universityId}/${sectionId}/${courseId}/${semester}/${assessmentId}`)
+  async deleteAssignment(assignmentId: number): Promise<void> {
+    await apiClient.delete(`/admin/assignments/${assignmentId}`)
+  },
+
+  async getAssignmentSubmissionsByAssignmentID(assignmentId: number): Promise<any[]> {
+    const response = await apiClient.get(`/admin/assignments/${assignmentId}/submissions`)
+    return response.data || []
   },
 
   // Quizzes

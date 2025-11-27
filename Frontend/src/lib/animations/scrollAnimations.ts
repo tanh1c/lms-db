@@ -1,12 +1,23 @@
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { shouldRunAnimation } from '@/lib/utils/animation-utils'
 
 export const scrollAnimations = {
   init: () => {
-    gsap.registerPlugin(ScrollTrigger)
+    if (shouldRunAnimation()) {
+      gsap.registerPlugin(ScrollTrigger)
+    }
   },
 
   fadeInOnScroll: (selector: string) => {
+    if (!shouldRunAnimation()) {
+      // In minimal mode, just show elements immediately
+      gsap.utils.toArray(selector).forEach((element: any) => {
+        gsap.set(element, { opacity: 1, y: 0 })
+      })
+      return
+    }
+    
     gsap.utils.toArray(selector).forEach((element: any) => {
       gsap.from(element, {
         opacity: 0,
@@ -23,6 +34,14 @@ export const scrollAnimations = {
   },
 
   slideInOnScroll: (selector: string, direction: 'left' | 'right' = 'left') => {
+    if (!shouldRunAnimation()) {
+      // In minimal mode, just show elements immediately
+      gsap.utils.toArray(selector).forEach((element: any) => {
+        gsap.set(element, { opacity: 1, x: 0 })
+      })
+      return
+    }
+    
     gsap.utils.toArray(selector).forEach((element: any) => {
       gsap.from(element, {
         x: direction === 'left' ? -100 : 100,
@@ -39,6 +58,14 @@ export const scrollAnimations = {
   },
 
   batchReveal: (selector: string) => {
+    if (!shouldRunAnimation()) {
+      // In minimal mode, just show elements immediately
+      gsap.utils.toArray(selector).forEach((element: any) => {
+        gsap.set(element, { opacity: 1, y: 0 })
+      })
+      return
+    }
+    
     ScrollTrigger.batch(selector, {
       onEnter: (elements) => {
         gsap.from(elements, {

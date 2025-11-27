@@ -758,6 +758,14 @@
     "editQuiz": "Chỉnh sửa bài kiểm tra",
     "deleteQuiz": "Xóa bài kiểm tra",
     "showScore": "Xem điểm",
+    "viewAssignment": "Xem bài tập",
+    "assignmentSubmissions": "Bài nộp của học sinh",
+    "noAssignmentSubmissions": "Chưa có học sinh nào nộp bài tập này.",
+    "submitDate": "Ngày nộp",
+    "submissionDeadline": "Hạn nộp",
+    "lateSubmission": "Nộp muộn",
+    "attachedFiles": "File đính kèm",
+    "comments": "Nhận xét",
     "quizScores": "Điểm bài kiểm tra",
     "noQuizAnswers": "Chưa có sinh viên nào làm bài kiểm tra này.",
     "score": "Điểm",
@@ -1070,7 +1078,12 @@
     "saveChanges": "Lưu thay đổi",
     "saved": "Đã lưu!",
     "resetDefault": "Đặt lại mặc định",
-    "saveSuccess": "Đã lưu thành công! Các thay đổi đã được áp dụng."
+    "saveSuccess": "Đã lưu thành công! Các thay đổi đã được áp dụng.",
+    "performance": "Hiệu năng",
+    "minimalMode": "Chế độ tối giản",
+    "animationsEnabled": "Bật hiệu ứng",
+    "disableAllAnimations": "Tắt tất cả hiệu ứng và animation để tăng hiệu năng",
+    "enableAllAnimations": "Bật tất cả hiệu ứng và animation"
   }
 }
 

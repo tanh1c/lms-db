@@ -679,18 +679,17 @@ def get_all_assignments():
         result = []
         for assignment in assignments:
             try:
-                # Tuple access: University_ID, Section_ID, Course_ID, Semester, Assessment_ID, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name
+                # Tuple access: AssignmentID, Course_ID, Semester, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name, StudentCount
                 result.append({
-                    'University_ID': assignment[0],
-                    'Section_ID': assignment[1],
-                    'Course_ID': assignment[2],
-                    'Semester': assignment[3],
-                    'Assessment_ID': assignment[4],
-                    'MaxScore': assignment[5],
-                    'accepted_specification': assignment[6],
-                    'submission_deadline': str(assignment[7]) if assignment[7] else None,
-                    'instructions': assignment[8],
-                    'Course_Name': assignment[9] if len(assignment) > 9 else None,
+                    'AssignmentID': assignment[0],
+                    'Course_ID': assignment[1],
+                    'Semester': assignment[2],
+                    'MaxScore': assignment[3],
+                    'accepted_specification': assignment[4],
+                    'submission_deadline': str(assignment[5]) if assignment[5] else None,
+                    'instructions': assignment[6],
+                    'Course_Name': assignment[7] if len(assignment) > 7 else None,
+                    'StudentCount': assignment[8] if len(assignment) > 8 else 0,
                 })
             except Exception as parse_error:
                 print(f'[Backend] Error parsing assignment: {parse_error}, assignment data: {assignment}')
@@ -726,18 +725,17 @@ def get_assignments_by_course():
         result = []
         for assignment in assignments:
             try:
-                # Tuple access: University_ID, Section_ID, Course_ID, Semester, Assessment_ID, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name
+                # Tuple access: AssignmentID, Course_ID, Semester, MaxScore, accepted_specification, submission_deadline, instructions, Course_Name, StudentCount
                 result.append({
-                    'University_ID': assignment[0],
-                    'Section_ID': assignment[1],
-                    'Course_ID': assignment[2],
-                    'Semester': assignment[3],
-                    'Assessment_ID': assignment[4],
-                    'MaxScore': assignment[5],
-                    'accepted_specification': assignment[6],
-                    'submission_deadline': str(assignment[7]) if assignment[7] else None,
-                    'instructions': assignment[8],
-                    'Course_Name': assignment[9] if len(assignment) > 9 else None,
+                    'AssignmentID': assignment[0],
+                    'Course_ID': assignment[1],
+                    'Semester': assignment[2],
+                    'MaxScore': assignment[3],
+                    'accepted_specification': assignment[4],
+                    'submission_deadline': str(assignment[5]) if assignment[5] else None,
+                    'instructions': assignment[6],
+                    'Course_Name': assignment[7] if len(assignment) > 7 else None,
+                    'StudentCount': assignment[8] if len(assignment) > 8 else 0,
                 })
             except Exception as parse_error:
                 print(f'[Backend] Error parsing assignment: {parse_error}, assignment data: {assignment}')
@@ -761,31 +759,28 @@ def create_assignment():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Call stored procedure (Assessment_ID is OUTPUT parameter)
-        # Note: pymssql doesn't support OUTPUT parameters directly, so we'll use a workaround
-        # First get next Assessment_ID
-        cursor.execute("""
-            SELECT ISNULL(MAX(Assessment_ID), 0) + 1
-            FROM [Assessment]
-            WHERE University_ID = %s AND Section_ID = %s AND Course_ID = %s AND Semester = %s
-        """, (
-            data['University_ID'],
-            data['Section_ID'],
-            data['Course_ID'],
-            data['Semester']
-        ))
-        next_id = cursor.fetchone()[0]
-        data['Assessment_ID'] = next_id
-
-        cursor.execute('EXEC CreateAssignment %s, %s, %s, %s, %s, %s, %s, %s, %s', (
-            data['University_ID'],
-            data['Section_ID'],
+        # Parse submission_deadline if provided
+        submission_deadline = None
+        if data.get('submission_deadline'):
+            try:
+                # Handle datetime-local format (YYYY-MM-DDTHH:mm)
+                deadline_str = data.get('submission_deadline')
+                if 'T' in deadline_str:
+                    deadline_str = deadline_str.replace('T', ' ')
+                    if len(deadline_str) == 16:  # YYYY-MM-DD HH:mm
+                        deadline_str += ':00'  # Add seconds
+                submission_deadline = deadline_str
+            except Exception as e:
+                print(f'Error parsing submission_deadline: {e}')
+                submission_deadline = data.get('submission_deadline')
+        
+        # Call stored procedure (no Section_ID needed)
+        cursor.execute('EXEC CreateAssignment %s, %s, %s, %s, %s, %s', (
             data['Course_ID'],
             data['Semester'],
-            data['Assessment_ID'],
             data.get('MaxScore', 10),
             data.get('accepted_specification'),
-            data['submission_deadline'],
+            submission_deadline,
             data.get('instructions')
         ))
 
@@ -797,41 +792,55 @@ def create_assignment():
             'success': True,
             'message': 'Assignment created successfully',
             'assignment': {
-                'University_ID': result[0],
-                'Section_ID': result[1],
-                'Course_ID': result[2],
-                'Semester': result[3],
-                'Assessment_ID': result[4],
-                'MaxScore': result[5],
-                'accepted_specification': result[6],
-                'submission_deadline': str(result[7]) if result[7] else None,
-                'instructions': result[8],
-                'Course_Name': result[9],
+                'AssignmentID': result[0],
+                'Course_ID': result[1],
+                'Semester': result[2],
+                'MaxScore': result[3],
+                'accepted_specification': result[4],
+                'submission_deadline': str(result[5]) if result[5] else None,
+                'instructions': result[6],
+                'Course_Name': result[7] if len(result) > 7 else None,
+                'StudentCount': result[8] if len(result) > 8 else 0,
             }
         }), 201
     except Exception as e:
         print(f'Create assignment error: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to create assignment: {str(e)}'}), 500
 
-@admin_bp.route('/assignments/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['PUT'])
+@admin_bp.route('/assignments/<int:assignment_id>', methods=['PUT'])
 @require_auth
 @require_role(['admin'])
-def update_assignment(university_id, section_id, course_id, semester, assessment_id):
+def update_assignment(assignment_id):
     """Update an assignment - Using stored procedure"""
     try:
         data = request.get_json()
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('EXEC UpdateAssignment %s, %s, %s, %s, %s, %s, %s, %s, %s', (
-            university_id,
-            section_id,
-            course_id,
-            semester,
-            assessment_id,
+        # Parse submission_deadline if provided
+        submission_deadline = None
+        if data.get('submission_deadline'):
+            try:
+                # Handle datetime-local format (YYYY-MM-DDTHH:mm)
+                deadline_str = data.get('submission_deadline')
+                if 'T' in deadline_str:
+                    deadline_str = deadline_str.replace('T', ' ')
+                    if len(deadline_str) == 16:  # YYYY-MM-DD HH:mm
+                        deadline_str += ':00'  # Add seconds
+                submission_deadline = deadline_str
+            except Exception as e:
+                print(f'Error parsing submission_deadline: {e}')
+                submission_deadline = data.get('submission_deadline')
+
+        cursor.execute('EXEC UpdateAssignment %s, %s, %s, %s, %s, %s, %s', (
+            assignment_id,
+            data.get('Course_ID'),
+            data.get('Semester'),
             data.get('MaxScore'),
             data.get('accepted_specification'),
-            data.get('submission_deadline'),
+            submission_deadline,
             data.get('instructions')
         ))
 
@@ -843,41 +852,86 @@ def update_assignment(university_id, section_id, course_id, semester, assessment
             'success': True,
             'message': 'Assignment updated successfully',
             'assignment': {
-                'University_ID': result[0],
-                'Section_ID': result[1],
-                'Course_ID': result[2],
-                'Semester': result[3],
-                'Assessment_ID': result[4],
-                'MaxScore': result[5],
-                'accepted_specification': result[6],
-                'submission_deadline': str(result[7]) if result[7] else None,
-                'instructions': result[8],
-                'Course_Name': result[9],
+                'AssignmentID': result[0],
+                'Course_ID': result[1],
+                'Semester': result[2],
+                'MaxScore': result[3],
+                'accepted_specification': result[4],
+                'submission_deadline': str(result[5]) if result[5] else None,
+                'instructions': result[6],
+                'Course_Name': result[7] if len(result) > 7 else None,
+                'StudentCount': result[8] if len(result) > 8 else 0,
             }
         })
     except Exception as e:
         print(f'Update assignment error: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to update assignment: {str(e)}'}), 500
 
-@admin_bp.route('/assignments/<int:university_id>/<string:section_id>/<string:course_id>/<string:semester>/<int:assessment_id>', methods=['DELETE'])
+@admin_bp.route('/assignments/<int:assignment_id>', methods=['DELETE'])
 @require_auth
 @require_role(['admin'])
-def delete_assignment(university_id, section_id, course_id, semester, assessment_id):
-    """Delete an assignment - Using stored procedure"""
+def delete_assignment(assignment_id):
+    """Delete an assignment - Using stored procedure (deletes Assignment_Definition and cascades to Assignment_Submission)"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('EXEC DeleteAssignment %s, %s, %s, %s, %s', (
-            university_id, section_id, course_id, semester, assessment_id
-        ))
+        cursor.execute('EXEC DeleteAssignment %s', (assignment_id,))
         conn.commit()
         conn.close()
 
         return jsonify({'success': True, 'message': 'Assignment deleted successfully'})
     except Exception as e:
         print(f'Delete assignment error: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to delete assignment: {str(e)}'}), 500
+
+@admin_bp.route('/assignments/<int:assignment_id>/submissions', methods=['GET'])
+@require_auth
+@require_role(['admin'])
+def get_assignment_submissions(assignment_id):
+    """Get all assignment submissions for a specific assignment"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('EXEC GetAssignmentSubmissionsByAssignmentID %s', (assignment_id,))
+        submissions = cursor.fetchall()
+        conn.close()
+
+        result = []
+        for submission in submissions:
+            try:
+                # Tuple access: University_ID, First_Name, Last_Name, AssignmentID, Assessment_ID, score, accepted_specification, late_flag_indicator, SubmitDate, attached_files, status, Comments, Assignment_Instructions, MaxScore, submission_deadline
+                result.append({
+                    'University_ID': submission[0],
+                    'First_Name': submission[1],
+                    'Last_Name': submission[2],
+                    'AssignmentID': submission[3],
+                    'Assessment_ID': submission[4],
+                    'score': float(submission[5]) if submission[5] is not None else None,
+                    'accepted_specification': submission[6],
+                    'late_flag_indicator': bool(submission[7]) if submission[7] is not None else False,
+                    'SubmitDate': str(submission[8]) if submission[8] else None,
+                    'attached_files': submission[9],
+                    'status': submission[10],
+                    'Comments': submission[11] if len(submission) > 11 else None,
+                    'Assignment_Instructions': submission[12] if len(submission) > 12 else None,
+                    'MaxScore': submission[13] if len(submission) > 13 else None,
+                    'submission_deadline': str(submission[14]) if len(submission) > 14 and submission[14] else None,
+                })
+            except Exception as parse_error:
+                print(f'[Backend] Error parsing submission: {parse_error}, submission data: {submission}')
+                continue
+
+        return jsonify(result)
+    except Exception as e:
+        print(f'[Backend] Get assignment submissions error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to fetch assignment submissions: {str(e)}'}), 500
 
 # ==================== QUIZZES MANAGEMENT ====================
 
@@ -1771,44 +1825,63 @@ def update_assessment_grade(university_id, section_id, course_id, semester, asse
 @require_auth
 @require_role(['admin'])
 def get_all_submissions():
-    """Get all submissions"""
+    """Get all submissions - Updated to use Assignment_Submission"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT s.*, u.First_Name, u.Last_Name, c.Name as Course_Name
-            FROM [Submission] s
-            INNER JOIN [Users] u ON s.University_ID = u.University_ID
-            INNER JOIN [Course] c ON s.Course_ID = c.Course_ID
-            ORDER BY s.SubmitDate DESC
+            SELECT 
+                asub.University_ID,
+                asub.AssignmentID,
+                asub.Assessment_ID,
+                asub.score,
+                asub.accepted_specification,
+                asub.late_flag_indicator,
+                asub.SubmitDate,
+                asub.attached_files,
+                asub.status,
+                asub.Comments,
+                u.First_Name,
+                u.Last_Name,
+                ad.Course_ID,
+                ad.Semester,
+                c.Name as Course_Name
+            FROM [Assignment_Submission] asub
+            INNER JOIN [Users] u ON asub.University_ID = u.University_ID
+            INNER JOIN [Assignment_Definition] ad ON asub.AssignmentID = ad.AssignmentID
+            INNER JOIN [Course] c ON ad.Course_ID = c.Course_ID
+            ORDER BY asub.SubmitDate DESC
         """)
         submissions = cursor.fetchall()
         conn.close()
 
         result = []
         for submission in submissions:
-            # Tuple access: s.* (Submission_No, University_ID, Section_ID, Course_ID, Semester, Assessment_ID, accepted_specification, late_flag_indicator, SubmitDate, attached_files, status), u.First_Name, u.Last_Name, Course_Name
+            # Tuple access: University_ID, AssignmentID, Assessment_ID, score, accepted_specification, late_flag_indicator, SubmitDate, attached_files, status, Comments, First_Name, Last_Name, Course_ID, Semester, Course_Name
             result.append({
-                'Submission_No': submission[0],
-                'University_ID': submission[1],
-                'Section_ID': submission[2],
-                'Course_ID': submission[3],
-                'Semester': submission[4],
-                'Assessment_ID': submission[5],
-                'accepted_specification': submission[6],
-                'late_flag_indicator': bool(submission[7]) if submission[7] is not None else None,
-                'SubmitDate': str(submission[8]) if submission[8] else None,
-                'attached_files': submission[9],
-                'status': submission[10],
-                'First_Name': submission[11],
-                'Last_Name': submission[12],
-                'Student_Name': f"{submission[11]} {submission[12]}",
-                'Course_Name': submission[13],  # Course_Name from JOIN
+                'University_ID': submission[0],
+                'AssignmentID': submission[1],
+                'Assessment_ID': submission[2],
+                'score': float(submission[3]) if submission[3] is not None else None,
+                'accepted_specification': submission[4],
+                'late_flag_indicator': bool(submission[5]) if submission[5] is not None else None,
+                'SubmitDate': str(submission[6]) if submission[6] else None,
+                'attached_files': submission[7],
+                'status': submission[8],
+                'Comments': submission[9],
+                'First_Name': submission[10],
+                'Last_Name': submission[11],
+                'Student_Name': f"{submission[11]} {submission[10]}",
+                'Course_ID': submission[12],
+                'Semester': submission[13],
+                'Course_Name': submission[14],
             })
 
         return jsonify(result)
     except Exception as e:
         print(f'Get all submissions error: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': 'Failed to fetch submissions'}), 500
 
 # ==================== STATISTICS/DASHBOARD ====================

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useThemeStore } from '@/store/themeStore'
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { primaryColor, fontFamily, darkMode } = useThemeStore()
+  const { primaryColor, fontFamily, darkMode, minimalMode } = useThemeStore()
 
   useEffect(() => {
     const root = document.documentElement
@@ -16,7 +16,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove('dark')
     }
-  }, [primaryColor, fontFamily, darkMode])
+    
+    // Apply minimal mode (disable animations)
+    if (minimalMode) {
+      root.classList.add('minimal-mode')
+    } else {
+      root.classList.remove('minimal-mode')
+    }
+  }, [primaryColor, fontFamily, darkMode, minimalMode])
 
   return <>{children}</>
 }

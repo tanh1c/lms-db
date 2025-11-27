@@ -758,6 +758,14 @@
     "editQuiz": "Edit Quiz",
     "deleteQuiz": "Delete Quiz",
     "showScore": "Show Score",
+    "viewAssignment": "View Assignment",
+    "assignmentSubmissions": "Assignment Submissions",
+    "noAssignmentSubmissions": "No students have submitted this assignment yet.",
+    "submitDate": "Submit Date",
+    "submissionDeadline": "Submission Deadline",
+    "lateSubmission": "Late",
+    "attachedFiles": "Attached Files",
+    "comments": "Comments",
     "quizScores": "Quiz Scores",
     "noQuizAnswers": "No students have taken this quiz yet.",
     "score": "Score",
@@ -1070,7 +1078,12 @@
     "saveChanges": "Save Changes",
     "saved": "Saved!",
     "resetDefault": "Reset to Default",
-    "saveSuccess": "Successfully saved! Changes have been applied."
+    "saveSuccess": "Successfully saved! Changes have been applied.",
+    "performance": "Performance",
+    "minimalMode": "Minimal Mode",
+    "animationsEnabled": "Animations Enabled",
+    "disableAllAnimations": "Disable all animations and effects for better performance",
+    "enableAllAnimations": "Enable all animations and effects"
   }
 }
 

@@ -192,11 +192,8 @@ BEGIN
         
         -- Delete related data first (to avoid foreign key constraint violations)
         -- Delete Submissions (must be deleted before Assessment)
-        DELETE FROM [Submission] 
-        WHERE University_ID = @University_ID;
-        
-        -- Delete Assignments (references Assessment)
-        DELETE FROM [Assignment] 
+        -- Delete Assignment_Submission (student submissions)
+        DELETE FROM [Assignment_Submission] 
         WHERE University_ID = @University_ID;
         
         -- Delete Quiz_Answer (student quiz answers, references Assessment)

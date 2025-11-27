@@ -217,11 +217,8 @@ BEGIN
         IF EXISTS (SELECT 1 FROM [Student] WHERE University_ID = @University_ID)
         BEGIN
             -- Delete Submissions
-            DELETE FROM [Submission] 
-            WHERE University_ID = @University_ID;
-            
-            -- Delete Assignments
-            DELETE FROM [Assignment] 
+            -- Delete Assignment_Submission (if tutor has submissions - should not happen, but safe to include)
+            DELETE FROM [Assignment_Submission] 
             WHERE University_ID = @University_ID;
             
             -- Delete Quiz_Answer (student quiz answers)

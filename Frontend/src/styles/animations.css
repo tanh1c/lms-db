@@ -56,3 +56,20 @@
   }
 }
 
+/* Minimal Mode - Disable all animations */
+.minimal-mode *,
+.minimal-mode *::before,
+.minimal-mode *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* Disable GSAP animations in minimal mode */
+.minimal-mode [data-gsap] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+

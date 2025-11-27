@@ -80,9 +80,8 @@ BEGIN
          INNER JOIN [Section] s ON t.Section_ID = s.Section_ID AND t.Course_ID = s.Course_ID AND t.Semester = s.Semester
          WHERE s.Course_ID = c.Course_ID) as TotalTutors,
         (SELECT COUNT(*) 
-         FROM [Assignment] a 
-         INNER JOIN [Section] s ON a.Section_ID = s.Section_ID AND a.Course_ID = s.Course_ID AND a.Semester = s.Semester
-         WHERE s.Course_ID = c.Course_ID) as TotalAssignments,
+         FROM [Assignment_Definition] ad 
+         WHERE ad.Course_ID = c.Course_ID) as TotalAssignments,
         (SELECT COUNT(*) 
          FROM [Quiz_Questions] qq 
          INNER JOIN [Section] s ON qq.Section_ID = s.Section_ID AND qq.Course_ID = s.Course_ID AND qq.Semester = s.Semester
@@ -266,9 +265,8 @@ BEGIN
         
         -- Activity Statistics
         (SELECT COUNT(*) 
-         FROM [Assignment] a 
-         INNER JOIN [Section] s ON a.Section_ID = s.Section_ID AND a.Course_ID = s.Course_ID AND a.Semester = s.Semester
-         WHERE s.Course_ID = @Course_ID) as TotalAssignments,
+         FROM [Assignment_Definition] ad 
+         WHERE ad.Course_ID = @Course_ID) as TotalAssignments,
         
         (SELECT COUNT(*) 
          FROM [Quiz_Questions] qq 
@@ -276,9 +274,9 @@ BEGIN
          WHERE s.Course_ID = @Course_ID) as TotalQuizzes,
         
         (SELECT COUNT(*) 
-         FROM [Submission] sub 
-         INNER JOIN [Section] s ON sub.Section_ID = s.Section_ID AND sub.Course_ID = s.Course_ID AND sub.Semester = s.Semester
-         WHERE s.Course_ID = @Course_ID) as TotalSubmissions,
+         FROM [Assignment_Submission] asub
+         INNER JOIN [Assignment_Definition] ad ON asub.AssignmentID = ad.AssignmentID
+         WHERE ad.Course_ID = @Course_ID) as TotalSubmissions,
         
         -- Section Statistics
         (SELECT COUNT(*) FROM [Section] s WHERE s.Course_ID = @Course_ID) as TotalSections,

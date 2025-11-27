@@ -295,29 +295,22 @@ BEGIN
             c.Credit,
             COUNT(DISTINCT s.Section_ID) AS SectionCount,
             COUNT(DISTINCT a.University_ID) AS StudentCount,
-            COUNT(DISTINCT ass.Assessment_ID) AS TotalAssignments,
+            COUNT(DISTINCT ad.AssignmentID) AS TotalAssignments,
             COUNT(DISTINCT qq.QuizID) AS TotalQuizzes,
-            COUNT(DISTINCT sub.Submission_No) AS TotalSubmissions,
-            COUNT(DISTINCT CASE WHEN sub.status = 'Submitted' THEN sub.Submission_No END) AS SubmittedCount,
+            COUNT(DISTINCT asub.University_ID) AS TotalSubmissions,
+            COUNT(DISTINCT CASE WHEN asub.status = 'Submitted' THEN asub.University_ID END) AS SubmittedCount,
             AVG(CASE WHEN a.Final_Grade IS NOT NULL THEN a.Final_Grade END) AS AverageGrade
         FROM [Course] c
         LEFT JOIN [Section] s ON c.Course_ID = s.Course_ID
         LEFT JOIN [Assessment] a ON s.Section_ID = a.Section_ID 
             AND s.Course_ID = a.Course_ID 
             AND s.Semester = a.Semester
-        LEFT JOIN [Assignment] ass ON a.University_ID = ass.University_ID 
-            AND a.Section_ID = ass.Section_ID 
-            AND a.Course_ID = ass.Course_ID 
-            AND a.Semester = ass.Semester 
-            AND a.Assessment_ID = ass.Assessment_ID
+        LEFT JOIN [Assignment_Definition] ad ON s.Course_ID = ad.Course_ID 
+            AND s.Semester = ad.Semester
         LEFT JOIN [Quiz_Questions] qq ON s.Section_ID = qq.Section_ID 
             AND s.Course_ID = qq.Course_ID 
             AND s.Semester = qq.Semester
-        LEFT JOIN [Submission] sub ON ass.University_ID = sub.University_ID 
-            AND ass.Section_ID = sub.Section_ID 
-            AND ass.Course_ID = sub.Course_ID 
-            AND ass.Semester = sub.Semester 
-            AND ass.Assessment_ID = sub.Assessment_ID
+        LEFT JOIN [Assignment_Submission] asub ON ad.AssignmentID = asub.AssignmentID
         GROUP BY c.Course_ID, c.Name, c.Credit
         ORDER BY COUNT(DISTINCT a.University_ID) DESC, c.Course_ID
         OFFSET 0 ROWS

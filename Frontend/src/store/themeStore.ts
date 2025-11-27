@@ -7,6 +7,7 @@ interface ThemeState {
   darkMode: boolean
   neoBrutalismMode: boolean
   glassmorphismMode: boolean
+  minimalMode: boolean
   setPrimaryColor: (color: string) => void
   setFontFamily: (font: string) => void
   setDarkMode: (dark: boolean) => void
@@ -15,6 +16,8 @@ interface ThemeState {
   toggleNeoBrutalismMode: () => void
   setGlassmorphismMode: (enabled: boolean) => void
   toggleGlassmorphismMode: () => void
+  setMinimalMode: (enabled: boolean) => void
+  toggleMinimalMode: () => void
   resetTheme: () => void
 }
 
@@ -24,6 +27,7 @@ const defaultTheme = {
   darkMode: false,
   neoBrutalismMode: false,
   glassmorphismMode: false,
+  minimalMode: false,
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -38,6 +42,8 @@ export const useThemeStore = create<ThemeState>()(
       toggleNeoBrutalismMode: () => set((state) => ({ neoBrutalismMode: !state.neoBrutalismMode })),
       setGlassmorphismMode: (enabled: boolean) => set({ glassmorphismMode: enabled }),
       toggleGlassmorphismMode: () => set((state) => ({ glassmorphismMode: !state.glassmorphismMode })),
+      setMinimalMode: (enabled: boolean) => set({ minimalMode: enabled }),
+      toggleMinimalMode: () => set((state) => ({ minimalMode: !state.minimalMode })),
       resetTheme: () => set(defaultTheme),
     }),
     {

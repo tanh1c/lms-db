@@ -35,7 +35,7 @@ import {
 } from '@tanstack/react-table'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { adminService, type AdminAssignment, type AdminCourse } from '@/lib/api/adminService'
-import { FileText, Plus, Edit2, Trash2, BookOpen, ArrowUpDown, ChevronDown, Loader2, ChevronUp } from 'lucide-react'
+import { Plus, Edit2, Trash2, BookOpen, ArrowUpDown, ChevronDown, Loader2, ChevronUp, Eye, HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { 
   useNeoBrutalismMode, 
@@ -58,6 +58,11 @@ export default function AssignmentManagementPage() {
   const [editingAssignment, setEditingAssignment] = useState<AdminAssignment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set())
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  const [viewingAssignment, setViewingAssignment] = useState<AdminAssignment | null>(null)
+  const [viewingAssignmentScores, setViewingAssignmentScores] = useState<AdminAssignment | null>(null)
+  const [assignmentSubmissions, setAssignmentSubmissions] = useState<any[]>([])
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false)
   const neoBrutalismMode = useNeoBrutalismMode()
 
   // Table state
@@ -66,11 +71,8 @@ export default function AssignmentManagementPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
   const [formData, setFormData] = useState({
-    University_ID: '',
-    Section_ID: '',
     Course_ID: '',
     Semester: '',
-    Assessment_ID: '',
     MaxScore: '',
     accepted_specification: '',
     submission_deadline: '',
@@ -162,17 +164,17 @@ export default function AssignmentManagementPage() {
     })
   }
 
-  // Group assignments by section for a course
-  const getAssignmentsBySection = (courseId: string): { [sectionId: string]: AdminAssignment[] } => {
+  // Group assignments by semester for a course (no longer by section)
+  const getAssignmentsBySemester = (courseId: string): { [semester: string]: AdminAssignment[] } => {
     const courseAssignments = assignmentsByCourse.get(courseId) || []
-    const grouped: { [sectionId: string]: AdminAssignment[] } = {}
+    const grouped: { [semester: string]: AdminAssignment[] } = {}
     
     courseAssignments.forEach(assignment => {
-      const sectionKey = `${assignment.Section_ID}-${assignment.Semester}`
-      if (!grouped[sectionKey]) {
-        grouped[sectionKey] = []
+      const semesterKey = assignment.Semester
+      if (!grouped[semesterKey]) {
+        grouped[semesterKey] = []
       }
-      grouped[sectionKey].push(assignment)
+      grouped[semesterKey].push(assignment)
     })
     
     return grouped
@@ -181,11 +183,8 @@ export default function AssignmentManagementPage() {
   const handleAddAssignment = () => {
     setEditingAssignment(null)
     setFormData({
-      University_ID: '',
-      Section_ID: '',
       Course_ID: '',
       Semester: '',
-      Assessment_ID: '',
       MaxScore: '10',
       accepted_specification: '',
       submission_deadline: '',
@@ -194,14 +193,69 @@ export default function AssignmentManagementPage() {
     setIsDialogOpen(true)
   }
 
+  const handleAddAssignmentForSemester = (courseId: string, semester: string) => {
+    setEditingAssignment(null)
+    setFormData({
+      Course_ID: courseId,
+      Semester: semester,
+      MaxScore: '10',
+      accepted_specification: '',
+      submission_deadline: '',
+      instructions: '',
+    })
+    setIsDialogOpen(true)
+  }
+
+  const toggleSemesterAssignments = (courseId: string, semester: string) => {
+    const semesterKey = `${courseId}-${semester}`
+    setExpandedSections(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(semesterKey)) {
+        newSet.delete(semesterKey)
+      } else {
+        newSet.add(semesterKey)
+      }
+      return newSet
+    })
+  }
+
+  const handleViewAssignmentScores = async (assignment: AdminAssignment) => {
+    setViewingAssignmentScores(assignment)
+    setLoadingSubmissions(true)
+    try {
+      const submissions = await adminService.getAssignmentSubmissionsByAssignmentID(assignment.AssignmentID)
+      // Sort by score descending (highest first), then by submit date
+      const sortedSubmissions = [...submissions].sort((a, b) => {
+        // NULL scores go last
+        if (a.score === null || a.score === undefined) return 1
+        if (b.score === null || b.score === undefined) return -1
+        // Sort by score descending
+        if (b.score !== a.score) return b.score - a.score
+        // If scores are equal, sort by submit date descending
+        if (a.SubmitDate && b.SubmitDate) {
+          return new Date(b.SubmitDate).getTime() - new Date(a.SubmitDate).getTime()
+        }
+        return 0
+      })
+      setAssignmentSubmissions(sortedSubmissions)
+    } catch (error: any) {
+      console.error('Error loading assignment submissions:', error)
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          'Failed to load assignment submissions'
+      alert(errorMessage)
+      setAssignmentSubmissions([])
+    } finally {
+      setLoadingSubmissions(false)
+    }
+  }
+
   const handleEditAssignment = (assignment: AdminAssignment) => {
     setEditingAssignment(assignment)
     setFormData({
-      University_ID: assignment.University_ID.toString(),
-      Section_ID: assignment.Section_ID,
       Course_ID: assignment.Course_ID,
       Semester: assignment.Semester,
-      Assessment_ID: assignment.Assessment_ID.toString(),
       MaxScore: assignment.MaxScore?.toString() || '10',
       accepted_specification: assignment.accepted_specification || '',
       submission_deadline: assignment.submission_deadline ? new Date(assignment.submission_deadline).toISOString().slice(0, 16) : '',
@@ -217,23 +271,11 @@ export default function AssignmentManagementPage() {
 
     setIsDeleting(true)
     try {
-      await adminService.deleteAssignment(
-        assignment.University_ID,
-        assignment.Section_ID,
-        assignment.Course_ID,
-        assignment.Semester,
-        assignment.Assessment_ID
-      )
+      await adminService.deleteAssignment(assignment.AssignmentID)
       
       // Remove from assignmentsByCourse
       const courseAssignments = assignmentsByCourse.get(assignment.Course_ID) || []
-      const updatedAssignments = courseAssignments.filter(a => 
-        !(a.University_ID === assignment.University_ID &&
-          a.Section_ID === assignment.Section_ID &&
-          a.Course_ID === assignment.Course_ID &&
-          a.Semester === assignment.Semester &&
-          a.Assessment_ID === assignment.Assessment_ID)
-      )
+      const updatedAssignments = courseAssignments.filter(a => a.AssignmentID !== assignment.AssignmentID)
       setAssignmentsByCourse(prev => new Map(prev).set(assignment.Course_ID, updatedAssignments))
       
       alert(t('admin.deleteAssignmentSuccess') || t('admin.deleteCourseSuccess') || 'Assignment deleted successfully')
@@ -256,34 +298,26 @@ export default function AssignmentManagementPage() {
       e.stopPropagation()
     }
 
-    if (!formData.University_ID || !formData.Section_ID || !formData.Course_ID || !formData.Semester || !formData.Assessment_ID) {
+    if (!formData.Course_ID || !formData.Semester) {
       alert(t('admin.fillRequiredFields'))
       return
     }
 
     try {
       if (editingAssignment) {
-        await adminService.updateAssignment(
-          parseInt(formData.University_ID),
-          formData.Section_ID,
-          formData.Course_ID,
-          formData.Semester,
-          parseInt(formData.Assessment_ID),
-          {
-            MaxScore: formData.MaxScore ? parseInt(formData.MaxScore) : undefined,
-            accepted_specification: formData.accepted_specification || undefined,
-            submission_deadline: formData.submission_deadline || undefined,
-            instructions: formData.instructions || undefined,
-          }
-        )
+        await adminService.updateAssignment(editingAssignment.AssignmentID, {
+          Course_ID: formData.Course_ID,
+          Semester: formData.Semester,
+          MaxScore: formData.MaxScore ? parseInt(formData.MaxScore) : undefined,
+          accepted_specification: formData.accepted_specification || undefined,
+          submission_deadline: formData.submission_deadline || undefined,
+          instructions: formData.instructions || undefined,
+        })
         alert(t('admin.updateAssignmentSuccess') || t('admin.updateCourseSuccess') || 'Assignment updated successfully')
       } else {
         await adminService.createAssignment({
-          University_ID: parseInt(formData.University_ID),
-          Section_ID: formData.Section_ID,
           Course_ID: formData.Course_ID,
           Semester: formData.Semester,
-          Assessment_ID: parseInt(formData.Assessment_ID),
           MaxScore: formData.MaxScore ? parseInt(formData.MaxScore) : 10,
           accepted_specification: formData.accepted_specification || null,
           submission_deadline: formData.submission_deadline,
@@ -611,8 +645,8 @@ export default function AssignmentManagementPage() {
                         const course = row.original
                         const isExpanded = expandedCourses.has(course.Course_ID)
                         const isLoading = loadingAssignments.has(course.Course_ID)
-                        const assignmentsBySection = getAssignmentsBySection(course.Course_ID)
-                        const sectionKeys = Object.keys(assignmentsBySection)
+                        const assignmentsBySemester = getAssignmentsBySemester(course.Course_ID)
+                        const semesterKeys = Object.keys(assignmentsBySemester)
                         
                         return (
                           <Fragment key={row.id}>
@@ -645,7 +679,7 @@ export default function AssignmentManagementPage() {
                                       <div className="flex items-center justify-center h-32">
                                         <Loader2 className="h-6 w-6 animate-spin text-[#3bafa8]" />
                                       </div>
-                                    ) : sectionKeys.length === 0 ? (
+                                    ) : semesterKeys.length === 0 ? (
                                       <div className={cn(
                                         "text-center py-8 text-gray-500 dark:text-gray-400",
                                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
@@ -654,33 +688,63 @@ export default function AssignmentManagementPage() {
                                       </div>
                                     ) : (
                                       <div className="space-y-4">
-                                        {sectionKeys.map((sectionKey) => {
-                                          const [sectionId, semester] = sectionKey.split('-')
-                                          const sectionAssignments = assignmentsBySection[sectionKey]
+                                        {semesterKeys.map((semester) => {
+                                          const semesterAssignments = assignmentsBySemester[semester]
                                           
                                           return (
-                                            <div key={sectionKey} className="space-y-2">
+                                            <div key={semester} className="space-y-2">
                                               <div className={cn(
-                                                "flex items-center gap-2 p-2 bg-[#f5f5f5] dark:bg-[#2a2a2a] rounded-md",
+                                                "flex items-center justify-between gap-2 p-2 bg-[#f5f5f5] dark:bg-[#2a2a2a] rounded-md",
                                                 neoBrutalismMode 
                                                   ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
                                                   : ""
                                               )}>
-                                                <FileText className="h-4 w-4 text-[#3bafa8]" />
-                                                <span className={cn(
-                                                  "font-semibold text-[#211c37] dark:text-white",
-                                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                                                )}>
-                                                  {sectionId} - {semester}
-                                                </span>
-                                                <Badge variant="secondary" className="ml-2">
-                                                  {sectionAssignments.length} {t('admin.assignments')}
-                                                </Badge>
+                                                <div className="flex items-center gap-2">
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => toggleSemesterAssignments(course.Course_ID, semester)}
+                                                    className={cn(
+                                                      "h-6 w-6 p-0",
+                                                      neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                                                    )}
+                                                  >
+                                                    {expandedSections.has(`${course.Course_ID}-${semester}`) ? (
+                                                      <ChevronUp className="h-4 w-4" />
+                                                    ) : (
+                                                      <ChevronDown className="h-4 w-4" />
+                                                    )}
+                                                  </Button>
+                                                  <HelpCircle className="h-4 w-4 text-[#3bafa8]" />
+                                                  <span className={cn(
+                                                    "font-semibold text-[#211c37] dark:text-white",
+                                                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                                  )}>
+                                                    {t('admin.semester')}: {semester}
+                                                  </span>
+                                                  <Badge variant="secondary" className="ml-2">
+                                                    {semesterAssignments.length} {t('admin.assignments')}
+                                                  </Badge>
+                                                </div>
+                                                <Button
+                                                  type="button"
+                                                  size="sm"
+                                                  onClick={() => handleAddAssignmentForSemester(course.Course_ID, semester)}
+                                                  className={cn(
+                                                    "text-xs",
+                                                    getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary')
+                                                  )}
+                                                >
+                                                  <Plus className="h-3 w-3 mr-1" />
+                                                  {t('admin.add')} {t('admin.assignment')}
+                                                </Button>
                                               </div>
+                                              {expandedSections.has(`${course.Course_ID}-${semester}`) && (
                                               <div className="space-y-2 pl-6">
-                                                {sectionAssignments.map((assignment) => (
+                                                {semesterAssignments.map((assignment) => (
                   <div
-                    key={`${assignment.University_ID}-${assignment.Section_ID}-${assignment.Course_ID}-${assignment.Semester}-${assignment.Assessment_ID}`}
+                    key={assignment.AssignmentID}
                     className={cn(
                                                       "p-3 bg-white dark:bg-[#2a2a2a] rounded-md border",
                       neoBrutalismMode
@@ -694,7 +758,7 @@ export default function AssignmentManagementPage() {
                                                           "font-semibold text-[#211c37] dark:text-white mb-2",
                           getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
                         )}>
-                                                          {t('admin.assignment')} #{assignment.Assessment_ID}
+                                                          {assignment.instructions ? assignment.instructions.substring(0, 50) + (assignment.instructions.length > 50 ? '...' : '') : `${t('admin.assignment')} #${assignment.AssignmentID}`}
                                                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600 dark:text-gray-400">
                           <div>
@@ -719,6 +783,36 @@ export default function AssignmentManagementPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 ml-4">
+                        {assignment.instructions && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewingAssignment(assignment)}
+                            className={cn(
+                              "border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20",
+                              neoBrutalismMode 
+                                ? "border-2 border-blue-600 dark:border-blue-400 rounded-none"
+                                : ""
+                            )}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.viewAssignment') || 'View Assignment'}</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewAssignmentScores(assignment)}
+                          className={cn(
+                            "border-green-300 dark:border-green-700 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20",
+                            neoBrutalismMode 
+                              ? "border-2 border-green-600 dark:border-green-400 rounded-none"
+                              : ""
+                          )}
+                        >
+                          <BookOpen className="h-4 w-4 mr-1" />
+                          <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.showScore') || 'Show Score'}</span>
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -751,8 +845,9 @@ export default function AssignmentManagementPage() {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                                                ))}
+                                              </div>
+                                              )}
                                             </div>
                                           )
                                         })}
@@ -832,44 +927,6 @@ export default function AssignmentManagementPage() {
             <form onSubmit={handleSaveAssignment}>
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="university-id" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  {t('admin.universityId')} *
-                </Label>
-                <Input
-                  id="university-id"
-                  value={formData.University_ID}
-                  onChange={(e) => setFormData({ ...formData, University_ID: e.target.value })}
-                  disabled={!!editingAssignment}
-                  placeholder="100001"
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="section-id" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  {t('admin.sectionId')} *
-                </Label>
-                <Input
-                  id="section-id"
-                  value={formData.Section_ID}
-                  onChange={(e) => setFormData({ ...formData, Section_ID: e.target.value })}
-                  disabled={!!editingAssignment}
-                  placeholder="S001"
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="course-id" className={cn(
                   "text-[#211c37] dark:text-white",
                   getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
@@ -901,26 +958,6 @@ export default function AssignmentManagementPage() {
                   onChange={(e) => setFormData({ ...formData, Semester: e.target.value })}
                   disabled={!!editingAssignment}
                   placeholder="2025-1"
-                  className={cn(
-                    "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="assessment-id" className={cn(
-                  "text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  Assessment ID *
-                </Label>
-                <Input
-                  id="assessment-id"
-                  type="number"
-                  value={formData.Assessment_ID}
-                  onChange={(e) => setFormData({ ...formData, Assessment_ID: e.target.value })}
-                  disabled={!!editingAssignment}
-                  placeholder="1"
                   className={cn(
                     "bg-white dark:bg-[#2a2a2a] text-[#211c37] dark:text-white",
                     getNeoBrutalismInputClasses(neoBrutalismMode)
@@ -1029,6 +1066,287 @@ export default function AssignmentManagementPage() {
             </DialogFooter>
             </form>
           </DialogContent>
+        </Dialog>
+
+        {/* View Assignment Dialog */}
+        <Dialog open={!!viewingAssignment} onOpenChange={(open) => !open && setViewingAssignment(null)}>
+          {viewingAssignment && (
+            <DialogContent className={cn(
+              "bg-white dark:bg-[#1a1a1a] max-w-3xl max-h-[90vh] overflow-y-auto",
+              "backdrop-blur-none",
+              neoBrutalismMode 
+                ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[8px_8px_0px_0px_rgba(26,26,26,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,251,235,1)]"
+                : "border-[#e5e7e7] dark:border-[#333]"
+            )} style={{ filter: 'none', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
+              <DialogHeader>
+                <DialogTitle className={cn(
+                  "text-xl text-[#211c37] dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>
+                  {t('admin.assignment')} #{viewingAssignment.AssignmentID}
+                </DialogTitle>
+                <p className={cn(
+                  "text-sm text-[#85878d] dark:text-gray-400 mt-1",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>
+                  {viewingAssignment.Course_ID} ({viewingAssignment.Semester})
+                </p>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <h4 className={cn(
+                    "font-semibold text-[#211c37] dark:text-white mb-2",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {t('admin.instructions')}:
+                  </h4>
+                  <p className={cn(
+                    "text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>
+                    {viewingAssignment.instructions || 'N/A'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className={cn(
+                      "font-medium text-[#676767] dark:text-gray-500",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.maxScore')}:
+                    </span>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400">
+                      {viewingAssignment.MaxScore || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className={cn(
+                      "font-medium text-[#676767] dark:text-gray-500",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>
+                      {t('admin.deadline')}:
+                    </span>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400">
+                      {viewingAssignment.submission_deadline ? new Date(viewingAssignment.submission_deadline).toLocaleString() : 'N/A'}
+                    </span>
+                  </div>
+                  {viewingAssignment.accepted_specification && (
+                    <div>
+                      <span className={cn(
+                        "font-medium text-[#676767] dark:text-gray-500",
+                        getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                      )}>
+                        {t('admin.acceptedFormat')}:
+                      </span>
+                      <span className="ml-2 text-gray-600 dark:text-gray-400">
+                        {viewingAssignment.accepted_specification}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          )}
+        </Dialog>
+
+        {/* Assignment Submissions Dialog */}
+        <Dialog open={!!viewingAssignmentScores} onOpenChange={(open) => !open && setViewingAssignmentScores(null)}>
+          {viewingAssignmentScores && (
+            <DialogContent className={cn(
+              "bg-white dark:bg-[#1a1a1a] max-w-5xl max-h-[90vh] overflow-y-auto",
+              "backdrop-blur-none",
+              neoBrutalismMode 
+                ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[8px_8px_0px_0px_rgba(26,26,26,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,251,235,1)]"
+                : "border-[#e5e7e7] dark:border-[#333]"
+            )} style={{ filter: 'none', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
+              <DialogHeader>
+                <DialogTitle className={cn(
+                  "text-xl text-[#211c37] dark:text-white",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
+                )}>
+                  {t('admin.assignmentSubmissions') || 'Assignment Submissions'} - {viewingAssignmentScores.instructions ? viewingAssignmentScores.instructions.substring(0, 50) : `Assignment #${viewingAssignmentScores.AssignmentID}`}
+                </DialogTitle>
+                <p className={cn(
+                  "text-sm text-[#85878d] dark:text-gray-400 mt-1",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>
+                  {viewingAssignmentScores.Course_ID} ({viewingAssignmentScores.Semester}) - {assignmentSubmissions.length} {t('admin.students') || 'students'}
+                </p>
+              </DialogHeader>
+              {loadingSubmissions ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-[#3bafa8]" />
+                </div>
+              ) : assignmentSubmissions.length === 0 ? (
+                <div className={cn(
+                  "text-center py-8 text-gray-500 dark:text-gray-400",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>
+                  {t('admin.noAssignmentSubmissions') || 'No students have submitted this assignment yet.'}
+                </div>
+              ) : (
+                <ScrollArea className={cn(
+                  "max-h-[70vh] rounded-md border p-4",
+                  neoBrutalismMode 
+                    ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                    : "border-[#e5e7e7] dark:border-[#333]"
+                )}>
+                  <div className="space-y-4">
+                    {assignmentSubmissions.map((submission, idx) => {
+                      const passed = submission.score !== null && submission.score !== undefined && submission.MaxScore && submission.score >= submission.MaxScore * 0.5
+                      return (
+                      <div key={idx} className={cn(
+                        "p-4 bg-gray-50 dark:bg-[#1a1a1a] rounded-md border w-full",
+                        neoBrutalismMode
+                          ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none"
+                          : "border-[#e5e7e7] dark:border-[#333]"
+                      )}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge className={cn(
+                                "bg-[#3bafa8] text-white flex-shrink-0 text-base px-3 py-1",
+                                neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : ""
+                              )}>
+                                #{idx + 1}
+                              </Badge>
+                              <div>
+                                <p className={cn(
+                                  "text-base font-semibold text-[#211c37] dark:text-white",
+                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                                )}>
+                                  {submission.Last_Name} {submission.First_Name}
+                                </p>
+                                <p className={cn(
+                                  "text-sm text-gray-500 dark:text-gray-400",
+                                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                                )}>
+                                  ID: {submission.University_ID}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge className={cn(
+                            submission.status === 'Submitted' 
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                            neoBrutalismMode 
+                              ? "border-2 rounded-none"
+                              : ""
+                          )}>
+                            {submission.status || 'Pending'}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                          <div>
+                            <span className={cn(
+                              "text-xs text-gray-500 dark:text-gray-400",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                            )}>
+                              {t('admin.score') || 'Score'}:
+                            </span>
+                            <p className={cn(
+                              "text-lg font-bold",
+                              submission.score !== null && submission.score !== undefined
+                                ? (passed ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
+                                : "text-gray-400 dark:text-gray-500",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                            )}>
+                              {submission.score !== null && submission.score !== undefined 
+                                ? `${submission.score.toFixed(2)} / ${submission.MaxScore || 10}`
+                                : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className={cn(
+                              "text-xs text-gray-500 dark:text-gray-400",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                            )}>
+                              {t('admin.submissionDeadline') || 'Deadline'}:
+                            </span>
+                            <p className={cn(
+                              "text-lg font-semibold text-[#211c37] dark:text-white",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                            )}>
+                              {submission.submission_deadline ? new Date(submission.submission_deadline).toLocaleString() : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className={cn(
+                              "text-xs text-gray-500 dark:text-gray-400",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                            )}>
+                              {t('admin.submitDate') || 'Submit Date'}:
+                            </span>
+                            <p className={cn(
+                              "text-lg font-semibold text-[#211c37] dark:text-white",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                            )}>
+                              {submission.SubmitDate ? new Date(submission.SubmitDate).toLocaleString() : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className={cn(
+                              "text-xs text-gray-500 dark:text-gray-400",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                            )}>
+                              {t('admin.lateSubmission') || 'Late'}:
+                            </span>
+                            <p className={cn(
+                              "text-lg font-semibold text-[#211c37] dark:text-white",
+                              getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                            )}>
+                              {submission.late_flag_indicator ? t('admin.yes') || 'Yes' : t('admin.no') || 'No'}
+                            </p>
+                          </div>
+                          {submission.accepted_specification && (
+                            <div className="col-span-2 md:col-span-4">
+                              <span className={cn(
+                                "text-xs text-gray-500 dark:text-gray-400",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}>
+                                {t('admin.acceptedFormat')}:
+                              </span>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {submission.accepted_specification}
+                              </p>
+                            </div>
+                          )}
+                          {submission.attached_files && (
+                            <div className="col-span-2 md:col-span-4">
+                              <span className={cn(
+                                "text-xs text-gray-500 dark:text-gray-400",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}>
+                                {t('admin.attachedFiles') || 'Attached Files'}:
+                              </span>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {submission.attached_files}
+                              </p>
+                            </div>
+                          )}
+                          {submission.Comments && (
+                            <div className="col-span-2 md:col-span-4">
+                              <span className={cn(
+                                "text-xs text-gray-500 dark:text-gray-400",
+                                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                              )}>
+                                {t('admin.comments') || 'Comments'}:
+                              </span>
+                              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                                {submission.Comments}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      )
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </DialogContent>
+          )}
         </Dialog>
       </div>
     </DashboardLayout>

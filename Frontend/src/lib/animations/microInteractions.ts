@@ -1,7 +1,13 @@
 import { gsap } from 'gsap'
+import { shouldRunAnimation } from '@/lib/utils/animation-utils'
 
 export const microInteractions = {
   hoverScale: (element: HTMLElement) => {
+    if (!shouldRunAnimation()) {
+      // In minimal mode, return no-op cleanup function
+      return () => {}
+    }
+    
     const hover = gsap.to(element, {
       scale: 1.05,
       duration: 0.3,
@@ -19,6 +25,11 @@ export const microInteractions = {
   },
 
   clickRipple: (element: HTMLElement) => {
+    if (!shouldRunAnimation()) {
+      // In minimal mode, don't add ripple effect
+      return
+    }
+    
     element.addEventListener('click', (e) => {
       const ripple = document.createElement('div')
       ripple.style.position = 'absolute'
@@ -44,6 +55,11 @@ export const microInteractions = {
   },
 
   buttonPress: (element: HTMLElement) => {
+    if (!shouldRunAnimation()) {
+      // In minimal mode, don't add button press effect
+      return
+    }
+    
     element.addEventListener('mousedown', () => {
       gsap.to(element, {
         scale: 0.95,
