@@ -31,6 +31,7 @@ def deploy_procedures(verbose=False):
         'admin_crud.sql',
         'assignment_crud_refactored.sql',
         'quiz_crud_new.sql',
+        'student_dashboard.sql',
         'assessment_queries.sql',
         'update_user_role.sql',
         'reset_user_password.sql',

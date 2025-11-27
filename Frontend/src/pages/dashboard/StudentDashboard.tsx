@@ -5,17 +5,14 @@ import { gsap } from 'gsap'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthProvider'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import { courseService } from '@/lib/api/courseService'
-import { assignmentService } from '@/lib/api/assignmentService'
-import { gradeService } from '@/lib/api/gradeService'
+import { studentService, type StudentDashboardStatistics, type LeaderboardEntry, type GradeComponent } from '@/lib/api/studentService'
 import { ROUTES } from '@/constants/routes'
-import type { Course, Assignment, Assessment } from '@/types'
-import { Search, Bell, BookOpen, Users, Trophy, ChevronDown, Check, Edit2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
+import type { Course } from '@/types'
+import { Trophy, Edit2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
-import { useNeoBrutalismMode, getNeoBrutalismCardClasses, getNeoBrutalismInputClasses, getNeoBrutalismStatCardClasses, getNeoBrutalismCourseCardClasses, getNeoBrutalismTextClasses } from '@/lib/utils/theme-utils'
+import { useNeoBrutalismMode, getNeoBrutalismCardClasses, getNeoBrutalismStatCardClasses, getNeoBrutalismCourseCardClasses, getNeoBrutalismTextClasses } from '@/lib/utils/theme-utils'
 import { cn } from '@/lib/utils'
 import '@/lib/animations/gsap-setup'
 
@@ -28,10 +25,11 @@ export default function StudentDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[]>([])
-  const [, setAssignments] = useState<Assignment[]>([])
-  const [grades, setGrades] = useState<Assessment[]>([])
+  const [statistics, setStatistics] = useState<StudentDashboardStatistics | null>(null)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [gradeComponents, setGradeComponents] = useState<GradeComponent[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
   const containerRef = useRef<HTMLDivElement>(null)
   const neoBrutalismMode = useNeoBrutalismMode()
 
@@ -52,15 +50,17 @@ export default function StudentDashboard() {
       if (!user) return
       
       try {
-        const [coursesData, assignmentsData, gradesData] = await Promise.all([
-          courseService.getCourses(),
-          assignmentService.getAssignments(user.University_ID),
-          gradeService.getGrades(user.University_ID),
+        const [coursesData, statsData, leaderboardData, gradeComponentsData] = await Promise.all([
+          studentService.getStudentCourses(user.University_ID).catch(() => []),
+          studentService.getDashboardStatistics(user.University_ID).catch(() => null),
+          studentService.getLeaderboard(5).catch(() => []),
+          studentService.getGradeComponents(user.University_ID).catch(() => []),
         ])
         
         setCourses(coursesData)
-        setAssignments(assignmentsData)
-        setGrades(gradesData)
+        setStatistics(statsData)
+        setLeaderboard(leaderboardData)
+        setGradeComponents(gradeComponentsData)
       } catch (error) {
         console.error('Error loading dashboard data:', error)
       } finally {
@@ -81,123 +81,94 @@ export default function StudentDashboard() {
     )
   }
 
-  const averageGrade = grades.length > 0
-    ? (grades.reduce((sum, g) => sum + g.Grade, 0) / grades.length).toFixed(3)
-    : '8.966'
+  const gpa = statistics?.average_grade 
+    ? statistics.average_grade.toFixed(2)
+    : '0.00'
 
-  // Mock leaderboard data
-  const leaderboard = [
-    { rank: 1, name: 'Charlie Rawal', course: 53, hour: 250, point: 13.450, trend: 'up' },
-    { rank: 2, name: 'Ariana Agarwal', course: 88, hour: 212, point: 10.333, trend: 'down' },
+  // Calculate GPA percentage for circular progress (GPA out of 10)
+  const gpaPercentage = statistics?.average_grade ? (statistics.average_grade / 10) * 100 : 0
+
+  // Course card colors - extended palette for more courses
+  const courseCardColors = [
+    { color: 'bg-[#e1e2f6]', iconBg: 'bg-[#fcf9ff]', icon: '< >', iconColor: 'text-purple-600' },
+    { color: 'bg-[#f8efe2]', iconBg: 'bg-[#faf5ec]', icon: '↑', iconColor: 'text-orange-600' },
+    { color: 'bg-[#eff7e2]', iconBg: 'bg-[#f6fbee]', icon: '~', iconColor: 'text-green-600' },
+    { color: 'bg-[#e2f0f6]', iconBg: 'bg-[#f0f9ff]', icon: '{}', iconColor: 'text-blue-600' },
+    { color: 'bg-[#f6e2f0]', iconBg: 'bg-[#fef0f9]', icon: '()', iconColor: 'text-pink-600' },
+    { color: 'bg-[#e2f6f0]', iconBg: 'bg-[#f0fef9]', icon: '[]', iconColor: 'text-teal-600' },
+    { color: 'bg-[#f6f0e2]', iconBg: 'bg-[#fef9f0]', icon: '//', iconColor: 'text-amber-600' },
+    { color: 'bg-[#f0e2f6]', iconBg: 'bg-[#f9f0fe]', icon: '**', iconColor: 'text-violet-600' },
   ]
 
-  // Mock todo list
-  const todos = [
-    { id: 1, text: 'Developing Restaurant Apps', category: 'Programming', time: '08:00 AM', checked: false },
-    { id: 2, text: 'Integrate API', checked: false },
-    { id: 3, text: 'Slicing Home Screen', checked: false },
-    { id: 4, text: 'Research Objective User', category: 'Product Design', time: '02:40 PM', checked: false },
-    { id: 5, text: 'Report Analysis P2P Business', category: 'Business', time: '04:50 PM', checked: true },
-  ]
+  // Pagination: 8 courses per page (2 rows x 4 columns)
+  const coursesPerPage = 8
+  const totalPages = Math.ceil(courses.length / coursesPerPage)
+  const startIndex = (currentPage - 1) * coursesPerPage
+  const endIndex = startIndex + coursesPerPage
+  const currentCourses = courses.slice(startIndex, endIndex)
+  
+  // Fill to always have 8 cards (2 rows x 4 columns)
+  const displayCourses = Array.from({ length: 8 }, (_, index) => 
+    currentCourses[index] || null
+  )
 
-  // Course cards data với colors từ Figma - map với real courses
-  const cardConfigs = [
-    { 
-      color: 'bg-[#e1e2f6]', 
-      iconBg: 'bg-[#fcf9ff]', 
-      icon: '< >',
-      iconColor: 'text-purple-600'
-    },
-    { 
-      color: 'bg-[#f8efe2]', 
-      iconBg: 'bg-[#faf5ec]', 
-      icon: '↑',
-      iconColor: 'text-orange-600'
-    },
-    { 
-      color: 'bg-[#eff7e2]', 
-      iconBg: 'bg-[#f6fbee]', 
-      icon: '~',
-      iconColor: 'text-green-600'
-    },
-  ]
-
-  const fallbackCourses = [
-    { 
-      title: 'Basic: HTML and CSS', 
-      courseId: 1
-    },
-    { 
-      title: 'Branding Design', 
-      courseId: 2
-    },
-    { 
-      title: 'Motion Design', 
-      courseId: 3
-    },
-  ]
-
-  const courseCards = courses.length > 0
-    ? courses.slice(0, 3).map((course, index) => ({
-        ...cardConfigs[index] || cardConfigs[0],
-        title: course.Name,
-        courseId: course.Course_ID,
-      }))
-    : fallbackCourses.map((course, index) => ({
-        ...cardConfigs[index] || cardConfigs[0],
-        ...course,
-      }))
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      navigate(`${ROUTES.COURSES}?search=${encodeURIComponent(searchQuery)}`)
-    } else {
-      navigate(ROUTES.COURSES)
-    }
-  }
 
   const handleCourseClick = (courseId: number) => {
     navigate(ROUTES.COURSE_DETAIL.replace(':courseId', courseId.toString()))
   }
 
-  const handleTodoClick = (todo: typeof todos[0]) => {
-    // Map todo items to assignments if possible
-    if (todo.text.toLowerCase().includes('assignment') || todo.text.toLowerCase().includes('api')) {
-      navigate(ROUTES.ASSIGNMENTS)
-    } else {
-      navigate(ROUTES.ASSIGNMENTS)
-    }
-  }
 
   const handleCalendarNavigation = (_direction: 'prev' | 'next') => {
     // Navigate to schedule page
     navigate(ROUTES.SCHEDULE)
   }
 
-  // Chart data
-  const chartData = [
-    { month: 'Jan', Study: 30, Exams: 0 },
-    { month: 'Feb', Study: 20, Exams: 10 },
-    { month: 'Mar', Study: 60, Exams: 0 },
-    { month: 'Apr', Study: 40, Exams: 20 },
-    { month: 'May', Study: 15, Exams: 0 },
-  ]
+  // Prepare grade components chart data
+  const gradeChartData = gradeComponents.slice(0, 10).map((course) => ({
+    course: course.course_name.length > 15 ? course.course_name.substring(0, 15) + '...' : course.course_name,
+    'Final Grade': course.final_grade,
+    'Midterm': course.midterm_grade,
+    'Quiz': course.quiz_grade,
+    'Assignment': course.assignment_grade,
+  }))
 
   // Chart config với dark mode support
   const chartConfig = {
-    Study: {
-      label: 'Study',
+    'Final Grade': {
+      label: 'Final Grade',
+      color: '#45a8a3',
+    },
+    'Midterm': {
+      label: 'Midterm',
       color: '#ff9053',
     },
-    Exams: {
-      label: 'Exams',
-      color: '#f8efe2',
+    'Quiz': {
+      label: 'Quiz',
+      color: '#3bafa8',
+    },
+    'Assignment': {
+      label: 'Assignment',
+      color: '#8b5cf6',
     },
   } satisfies ChartConfig
 
-  // Calendar days
-  const calendarDays = [24, 25, 26, 27, 28, 29, 30]
+  // Calendar - Get current month and days
+  const now = new Date()
+  const currentMonth = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const currentDay = now.getDate()
+  
+  // Get first day of current week (Monday)
+  const firstDayOfWeek = new Date(now)
+  const dayOfWeek = now.getDay()
+  const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Adjust to Monday
+  firstDayOfWeek.setDate(diff)
+  
+  // Generate 7 days starting from Monday of current week
+  const calendarDays = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(firstDayOfWeek)
+    date.setDate(firstDayOfWeek.getDate() + i)
+    return date.getDate()
+  })
 
   // Right Sidebar Content
   const rightSidebarContent = (
@@ -245,7 +216,7 @@ export default function StudentDashboard() {
             "font-semibold text-lg text-black dark:text-white mb-1",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
           )}>
-            {user?.First_Name} {user?.Last_Name || 'Maietry Prajapati'}
+            {user?.Last_Name || ''} {user?.First_Name || 'Maietry'}
           </p>
           <p className={cn(
             "text-sm text-black dark:text-gray-300 font-medium",
@@ -275,7 +246,7 @@ export default function StudentDashboard() {
           <span className={cn(
             "text-sm font-semibold text-black dark:text-white",
             getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-          )}>December 2021</span>
+          )}>{currentMonth}</span>
           <ChevronRight 
             className="w-4 h-4 cursor-pointer text-[#676767] dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
             onClick={(e) => {
@@ -296,11 +267,11 @@ export default function StudentDashboard() {
               className={cn(
                 "w-8 h-8 flex items-center justify-center text-[10px] font-medium transition-all cursor-pointer",
                 neoBrutalismMode
-                  ? day === 25
+                  ? day === currentDay
                     ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-black dark:bg-white text-white dark:text-black shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,251,235,1)] rounded-none"
                     : "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#1a1a1a] text-[#676767] dark:text-gray-400 rounded-none hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
                   : `rounded-full transition-colors ${
-                      day === 25 
+                      day === currentDay 
                         ? 'bg-black dark:bg-white text-white dark:text-black' 
                         : 'text-[#676767] dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
                     }`
@@ -312,71 +283,72 @@ export default function StudentDashboard() {
         </div>
       </Card>
 
-      {/* To Do List */}
+      {/* Leaderboard */}
       <div>
         <h3 className={cn(
           "text-lg font-semibold text-black dark:text-white text-center mb-4",
           getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-        )}>{t('dashboard.toDoList')}</h3>
-        <div className="space-y-3">
-          {todos.map((todo) => (
-            <div
-              key={todo.id}
-              className={cn(
-                "flex gap-3 items-start cursor-pointer p-2 transition-all",
-                neoBrutalismMode
-                  ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                  : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
-              )}
-              onClick={() => handleTodoClick(todo)}
-            >
+        )}>{t('dashboard.leaderBoard')}</h3>
+        {leaderboard.length > 0 ? (
+          <div className="space-y-3">
+            {leaderboard.map((item) => (
               <div
+                key={item.rank}
                 className={cn(
-                  "w-[18px] h-[18px] border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all",
+                  "flex items-center gap-2 p-2 transition-all",
                   neoBrutalismMode
-                    ? todo.checked
-                      ? "border-[#1a1a1a] dark:border-[#FFFBEB] bg-[#3bafa8] dark:bg-[#3bafa8] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                      : "border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#1a1a1a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
-                    : `rounded transition-colors ${
-                        todo.checked
-                          ? 'bg-[#3bafa8] border-[#3bafa8]'
-                          : 'border-[#676767] dark:border-gray-500 hover:border-[#3bafa8]'
-                      }`
+                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
+                    : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
                 )}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  // Toggle todo checked state (would need state management in real app)
-                }}
+                onClick={() => navigate(ROUTES.GRADES)}
               >
-                {todo.checked && <Check className="w-3 h-3 text-white" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={cn(
-                    "text-sm font-semibold text-[#42404c] dark:text-white",
-                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold'),
-                    todo.checked && 'line-through'
-                  )}
-                >
-                  {todo.text}
-                </p>
-                {todo.category && (
-                  <div className="flex items-center gap-2 mt-1">
+                <div className={cn(
+                  "w-6 h-6 flex items-center justify-center text-xs font-semibold text-black dark:text-white flex-shrink-0",
+                  neoBrutalismMode
+                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-[#f5f7fb] dark:bg-[#2a2a2a] rounded-none shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
+                    : "bg-[#f5f7fb] dark:bg-[#2a2a2a] rounded"
+                )}>
+                  {item.rank}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "text-sm font-semibold text-black dark:text-white truncate",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    {item.last_name} {item.first_name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
                     <span className={cn(
-                      "text-sm text-[#676767] dark:text-gray-400 font-medium",
+                      "text-xs text-[#676767] dark:text-gray-400",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>{todo.category}</span>
+                    )}>
+                      {item.course} {t('dashboard.courses')}
+                    </span>
                     <span className="text-[#676767] dark:text-gray-400">•</span>
                     <span className={cn(
-                      "text-sm font-semibold text-[#fe764b]",
+                      "text-xs font-semibold text-[#3bafa8]",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                    )}>{todo.time}</span>
+                    )}>
+                      {item.point.toFixed(2)}
+                    </span>
                   </div>
+                </div>
+                {item.trend === 'up' ? (
+                  <TrendingUp className="w-4 h-4 text-green-500 flex-shrink-0" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0" />
                 )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className={cn(
+            "text-center py-4 text-[#676767] dark:text-gray-400 text-sm",
+            getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+          )}>
+            {t('dashboard.noLeaderboardData')}
+          </div>
+        )}
       </div>
     </>
   )
@@ -384,101 +356,10 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout showRightSidebar={true} rightSidebarContent={rightSidebarContent}>
       <div ref={containerRef} className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <h1 className={cn(
-                  "text-2xl font-semibold text-[#211c37] dark:text-white",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-                )}>
-                  {t('dashboard.hello')} {user?.First_Name || 'Maietry'} 👋
-                </h1>
-              </div>
-              <p className={cn(
-                "text-[#85878d] dark:text-gray-400 text-sm font-medium",
-                getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-              )}>{t('dashboard.letsLearn')}</p>
-            </div>
-            <div className="flex items-center gap-5">
-              <form onSubmit={handleSearch} className="relative">
-                <Input
-                  placeholder={t('dashboard.searchPlaceholder')}
-                  className={cn(
-                    "w-[322px] pl-4 pr-10 h-12 text-[#211c37] dark:text-white",
-                    getNeoBrutalismInputClasses(neoBrutalismMode)
-                  )}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Search className="w-6 h-6 text-[#85878d] dark:text-gray-400" />
-                </button>
-              </form>
-              <div className="relative">
-                <Link
-                  to={ROUTES.ASSIGNMENTS}
-                  className={cn(
-                    "w-12 h-12 flex items-center justify-center cursor-pointer transition-all",
-                    neoBrutalismMode
-                      ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,251,235,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                      : "border border-[#e7eae9] dark:border-[#333] bg-white dark:bg-[#1a1a1a] rounded-xl hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
-                  )}
-                >
-                  <Bell className="w-6 h-6 text-[#85878d] dark:text-gray-400" />
-                </Link>
-                <div className={cn(
-                  "absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white dark:border-[#1a1a1a]",
-                  neoBrutalismMode ? "rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]" : "rounded-full"
-                )}></div>
-              </div>
-          </div>
-        </div>
-
-        {/* Course Cards */}
-        <div className="flex gap-5 mb-6">
-            {courseCards.map((course, index) => (
-              <Card
-                key={index}
-                className={cn(
-                  neoBrutalismMode 
-                    ? getNeoBrutalismCourseCardClasses(neoBrutalismMode, "h-[177px] relative overflow-hidden flex-shrink-0 w-[240px]")
-                    : `${course.color} dark:bg-[#2a2a2a] border-0 dark:border-[#333] h-[177px] relative overflow-hidden flex-shrink-0 w-[240px] cursor-pointer hover:shadow-lg dark:hover:shadow-xl transition-shadow`,
-                  !neoBrutalismMode && course.color
-                )}
-                onClick={() => handleCourseClick(course.courseId)}
-              >
-                <div className="p-4 h-full flex flex-col justify-between">
-                  <div className="flex flex-col gap-4">
-                    <div className={`${course.iconBg} dark:bg-[#1a1a1a] w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold ${course.iconColor} dark:text-white`}>
-                      {course.icon}
-                    </div>
-                    <h3 className="font-semibold text-[#1f1d39] dark:text-white text-base">{course.title}</h3>
-                  </div>
-                  <div className={`${course.iconBg} dark:bg-[#1a1a1a] rounded-[11px] px-6 py-3 flex items-center justify-between`}>
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-[#1f1d39] dark:text-gray-300" />
-                      <span className="text-[10px] font-semibold text-[#1f1d39] dark:text-gray-300">24</span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300 dark:bg-[#444]"></div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-[#1f1d39] dark:text-gray-300" />
-                      <span className="text-[10px] font-semibold text-[#1f1d39] dark:text-gray-300">8</span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300 dark:bg-[#444]"></div>
-                    <div className="flex items-center gap-2">
-                      <Trophy className="w-4 h-4 text-[#1f1d39] dark:text-gray-300" />
-                      <span className="text-[10px] font-semibold text-[#1f1d39] dark:text-gray-300">99</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-          ))}
-        </div>
 
         {/* Analytics Section */}
         <div className="flex gap-4 mb-6">
-            {/* Hours Spent Chart */}
+            {/* Grade Components Chart */}
             <Card className={cn(
               "flex-1 p-6",
               getNeoBrutalismStatCardClasses(neoBrutalismMode)
@@ -486,37 +367,45 @@ export default function StudentDashboard() {
               <h3 className={cn(
                 "text-xl font-semibold text-black dark:text-white mb-4",
                 getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-              )}>{t('dashboard.hoursSpent')}</h3>
-              <ChartContainer config={chartConfig} className="h-[305px] w-full">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-[#e5e7e7] dark:stroke-[#333]" />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tick={{ fill: '#95969c', fontSize: 12, fontWeight: 600 }}
-                    className="dark:[&>text]:fill-gray-400"
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: '#85878d', fontSize: 12 }}
-                    className="dark:[&>text]:fill-gray-400"
-                  />
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="Study" stackId="a" fill="var(--color-Study)">
-                    {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-study-${index}`} 
-                        {...(entry.Exams === 0 ? { radius: 10 } : { radius: [0, 0, 10, 10] as any })} 
-                      />
-                    ))}
-                  </Bar>
-                  <Bar dataKey="Exams" stackId="a" fill="var(--color-Exams)" radius={[10, 10, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
+              )}>{t('dashboard.gradeComponents')}</h3>
+              {gradeChartData.length > 0 ? (
+                <ChartContainer config={chartConfig} className="h-[305px] w-full">
+                  <BarChart data={gradeChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-[#e5e7e7] dark:stroke-[#333]" />
+                    <XAxis
+                      dataKey="course"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      tick={{ fill: '#95969c', fontSize: 11, fontWeight: 600 }}
+                      className="dark:[&>text]:fill-gray-400"
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#85878d', fontSize: 12 }}
+                      className="dark:[&>text]:fill-gray-400"
+                      domain={[0, 10]}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar dataKey="Final Grade" fill="#45a8a3" />
+                    <Bar dataKey="Midterm" fill="#ff9053" />
+                    <Bar dataKey="Quiz" fill="#db81aa" />
+                    <Bar dataKey="Assignment" fill="#8b5cf6" />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className={cn(
+                  "flex items-center justify-center h-[305px] text-[#676767] dark:text-gray-400",
+                  getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                )}>
+                  {t('dashboard.noGradeData')}
+                </div>
+              )}
             </Card>
 
             {/* Performance */}
@@ -533,19 +422,7 @@ export default function StudentDashboard() {
                   <span className={cn(
                     "text-xs font-semibold text-[#42404c] dark:text-white",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>{t('dashboard.pointProgress')}</span>
-                </div>
-                <div className={cn(
-                  "bg-[#eff1f3] dark:bg-[#2a2a2a] px-3 py-1.5 flex items-center gap-2 cursor-pointer transition-all",
-                  neoBrutalismMode
-                    ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
-                    : "rounded hover:bg-[#e5e7e9] dark:hover:bg-[#333] transition-colors"
-                )}>
-                  <span className={cn(
-                    "text-xs font-semibold text-[#424252] dark:text-gray-300",
-                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>{t('dashboard.monthly')}</span>
-                  <ChevronDown className="w-3 h-3 text-[#424252] dark:text-gray-300" />
+                  )}>{t('dashboard.gpa')}</span>
                 </div>
               </div>
               
@@ -563,7 +440,7 @@ export default function StudentDashboard() {
                       strokeWidth="10"
                       className="dark:stroke-[#333]"
                     />
-                    {/* Progress circle - 75% */}
+                    {/* Progress circle - based on GPA (out of 10) */}
                     <circle
                       cx="60"
                       cy="60"
@@ -571,8 +448,8 @@ export default function StudentDashboard() {
                       fill="none"
                       stroke="#45a8a3"
                       strokeWidth="10"
-                      strokeDasharray={`${2 * Math.PI * 50 * 0.75} ${2 * Math.PI * 50}`}
-                      strokeDashoffset={2 * Math.PI * 50 * 0.25}
+                      strokeDasharray={2 * Math.PI * 50}
+                      strokeDashoffset={2 * Math.PI * 50 * (1 - gpaPercentage / 100)}
                       strokeLinecap="round"
                     />
                   </svg>
@@ -581,7 +458,7 @@ export default function StudentDashboard() {
                       <div className={cn(
                         "text-3xl font-bold text-black dark:text-white",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                      )}>{averageGrade}</div>
+                      )}>{gpa}</div>
                       <div className={cn(
                         "text-xs text-[#83868e] dark:text-gray-400 mt-1",
                         getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
@@ -590,30 +467,16 @@ export default function StudentDashboard() {
                   </div>
                 </div>
                 
-                {/* Progress Bar */}
-                <div className="w-full">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={cn(
-                      "text-sm text-[#83868e] dark:text-gray-400 font-medium",
-                      getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                    )}>{t('dashboard.progress')}</span>
-                    <span className={cn(
-                      "text-sm font-semibold text-black dark:text-white",
-                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                    )}>75%</span>
-                  </div>
-                  <div className={cn(
-                    "w-full h-2 bg-[#eff1f3] dark:bg-[#333] overflow-hidden",
-                    neoBrutalismMode ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none" : "rounded-full"
-                  )}>
-                    <div 
-                      className={cn(
-                        "h-full bg-gradient-to-r from-[#45a8a3] to-[#3bafa8] transition-all duration-500",
-                        neoBrutalismMode ? "rounded-none" : "rounded-full"
-                      )}
-                      style={{ width: '75%' }}
-                    ></div>
-                  </div>
+                {/* Course Count */}
+                <div className="w-full text-center">
+                  <span className={cn(
+                    "text-sm text-[#83868e] dark:text-gray-400 font-medium",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+                  )}>{t('dashboard.courses')}: </span>
+                  <span className={cn(
+                    "text-sm font-semibold text-black dark:text-white",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>{statistics?.total_courses || 0}</span>
                 </div>
               </div>
               
@@ -625,95 +488,147 @@ export default function StudentDashboard() {
                   {t('dashboard.yourPoint')}: <span className={cn(
                     "text-black dark:text-white font-bold text-xl",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>{averageGrade}</span>
+                  )}>{gpa}</span>
                 </p>
-                <div className={cn(
-                  "flex items-center justify-center gap-1.5 text-[#3bafa8] text-xs font-medium",
-                  getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                )}>
-                  <Trophy className="w-3 h-3" />
-                  <span>5th {t('dashboard.inLeaderboard')}</span>
-                </div>
+                {statistics?.leaderboard_rank && statistics.leaderboard_rank > 0 && (
+                  <div className={cn(
+                    "flex items-center justify-center gap-1.5 text-[#3bafa8] text-xs font-medium",
+                    getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                  )}>
+                    <Trophy className="w-3 h-3" />
+                    <span>{statistics.leaderboard_rank}{statistics.leaderboard_rank === 1 ? 'st' : statistics.leaderboard_rank === 2 ? 'nd' : statistics.leaderboard_rank === 3 ? 'rd' : 'th'} {t('dashboard.inLeaderboard')}</span>
+                  </div>
+                )}
               </div>
           </Card>
         </div>
 
-        {/* Leader Board */}
-        <Card 
-            className={cn(
-              "p-6 cursor-pointer",
-              neoBrutalismMode
-                ? getNeoBrutalismCardClasses(neoBrutalismMode, "hover:translate-x-1 hover:translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,251,235,1)] transition-all")
-                : "border border-[#e5e7e7] dark:border-[#333] bg-white dark:bg-[#1a1a1a] rounded-xl hover:shadow-md dark:hover:shadow-lg transition-shadow"
-            )}
-            onClick={() => navigate(ROUTES.GRADES)}
-          >
-            <h3 className={cn(
-              "text-xl font-semibold text-black dark:text-white mb-4",
-              getNeoBrutalismTextClasses(neoBrutalismMode, 'heading')
-            )}>{t('dashboard.leaderBoard')}</h3>
-            <div className={cn(
-              "grid grid-cols-[60px_200px_200px_100px_120px] gap-4 text-xs text-[#84868a] dark:text-gray-400 font-semibold mb-4 pb-2",
-              neoBrutalismMode 
-                ? "border-b-4 border-[#1a1a1a] dark:border-[#FFFBEB]"
-                : "border-b border-[#e5e7e7] dark:border-[#333]"
-            )}>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.rank')}</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.name')}</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.courses')}</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.hour')}</div>
-              <div className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('dashboard.point')}</div>
-            </div>
-            <div className="space-y-4">
-              {leaderboard.map((item) => (
-                <div 
-                  key={item.rank} 
-                  className={cn(
-                    "grid grid-cols-[60px_200px_200px_100px_120px] gap-4 items-center",
-                    neoBrutalismMode && "border-b-2 border-[#1a1a1a] dark:border-[#FFFBEB] pb-4 last:border-b-0"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "bg-[#f5f7fb] dark:bg-[#2a2a2a] w-6 h-6 flex items-center justify-center text-xs font-semibold text-black dark:text-white",
-                      neoBrutalismMode 
-                        ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)]"
-                        : "rounded"
-                    )}>
-                      {item.rank}
-                    </div>
-                    {item.trend === 'up' ? (
-                      <TrendingUp className="w-3 h-3 text-green-500" />
-                    ) : (
-                      <TrendingDown className="w-3 h-3 text-red-500" />
+        {/* Course Cards - Grid Layout 2 rows x 4 columns (fixed 8 cards) */}
+        <div className="mb-6">
+          {courses.length > 0 ? (
+            <>
+              <div className="grid grid-cols-4 gap-5 mb-4">
+                {displayCourses.map((course, index) => {
+                  if (!course) {
+                    // Empty card placeholder
+                    return (
+                      <Card
+                        key={`empty-${index}`}
+                        className={cn(
+                          neoBrutalismMode 
+                            ? getNeoBrutalismCourseCardClasses(neoBrutalismMode, "h-[177px] relative overflow-hidden opacity-0 pointer-events-none")
+                            : "bg-transparent dark:bg-transparent border-0 h-[177px] relative overflow-hidden pointer-events-none"
+                        )}
+                      >
+                        <div className="p-4 h-full"></div>
+                      </Card>
+                    )
+                  }
+                  
+                  const cardConfig = courseCardColors[index % courseCardColors.length]
+                  return (
+                    <Card
+                      key={course.Course_ID}
+                      className={cn(
+                        neoBrutalismMode 
+                          ? getNeoBrutalismCourseCardClasses(neoBrutalismMode, "h-[177px] relative overflow-hidden")
+                          : `${cardConfig.color} dark:bg-[#2a2a2a] border-0 dark:border-[#333] h-[177px] relative overflow-hidden cursor-pointer hover:shadow-lg dark:hover:shadow-xl transition-shadow`,
+                        !neoBrutalismMode && cardConfig.color
+                      )}
+                      onClick={() => handleCourseClick(course.Course_ID)}
+                    >
+                      <div className="p-4 h-full flex flex-col justify-between">
+                        {/* Course ID in top right corner */}
+                        <div className="flex justify-between items-start">
+                          <div className={cn(
+                            cardConfig.iconBg,
+                            "dark:bg-[#1a1a1a] w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold",
+                            cardConfig.iconColor,
+                            "dark:text-white"
+                          )}>
+                            {cardConfig.icon}
+                          </div>
+                          <span className={cn(
+                            "text-xs font-semibold text-[#1f1d39] dark:text-gray-300",
+                            getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                          )}>
+                            {course.Course_ID}
+                          </span>
+                        </div>
+                        
+                        {/* Course Name and Credits */}
+                        <div className="flex-1 flex flex-col justify-end">
+                          <h3 className="font-semibold text-[#1f1d39] dark:text-white text-base mb-1 line-clamp-2">
+                            {course.Name}
+                          </h3>
+                          <p className="text-xs text-[#676767] dark:text-gray-400">
+                            {t('dashboard.credits')}: {course.Credit}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={cn(
+                      "px-4 py-2 flex items-center gap-2 transition-all",
+                      neoBrutalismMode
+                        ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] disabled:opacity-50 disabled:cursor-not-allowed hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
+                        : "bg-[#eff1f3] dark:bg-[#2a2a2a] rounded-lg hover:bg-[#e5e7e9] dark:hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed",
+                      currentPage === 1 && "opacity-50 cursor-not-allowed"
                     )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-6 h-6 bg-gray-300 dark:bg-gray-600",
-                      neoBrutalismMode ? "rounded-none border border-[#1a1a1a] dark:border-[#FFFBEB]" : "rounded-full"
-                    )}></div>
+                  >
+                    <ChevronLeft className="w-4 h-4 text-[#424252] dark:text-gray-300" />
                     <span className={cn(
-                      "text-sm font-semibold text-black dark:text-white",
+                      "text-sm font-semibold text-[#424252] dark:text-gray-300",
                       getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                    )}>{item.name}</span>
-                  </div>
-                  <div className={cn(
-                    "text-sm text-[#676767] dark:text-gray-400 font-medium",
-                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                  )}>{item.course}</div>
-                  <div className={cn(
-                    "text-sm text-[#676767] dark:text-gray-400 font-medium",
-                    getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
-                  )}>{item.hour}</div>
-                  <div className={cn(
-                    "text-sm font-semibold text-[#3bafa8]",
+                    )}>{t('common.previous')}</span>
+                  </button>
+                  
+                  <span className={cn(
+                    "text-sm font-semibold text-[#424252] dark:text-gray-300",
                     getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
-                  )}>{item.point}</div>
+                  )}>
+                    {t('common.page')} {currentPage} {t('common.of')} {totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className={cn(
+                      "px-4 py-2 flex items-center gap-2 transition-all",
+                      neoBrutalismMode
+                        ? "border-2 border-[#1a1a1a] dark:border-[#FFFBEB] bg-white dark:bg-[#2a2a2a] rounded-none shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,251,235,1)] disabled:opacity-50 disabled:cursor-not-allowed hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,251,235,1)]"
+                        : "bg-[#eff1f3] dark:bg-[#2a2a2a] rounded-lg hover:bg-[#e5e7e9] dark:hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed",
+                      currentPage === totalPages && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-sm font-semibold text-[#424252] dark:text-gray-300",
+                      getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                    )}>{t('common.next')}</span>
+                    <ChevronRight className="w-4 h-4 text-[#424252] dark:text-gray-300" />
+                  </button>
                 </div>
-            ))}
-          </div>
-        </Card>
+              )}
+            </>
+          ) : (
+            <div className={cn(
+              "text-center py-8 text-[#676767] dark:text-gray-400",
+              getNeoBrutalismTextClasses(neoBrutalismMode, 'body')
+            )}>
+              {t('dashboard.noCourses')}
+            </div>
+          )}
+        </div>
+
       </div>
     </DashboardLayout>
   )
