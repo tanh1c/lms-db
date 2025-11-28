@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from functools import wraps
 from flask import request, jsonify
 
-JWT_SECRET = os.getenv('JWT_SECRET', '4597a52bcd9ef079422afbc7d90157f8887681c5')
+JWT_SECRET = os.getenv('JWT_SECRET', '')
 JWT_ALGORITHM = 'HS256'
 JWT_EXPIRES_IN = os.getenv('JWT_EXPIRES_IN', '24h')  # Default 24 hours
 JWT_REMEMBER_ME_EXPIRES_IN = '30d'  # 30 days for remember me

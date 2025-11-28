@@ -636,13 +636,12 @@ export default function AssignmentManagementPage() {
           </p>
         </div>
 
-        {/* Advanced Search Panel */}
+        {/* Advanced Search Panel (no Add Course button on Assignments page) */}
         <AdvancedSearchPanel
           filters={searchFilters}
           onFiltersChange={setSearchFilters}
           onSearch={handleSearch}
           onReset={handleResetFilters}
-          onAddCourse={handleAddAssignment}
         />
 
         {/* Courses List Table */}

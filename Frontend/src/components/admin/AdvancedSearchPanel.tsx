@@ -35,6 +35,8 @@ interface AdvancedSearchPanelProps {
   onSearch: () => void
   onReset: () => void
   onAddCourse?: () => void
+  /** i18n key for add button label, defaults to admin.addCourse */
+  addButtonLabelKey?: string
 }
 
 export default function AdvancedSearchPanel({
@@ -43,6 +45,7 @@ export default function AdvancedSearchPanel({
   onSearch,
   onReset,
   onAddCourse,
+  addButtonLabelKey = 'admin.addCourse',
 }: AdvancedSearchPanelProps) {
   const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(false)
@@ -261,7 +264,7 @@ export default function AdvancedSearchPanel({
                 )}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('admin.addQuiz')}</span>
+                <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t(addButtonLabelKey)}</span>
               </Button>
             )}
           </div>

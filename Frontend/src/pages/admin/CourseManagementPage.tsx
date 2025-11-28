@@ -2152,13 +2152,14 @@ export default function CourseManagementPage() {
           </Tabs>
         )}
 
-        {/* Advanced Search Panel */}
+        {/* Advanced Search Panel - Add Course */}
         <AdvancedSearchPanel
           filters={searchFilters}
           onFiltersChange={setSearchFilters}
           onSearch={handleSearch}
           onReset={handleResetFilters}
           onAddCourse={handleAddCourse}
+          addButtonLabelKey="admin.addCourse"
         />
 
         {/* Courses List Table */}

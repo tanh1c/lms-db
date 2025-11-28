@@ -835,13 +835,14 @@ export default function QuizManagementPage() {
           </p>
         </div>
 
-        {/* Advanced Search Panel */}
+        {/* Advanced Search Panel - Add Quiz */}
         <AdvancedSearchPanel
           filters={searchFilters}
           onFiltersChange={setSearchFilters}
           onSearch={handleSearch}
           onReset={handleResetFilters}
           onAddCourse={handleAddQuiz}
+          addButtonLabelKey="admin.addQuiz"
         />
 
         {/* Courses List Table */}
