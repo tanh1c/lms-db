@@ -7,9 +7,12 @@ export const quizService = {
     return response.data
   },
 
-  async getQuizById(quizId: number): Promise<Quiz | null> {
+  async getQuizById(quizId: number, universityId?: number): Promise<Quiz | null> {
     try {
-      const response = await apiClient.get(`/quizzes/${quizId}`)
+      const params: any = {}
+      if (universityId) params.university_id = universityId
+      
+      const response = await apiClient.get(`/quizzes/${quizId}`, { params })
       return response.data
     } catch (error: any) {
       if (error.response?.status === 404) {

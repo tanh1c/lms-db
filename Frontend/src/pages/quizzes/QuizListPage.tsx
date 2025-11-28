@@ -54,16 +54,26 @@ export default function QuizListPage() {
       
       try {
         const data = await quizService.getQuizzes(user.University_ID)
-        const courses = await courseService.getCourses()
         
-        // Enrich quizzes with course information
+        // Data already includes Course_Name from backend
         const quizzesWithCourses: QuizWithCourse[] = data.map(quiz => ({
           ...quiz,
-          course: courses.find(c => c.Course_ID === quiz.Course_ID),
+          course: quiz.Course_Name ? {
+            Course_ID: quiz.Course_ID,
+            Name: quiz.Course_Name
+          } as Course : undefined,
         }))
         
-        // Sort by end date (earliest deadline first)
+        // Sort by status (Not Taken first), then by end date
         quizzesWithCourses.sort((a, b) => {
+          const statusOrder = { 'Not Taken': 0, 'In Progress': 1, 'Submitted': 2, 'Failed': 3, 'Passed': 4 }
+          const statusA = statusOrder[a.status_display as keyof typeof statusOrder] ?? 5
+          const statusB = statusOrder[b.status_display as keyof typeof statusOrder] ?? 5
+          
+          if (statusA !== statusB) {
+            return statusA - statusB
+          }
+          
           const endDateA = a.End_Date ? new Date(a.End_Date).getTime() : 0
           const endDateB = b.End_Date ? new Date(b.End_Date).getTime() : 0
           return endDateA - endDateB
@@ -269,10 +279,53 @@ export default function QuizListPage() {
                     </div>
                   )}
                 </div>
+                {quiz.score !== null && quiz.score !== undefined && (
+                  <div className={cn(
+                    "p-3 rounded-lg mb-4",
+                    quiz.score >= (quiz.pass_score || 0)
+                      ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                      : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800",
+                    neoBrutalismMode 
+                      ? quiz.score >= (quiz.pass_score || 0)
+                        ? "border-4 border-green-600 dark:border-green-400 rounded-none shadow-[4px_4px_0px_0px_rgba(34,197,94,1)] dark:shadow-[4px_4px_0px_0px_rgba(74,222,128,1)]"
+                        : "border-4 border-red-600 dark:border-red-400 rounded-none shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] dark:shadow-[4px_4px_0px_0px_rgba(248,113,113,1)]"
+                      : "rounded-lg"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "font-semibold",
+                        quiz.score >= (quiz.pass_score || 0)
+                          ? "text-green-700 dark:text-green-300"
+                          : "text-red-700 dark:text-red-300",
+                        getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                      )}>
+                        {t('quizzes.yourScore')}: {quiz.score.toFixed(2)} / {quiz.pass_score || 10}
+                      </span>
+                      {quiz.completion_status && (
+                        <Badge className={cn(
+                          quiz.completion_status === 'Passed'
+                            ? "bg-green-500 text-white"
+                            : quiz.completion_status === 'Failed'
+                            ? "bg-red-500 text-white"
+                            : "bg-blue-500 text-white"
+                        )}>
+                          {quiz.completion_status}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex gap-3">
                   {canTake && isAvailable ? (
                     <Button
-                      onClick={() => navigate(ROUTES.QUIZ_TAKE.replace(':quizId', quiz.Assessment_ID.toString()))}
+                      onClick={() => {
+                        const url = ROUTES.QUIZ_TAKE.replace(':quizId', quiz.Assessment_ID.toString())
+                        const params = new URLSearchParams()
+                        if (quiz.Course_ID) params.set('courseId', quiz.Course_ID.toString())
+                        if (quiz.Section_ID) params.set('sectionId', quiz.Section_ID.toString())
+                        navigate(`${url}?${params.toString()}`)
+                      }}
                       className={cn(
                         neoBrutalismMode 
                           ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "hover:bg-gray-800 dark:hover:bg-gray-200")
@@ -284,14 +337,20 @@ export default function QuizListPage() {
                   ) : (
                     <Button
                       variant="outline"
-                      onClick={() => navigate(ROUTES.QUIZ_RESULT.replace(':quizId', quiz.Assessment_ID.toString()))}
+                      onClick={() => {
+                        const url = ROUTES.QUIZ_TAKE.replace(':quizId', quiz.Assessment_ID.toString())
+                        const params = new URLSearchParams()
+                        if (quiz.Course_ID) params.set('courseId', quiz.Course_ID.toString())
+                        if (quiz.Section_ID) params.set('sectionId', quiz.Section_ID.toString())
+                        navigate(`${url}?${params.toString()}`)
+                      }}
                       className={cn(
                         neoBrutalismMode 
                           ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline', "hover:bg-gray-50 dark:hover:bg-[#2a2a2a]")
                           : "border-[#e5e7e7] dark:border-[#333] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
                       )}
                     >
-                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('quizzes.viewResult')}</span>
+                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('quizzes.reviewQuiz') || 'Review Quiz'}</span>
                     </Button>
                   )}
                 </div>

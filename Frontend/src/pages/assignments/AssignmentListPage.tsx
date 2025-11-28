@@ -54,16 +54,26 @@ export default function AssignmentListPage() {
       
       try {
         const data = await assignmentService.getAssignments(user.University_ID)
-        const courses = await courseService.getCourses()
         
-        // Enrich assignments with course information
+        // Data already includes Course_Name and Section_ID from backend
         const assignmentsWithCourses: AssignmentWithCourse[] = data.map(assignment => ({
           ...assignment,
-          course: courses.find(c => c.Course_ID === assignment.Course_ID),
+          course: assignment.Course_Name ? {
+            Course_ID: assignment.Course_ID,
+            Name: assignment.Course_Name
+          } as Course : undefined,
         }))
         
-        // Sort by deadline (earliest first)
+        // Sort by deadline (earliest first), then by status (Not Started first)
         assignmentsWithCourses.sort((a, b) => {
+          const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Submitted': 2, 'Overdue': 3 }
+          const statusA = statusOrder[a.status_display as keyof typeof statusOrder] ?? 4
+          const statusB = statusOrder[b.status_display as keyof typeof statusOrder] ?? 4
+          
+          if (statusA !== statusB) {
+            return statusA - statusB
+          }
+          
           const deadlineA = a.submission_deadline ? new Date(a.submission_deadline).getTime() : 0
           const deadlineB = b.submission_deadline ? new Date(b.submission_deadline).getTime() : 0
           return deadlineA - deadlineB
@@ -231,28 +241,50 @@ export default function AssignmentListPage() {
                     </div>
                   )}
                 </div>
+                {assignment.score !== null && assignment.score !== undefined && (
+                  <div className={cn(
+                    "p-3 rounded-lg",
+                    "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800",
+                    neoBrutalismMode 
+                      ? "border-4 border-green-600 dark:border-green-400 rounded-none shadow-[4px_4px_0px_0px_rgba(34,197,94,1)] dark:shadow-[4px_4px_0px_0px_rgba(74,222,128,1)]"
+                      : "rounded-lg"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "font-semibold text-green-700 dark:text-green-300",
+                        getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')
+                      )}>
+                        {t('assignments.score')}: {assignment.score.toFixed(2)} / {assignment.MaxScore || 10}
+                      </span>
+                      {assignment.SubmitDate && (
+                        <span className="text-sm text-green-600 dark:text-green-400">
+                          ({t('assignments.submittedOn')} {new Date(assignment.SubmitDate).toLocaleDateString()})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 {assignment.Assessment_ID && (
                   <div className="flex gap-3">
                     <Button
-                      onClick={() => navigate(ROUTES.ASSIGNMENT_DETAIL.replace(':assignmentId', assignment.Assessment_ID!.toString()))}
-                      className={cn(
-                        neoBrutalismMode 
-                          ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'primary', "hover:bg-gray-800 dark:hover:bg-gray-200")
-                          : "bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black"
-                      )}
-                    >
-                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('assignments.viewDetails')}</span>
-                    </Button>
-                    <Button
                       variant="outline"
-                      onClick={() => navigate(ROUTES.ASSIGNMENT_SUBMIT.replace(':assignmentId', assignment.Assessment_ID!.toString()))}
+                      onClick={() => {
+                        const url = ROUTES.ASSIGNMENT_SUBMIT.replace(':assignmentId', assignment.Assessment_ID!.toString())
+                        const params = new URLSearchParams()
+                        if (assignment.Course_ID) params.set('courseId', assignment.Course_ID.toString())
+                        if (assignment.Section_ID) params.set('sectionId', assignment.Section_ID.toString())
+                        navigate(`${url}?${params.toString()}`)
+                      }}
                       className={cn(
                         neoBrutalismMode 
                           ? getNeoBrutalismButtonClasses(neoBrutalismMode, 'outline', "hover:bg-gray-50 dark:hover:bg-[#2a2a2a]")
                           : "border-[#e5e7e7] dark:border-[#333] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
                       )}
                     >
-                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>{t('assignments.submit')}</span>
+                      <span className={getNeoBrutalismTextClasses(neoBrutalismMode, 'bold')}>
+                        {assignment.status_display === 'Submitted' ? t('assignments.viewSubmission') || 'View Submission' : t('assignments.submit')}
+                      </span>
                     </Button>
                   </div>
                 )}

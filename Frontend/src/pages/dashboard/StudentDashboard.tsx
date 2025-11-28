@@ -5,9 +5,8 @@ import { gsap } from 'gsap'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthProvider'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import { studentService, type StudentDashboardStatistics, type LeaderboardEntry, type GradeComponent } from '@/lib/api/studentService'
+import { studentService, type StudentDashboardStatistics, type LeaderboardEntry, type GradeComponent, type CourseWithSections } from '@/lib/api/studentService'
 import { ROUTES } from '@/constants/routes'
-import type { Course } from '@/types'
 import { Trophy, Edit2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
@@ -24,7 +23,7 @@ export default function StudentDashboard() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [courses, setCourses] = useState<Course[]>([])
+  const [courses, setCourses] = useState<CourseWithSections[]>([])
   const [statistics, setStatistics] = useState<StudentDashboardStatistics | null>(null)
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [gradeComponents, setGradeComponents] = useState<GradeComponent[]>([])
@@ -51,7 +50,7 @@ export default function StudentDashboard() {
       
       try {
         const [coursesData, statsData, leaderboardData, gradeComponentsData] = await Promise.all([
-          studentService.getStudentCourses(user.University_ID).catch(() => []),
+          studentService.getStudentCoursesWithSections(user.University_ID).catch(() => []),
           studentService.getDashboardStatistics(user.University_ID).catch(() => null),
           studentService.getLeaderboard(5).catch(() => []),
           studentService.getGradeComponents(user.University_ID).catch(() => []),
@@ -113,8 +112,17 @@ export default function StudentDashboard() {
   )
 
 
-  const handleCourseClick = (courseId: number) => {
-    navigate(ROUTES.COURSE_DETAIL.replace(':courseId', courseId.toString()))
+  const handleCourseClick = (course: CourseWithSections) => {
+    // Navigate to first section if available, otherwise to course detail
+    if (course.Sections && course.Sections.length > 0) {
+      const firstSection = course.Sections[0]
+      navigate(ROUTES.SECTION_DETAIL
+        .replace(':courseId', course.Course_ID.toString())
+        .replace(':sectionId', firstSection.Section_ID)
+      )
+    } else {
+      navigate(ROUTES.COURSE_DETAIL.replace(':courseId', course.Course_ID.toString()))
+    }
   }
 
 
@@ -542,7 +550,7 @@ export default function StudentDashboard() {
                           : `${cardConfig.color} dark:bg-[#2a2a2a] border-0 dark:border-[#333] h-[177px] relative overflow-hidden cursor-pointer hover:shadow-lg dark:hover:shadow-xl transition-shadow`,
                         !neoBrutalismMode && cardConfig.color
                       )}
-                      onClick={() => handleCourseClick(course.Course_ID)}
+                      onClick={() => handleCourseClick(course)}
                     >
                       <div className="p-4 h-full flex flex-col justify-between">
                         {/* Course ID in top right corner */}

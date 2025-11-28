@@ -49,17 +49,19 @@ export interface Assignment {
   AssignmentID?: number
   MaxScore?: number
   accepted_specification?: string
-  submission_deadline?: string
+  submission_deadline?: string | null
   instructions?: string
   TaskURL?: string | null
   score?: number | null
   status?: string
   status_display?: string
-  SubmitDate?: string
+  SubmitDate?: string | null
   late_flag_indicator?: boolean
   attached_files?: string
   Comments?: string
   Semester?: string
+  submission_status_display?: string
+  Course_Name?: string
 }
 
 export interface Quiz {
