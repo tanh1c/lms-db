@@ -11,12 +11,12 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: your-app-service-name  # ⚠️ Thay bằng tên Azure App Service của bạn
+  AZURE_WEBAPP_NAME: hcmut-lms-deploy  # ⚠️ Thay bằng tên Azure App Service của bạn
   # Chọn 1 trong 2 cách:
   # Cách 1: Dùng Azure Container Registry (ACR) - nhập tên ACR
   AZURE_CONTAINER_REGISTRY: your-acr-name  # Ví dụ: myregistry (không cần .azurecr.io)
   # Cách 2: Dùng GitHub Container Registry (miễn phí) - để trống AZURE_CONTAINER_REGISTRY và dùng GITHUB_REGISTRY: true
-  USE_GITHUB_REGISTRY: false  # Đặt true nếu muốn dùng GitHub Container Registry
+  USE_GITHUB_REGISTRY: true  # Đặt true nếu muốn dùng GitHub Container Registry
 
 jobs:
   build-and-deploy:
