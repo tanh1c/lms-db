@@ -89,9 +89,8 @@ jobs:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         images: ghcr.io/${{ env.REPO_OWNER_LOWER }}/lms-backend:${{ github.sha }}
 
-    # Nếu không dùng ACR, deploy từ source code (fallback)
     - name: Deploy to Azure Web App (Source)
-      if: env.AZURE_CONTAINER_REGISTRY == '' || env.AZURE_CONTAINER_REGISTRY == 'your-acr-name'
+      if: (env.AZURE_CONTAINER_REGISTRY == '' || env.AZURE_CONTAINER_REGISTRY == 'your-acr-name') && env.USE_GITHUB_REGISTRY != 'true'
       uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
