@@ -182,16 +182,36 @@ export default function CourseContentCard({ courseId, sectionId, quizzes = [], a
     }))
 
     // Merge local contents with database quizzes and assignments
-    const mergedContents: Record<string, ContentItem[]> = { ...localContents }
+    // Separate local items (not from database) from database items
+    const mergedContents: Record<string, ContentItem[]> = {}
     
-    // Add quizzes to 'quiz' section
-    if (quizItems.length > 0) {
-      mergedContents['quiz'] = [...(mergedContents['quiz'] || []), ...quizItems]
+    // Copy all sections from local contents
+    Object.keys(localContents).forEach((sectionId) => {
+      // Filter out items that come from database (those with quiz- or assignment- prefix)
+      const localOnlyItems = (localContents[sectionId] || []).filter(
+        (item) => !item.id.startsWith('quiz-') && !item.id.startsWith('assignment-')
+      )
+      if (localOnlyItems.length > 0) {
+        mergedContents[sectionId] = localOnlyItems
+      }
+    })
+    
+    // Replace database quizzes and assignments completely (they are source of truth)
+    // Remove duplicates from database items first
+    const uniqueQuizItems = quizItems.filter((item, index, self) => 
+      index === self.findIndex((t) => t.id === item.id)
+    )
+    const uniqueAssignmentItems = assignmentItems.filter((item, index, self) => 
+      index === self.findIndex((t) => t.id === item.id)
+    )
+    
+    // Set database items (replace any existing database items)
+    if (uniqueQuizItems.length > 0) {
+      mergedContents['quiz'] = [...(mergedContents['quiz'] || []), ...uniqueQuizItems]
     }
     
-    // Add assignments to 'assignment' section
-    if (assignmentItems.length > 0) {
-      mergedContents['assignment'] = [...(mergedContents['assignment'] || []), ...assignmentItems]
+    if (uniqueAssignmentItems.length > 0) {
+      mergedContents['assignment'] = [...(mergedContents['assignment'] || []), ...uniqueAssignmentItems]
     }
 
     setContents(mergedContents)

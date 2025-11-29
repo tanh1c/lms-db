@@ -104,7 +104,7 @@ function App() {
           <Route
             path={ROUTES.ASSIGNMENTS}
             element={
-              <ProtectedRoute allowedRoles={['student', 'tutor', 'admin']}>
+              <ProtectedRoute allowedRoles={['student', 'admin']}>
                 <AssignmentListPage />
               </ProtectedRoute>
             }

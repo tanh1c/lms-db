@@ -70,7 +70,6 @@ export default function DashboardLayout({
         return [
           { title: 'Dashboard', href: ROUTES.TUTOR_DASHBOARD, icon: LayoutDashboard },
           { title: 'My Courses', href: ROUTES.COURSES, icon: BookOpen },
-          { title: 'Grading', href: ROUTES.ASSIGNMENTS, icon: FileText },
           { title: 'Schedule', href: ROUTES.SCHEDULE, icon: Calendar },
           { title: 'Settings', href: ROUTES.SETTINGS, icon: Settings },
         ]

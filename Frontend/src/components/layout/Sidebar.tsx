@@ -32,7 +32,6 @@ const studentNavItems: NavItem[] = [
 const tutorNavItems: NavItem[] = [
   { titleKey: 'sidebar.dashboard', href: ROUTES.TUTOR_DASHBOARD, icon: LayoutDashboard },
   { titleKey: 'sidebar.myCourses', href: ROUTES.COURSES, icon: BookOpen },
-  { titleKey: 'sidebar.grading', href: ROUTES.ASSIGNMENTS, icon: FileText },
   { titleKey: 'sidebar.schedule', href: ROUTES.SCHEDULE, icon: Calendar },
 ]
 

@@ -25,7 +25,9 @@
     "yes": "Yes",
     "no": "No",
     "size": "Size",
-    "optional": "(Optional)"
+    "optional": "(Optional)",
+    "name": "Name",
+    "actions": "Actions"
   },
   "auth": {
     "loginTitle": "Welcome back!",
@@ -206,7 +208,13 @@
     "assignmentGrade": "Assignment Grade",
     "midtermGrade": "Midterm Grade",
     "finalGrade": "Final Grade",
-    "studentsInSection": "Students in this Section"
+    "studentsInSection": "Students in this Section",
+    "quizzes": "Quizzes",
+    "assignments": "Assignments",
+    "submissions": "Submissions",
+    "passed": "Passed",
+    "gpa": "GPA",
+    "pending": "Pending"
   },
   "assignments": {
     "title": "Assignments",
@@ -852,6 +860,9 @@
     "comments": "Comments",
     "quizScores": "Quiz Scores",
     "noQuizAnswers": "No students have taken this quiz yet.",
+    "editScore": "Edit Score",
+    "editGrades": "Edit Grades",
+    "updateScoreSuccess": "Score updated successfully",
     "score": "Score",
     "completionStatus": "Completion Status",
     "failed": "Failed",

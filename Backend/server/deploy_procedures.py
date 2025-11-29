@@ -42,6 +42,7 @@ def deploy_procedures(verbose=False):
         'get_student_all_quizzes.sql',
         'get_student_all_grades.sql',
         'get_student_schedule.sql',
+        'get_tutor_dashboard.sql',
         'assessment_queries.sql',
         'update_user_role.sql',
         'reset_user_password.sql',

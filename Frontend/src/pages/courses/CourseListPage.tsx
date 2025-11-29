@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { studentService, type CourseWithSections } from '@/lib/api/studentService'
+import { studentService, type CourseWithSections as StudentCourseWithSections } from '@/lib/api/studentService'
+import { tutorService, type CourseWithSections as TutorCourseWithSections } from '@/lib/api/tutorService'
 import { useAuth } from '@/context/AuthProvider'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
@@ -31,7 +32,7 @@ import {
 export default function CourseListPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const [courses, setCourses] = useState<CourseWithSections[]>([])
+  const [courses, setCourses] = useState<(StudentCourseWithSections | TutorCourseWithSections)[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'enrolled' | 'available'>('all')
@@ -63,7 +64,12 @@ export default function CourseListPage() {
       if (!user) return
       
       try {
-        const data = await studentService.getStudentCoursesWithSections(user.University_ID)
+        let data
+        if (user.role === 'tutor') {
+          data = await tutorService.getTutorCoursesWithSections(user.University_ID)
+        } else {
+          data = await studentService.getStudentCoursesWithSections(user.University_ID)
+        }
         setCourses(data)
       } catch (error) {
         console.error('Error loading courses:', error)
@@ -102,7 +108,7 @@ export default function CourseListPage() {
           })
         } else {
           // Add section to existing course if not already present
-          const sectionExists = existingCourse.Sections.some(s => s.Section_ID === section.Section_ID)
+          const sectionExists = existingCourse.Sections.some((s: { Section_ID: string }) => s.Section_ID === section.Section_ID)
           if (!sectionExists) {
             existingCourse.Sections.push(section)
           }
@@ -110,7 +116,7 @@ export default function CourseListPage() {
       })
     }
     return acc
-  }, {} as Record<string, CourseWithSections[]>)
+  }, {} as Record<string, (StudentCourseWithSections | TutorCourseWithSections)[]>)
 
   // Sort semesters (newest first)
   const sortedSemesters = Object.keys(coursesBySemester).sort((a, b) => {

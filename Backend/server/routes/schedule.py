@@ -33,11 +33,21 @@ def period_to_time(period):
 @schedule_bp.route('/user/<int:user_id>', methods=['GET'])
 @require_auth
 def get_user_schedule(user_id):
-    """Get schedule for a student from all sections they are enrolled in"""
+    """Get schedule for a student or tutor from all sections they are enrolled in or teach"""
     try:
+        from flask import request
+        # Get role from JWT token (set by require_auth decorator)
+        role = getattr(request, 'current_user_role', 'student')
+        
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('EXEC GetStudentSchedule %s', (user_id,))
+        
+        # Use different procedure based on role
+        if role == 'tutor':
+            cursor.execute('EXEC GetTutorSchedule %s', (user_id,))
+        else:
+            cursor.execute('EXEC GetStudentSchedule %s', (user_id,))
+        
         results = cursor.fetchall()
         conn.close()
         

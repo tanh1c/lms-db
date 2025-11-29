@@ -24,7 +24,9 @@
     "yes": "Có",
     "no": "Không",
     "size": "Kích thước",
-    "optional": "(Tùy chọn)"
+    "optional": "(Tùy chọn)",
+    "name": "Tên",
+    "actions": "Hành động"
   },
   "auth": {
     "loginTitle": "Chào mừng trở lại!",
@@ -205,7 +207,13 @@
     "assignmentGrade": "Điểm bài tập",
     "midtermGrade": "Điểm giữa kỳ",
     "finalGrade": "Điểm cuối kỳ",
-    "studentsInSection": "Sinh viên trong lớp học này"
+    "studentsInSection": "Sinh viên trong lớp học này",
+    "quizzes": "Bài kiểm tra",
+    "assignments": "Bài tập",
+    "submissions": "Đã nộp",
+    "passed": "Đã đạt",
+    "gpa": "GPA",
+    "pending": "Đang chờ"
   },
   "assignments": {
     "title": "Bài tập",
@@ -852,6 +860,9 @@
     "comments": "Nhận xét",
     "quizScores": "Điểm bài kiểm tra",
     "noQuizAnswers": "Chưa có sinh viên nào làm bài kiểm tra này.",
+    "editScore": "Chỉnh sửa điểm",
+    "editGrades": "Chỉnh sửa điểm thành phần",
+    "updateScoreSuccess": "Cập nhật điểm thành công",
     "score": "Điểm",
     "completionStatus": "Trạng thái hoàn thành",
     "failed": "Không đạt",
