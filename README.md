@@ -42,14 +42,11 @@ lms-db/
 ### Prerequisites
 
 - Azure SQL Database or SQL Server instance
-- **For Docker (Recommended)**: Docker Desktop or Docker Engine installed
-- **For Manual Setup**: Python 3.9+, Node.js 18+, and Poetry
+- Docker Desktop or Docker Engine installed
 
 ---
 
-## 🐳 Docker Setup (Recommended - Easiest Way)
-
-**Why Docker?** Docker automatically handles all dependencies and configurations. You don't need to install Python, Node.js, or Poetry separately.
+## 🐳 Docker Setup 
 
 **Prerequisites:**
 - Docker Desktop or Docker Engine installed
@@ -79,9 +76,9 @@ docker-compose -f docker-compose.dev.yml up --build
 ```
 
 **Note:** This command will:
-- ✅ **Build images** (if needed or if `--build` flag is used)
-- ✅ **Start containers** (run the services)
-- ✅ **Show logs** in the terminal (press `Ctrl+C` to stop)
+-  **Build images** (if needed or if `--build` flag is used)
+-  **Start containers** (run the services)
+-  **Show logs** in the terminal (press `Ctrl+C` to stop)
 
 If you want to run in the background (detached mode):
 ```bash
@@ -89,12 +86,12 @@ docker-compose -f docker-compose.dev.yml up --build -d
 ```
 
 **How Hot Reload Works:**
-- ✅ **No need to enter the container** - Just edit code on your local machine
-- ✅ **Automatic reload** - Changes are detected automatically:
+-  **No need to enter the container** - Just edit code on your local machine
+-  **Automatic reload** - Changes are detected automatically:
   - **Frontend**: Edit files in `Frontend/src/` → Browser updates instantly (Vite HMR)
   - **Backend**: Edit files in `Backend/server/` → Flask server auto-reloads
-- ✅ **Volume mounts** - Your local code is mounted into containers, so changes are immediate
-- ✅ **Just save your files** - That's it! No manual restart needed
+-  **Volume mounts** - Your local code is mounted into containers, so changes are immediate
+-  **Just save your files** - That's it! No manual restart needed
 
 **Example workflow:**
 1. Start containers: `docker-compose -f docker-compose.dev.yml up --build`
@@ -127,90 +124,6 @@ docker-compose -f docker-compose.dev.yml up --build -d
 - `frontend`: React/Vite application (port 5173 in dev, port 80 in production)
 
 ---
-
-## 📦 Manual Setup (Alternative)
-
-If you prefer to run the services manually without Docker, follow these instructions:
-
-### Backend Setup
-
-**Install Poetry:**
-
-For Windows (PowerShell):
-```bash
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
-```
-
-For macOS/Linux:
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-Alternatively, install via pip:
-```bash
-pip install poetry
-```
-
-**Configure and Run Backend:**
-
-1. Navigate to the backend directory:
-```bash
-cd Backend/server
-```
-
-2. Install dependencies:
-```bash
-poetry install
-```
-
-3. Create environment configuration file:
-   - Copy `.env.example` to `.env`
-   - Fill in your SQL Server database credentials
-
-4. Deploy stored procedures to the database:
-```bash
-poetry run python deploy_procedures.py
-```
-
-5. Start the server:
-```bash
-poetry run python app.py
-```
-
-Alternatively, activate the Poetry shell:
-```bash
-cd Backend/server
-poetry shell
-python app.py
-```
-
-The backend server runs on `http://localhost:3001` by default.
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-```bash
-cd Frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create environment configuration file:
-   - Create a `.env` file in the `Frontend/` directory
-   - Add the following line:
-   ```
-   VITE_API_BASE_URL=http://localhost:3001/api
-   ```
-
-4. Start the development server:
-```bash
-npm run dev
-```
-
-The frontend application runs on `http://localhost:5173` by default.
 
 ## Technology Stack
 
@@ -255,9 +168,16 @@ DB_PASSWORD=your_password
 DB_ENCRYPT=true
 DB_TRUST_SERVER_CERTIFICATE=true
 
+# Azure Blob Storage Configuration
+AZURE_STORAGE_CONNECTION_STRING=storage_connection_string
+AZURE_STORAGE_ACCOUNT_NAME=storage_name
+
 # Server Configuration
 PORT=3001
-NODE_ENV=development
+
+# JWT Configuration
+JWT_SECRET=your_secret_jwt
+JWT_EXPIRES_IN=expired_time
 ```
 
 **Security Note:** The `.env` file is excluded from version control via `.gitignore` to protect sensitive credentials.
@@ -284,9 +204,15 @@ The system implements role-based authentication with three user types:
 
 Users authenticate using their University_ID and password. The system provides fallback authentication when the backend is unavailable:
 
-- Student: University_ID `100001` / Password: `123456`
-- Tutor: University_ID `200001` / Password: `123456`
-- Admin: University_ID `3000001` / Password: `123456`
+- Student: University_ID `100001` / Password: `user<your_university_id>`
+- Tutor: University_ID `200001` / Password: `user<your_university_id>`
+- Admin: University_ID `3000001` / Password: `user<your_university_id>`
+```
+Example:
+You can login to my lms-system by typing:
+- username: 2352344
+- Password: user2352344
+```
 
 **Production Note:** When the backend is connected to the database, authentication uses actual user accounts stored in the database.
 
@@ -389,27 +315,16 @@ The database schema includes the following primary tables:
 
 For the complete database schema, refer to `lms_database.sql` and `script.sql` files in the project root.
 
-### Stored Procedures Deployment
-
-Deploy all stored procedures to the database:
-
-```bash
-cd Backend/server
-poetry run python deploy_procedures.py
-```
-
-This script deploys all stored procedures from `Backend/server/procedures/` to the configured database.
-
 ## Internationalization
 
 The frontend application supports multiple languages:
 
-- **Vietnamese (vi)** - Default language
+- **Vietnamese (vi)**
 - **English (en)**
 
 Users can switch languages using the language selector in the application interface.
 
-## Building for Production
+## Building without Docker
 
 ### Backend Build
 
@@ -429,36 +344,7 @@ The production build output is located in `Frontend/dist/`.
 
 ## Deployment
 
-### Backend Deployment
-
-The backend can be deployed to any Python-compatible hosting service, including:
-
-- Heroku
-- Railway
-- Azure App Service
-- AWS Elastic Beanstalk
-- Google Cloud Run
-
-Ensure that:
-- Environment variables are properly configured on the hosting platform
-- The database connection is accessible from the hosting service
-- Required ports are open and accessible
-
-### Frontend Deployment
-
-The frontend can be deployed to static hosting services, including:
-
-- Vercel
-- Netlify
-- GitHub Pages
-- AWS S3 + CloudFront
-
-Configuration requirements:
-- Set the `VITE_API_BASE_URL` environment variable to your production backend API URL
-- Configure routing for Single Page Application (SPA) behavior
-- Ensure CORS is properly configured on the backend for the frontend domain
-
-## CI/CD Architecture
+### CI/CD Architecture
 
 This project implements a fully automated CI/CD pipeline using **GitHub Actions** for continuous integration and deployment to **Azure App Service**.
 
@@ -595,7 +481,7 @@ The workflow also supports Azure Container Registry (ACR) as an alternative to G
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
