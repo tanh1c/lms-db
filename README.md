@@ -441,6 +441,141 @@ Configuration requirements:
 - Configure routing for Single Page Application (SPA) behavior
 - Ensure CORS is properly configured on the backend for the frontend domain
 
+## CI/CD Architecture
+
+This project implements a fully automated CI/CD pipeline using **GitHub Actions** for continuous integration and deployment to **Azure App Service**.
+
+### Deployment Flow
+
+```
+┌─────────────┐
+│   GitHub    │
+│  Repository │
+└──────┬──────┘
+       │ Push code (Backend/server/**)
+       ▼
+┌─────────────────────┐
+│  GitHub Actions     │
+│  (CI/CD Pipeline)   │
+└──────┬──────────────┘
+       │
+       ├─► 1. Checkout code
+       ├─► 2. Setup Docker Buildx
+       ├─► 3. Login to Container Registry (GHCR)
+       ├─► 4. Build Docker Image from Dockerfile
+       ├─► 5. Push Image to Registry (tagged: latest + commit SHA)
+       ├─► 6. Login to Azure (Service Principal)
+       └─► 7. Deploy to Azure App Service
+              └─► Pull image and run container
+```
+
+### Components
+
+#### 1. **GitHub Actions Workflow** (`.github/workflows/deploy-backend.yml`)
+- **Trigger**: Automatically runs on push to `main`/`master` branch when `Backend/server/**` files change
+- **Manual Trigger**: Can also be triggered manually via `workflow_dispatch`
+- **Key Steps**:
+  1. Checkout source code
+  2. Setup Docker Buildx for multi-platform builds
+  3. Authenticate with GitHub Container Registry (GHCR)
+  4. Build Docker image from `Backend/server/Dockerfile`
+  5. Push image to GHCR with tags: `latest` and `{commit-sha}`
+  6. Authenticate with Azure using Service Principal
+  7. Deploy image to Azure App Service
+
+#### 2. **Docker Image** (`Backend/server/Dockerfile`)
+- **Base Image**: `python:3.11-slim`
+- **Build Process**:
+  1. Install system dependencies (gcc, unixodbc-dev)
+  2. Install Poetry for dependency management
+  3. Copy `pyproject.toml` and `poetry.lock`
+  4. Install Python dependencies via Poetry
+  5. Copy application code
+  6. Expose port 3001
+  7. Run application: `poetry run python app.py`
+
+#### 3. **Container Registry: GitHub Container Registry (GHCR)**
+- **URL Format**: `ghcr.io/{username}/lms-backend`
+- **Advantages**: Free, integrated with GitHub, no additional setup required
+- **Authentication**: Uses `GITHUB_TOKEN` (automatically available in GitHub Actions)
+- **Image Tags**:
+  - `ghcr.io/{username}/lms-backend:latest` - Always points to the latest build
+  - `ghcr.io/{username}/lms-backend:{commit-sha}` - Immutable tag for each commit (enables easy rollback)
+
+#### 4. **Azure App Service**
+- **Type**: Linux Container
+- **Publishing Method**: Docker Container
+- **Port**: 3001
+- **Container Configuration**:
+  - **Image Source**: GitHub Container Registry (GHCR)
+  - **Image**: `ghcr.io/{username}/lms-backend:latest`
+  - **Registry Server URL**: `ghcr.io`
+  - **Authentication**: GitHub Personal Access Token (PAT) with `read:packages` scope
+
+#### 5. **Azure Service Principal**
+- **Purpose**: Enables GitHub Actions to authenticate with Azure
+- **Credentials**: Stored securely in GitHub Secrets as `AZURE_CREDENTIALS` (JSON format)
+- **Required Permissions**: "Contributor" role on the Resource Group containing the App Service
+
+### Required Configuration
+
+#### GitHub Secrets
+1. **`AZURE_CREDENTIALS`**: Service Principal credentials in JSON format
+   ```json
+   {
+     "clientId": "...",
+     "clientSecret": "...",
+     "tenantId": "...",
+     "subscriptionId": "..."
+   }
+   ```
+
+#### Azure App Service Environment Variables
+Configure the following in Azure Portal → App Service → Configuration → Application settings:
+- `PORT=3001`
+- `DB_SERVER={azure-sql-server}.database.windows.net`
+- `DB_DATABASE={database-name}`
+- `DB_USER={username}`
+- `DB_PASSWORD={password}`
+- `JWT_SECRET={secret-key}`
+- `JWT_EXPIRES_IN=24h`
+- `AZURE_STORAGE_CONNECTION_STRING={connection-string}`
+- `AZURE_STORAGE_ACCOUNT_NAME={account-name}`
+
+### Benefits
+
+1. **Automation**: No manual deployment required - push code and it deploys automatically
+2. **Version Control**: Each commit has its own immutable Docker image tag for easy rollback
+3. **Consistency**: Development and production environments use the same Docker image
+4. **Scalability**: Azure App Service can automatically scale based on demand
+5. **Security**: Secrets are managed securely in GitHub Secrets and Azure Key Vault
+6. **Cost-Effective**: Uses free GitHub Container Registry (GHCR) instead of paid Azure Container Registry
+
+### Deployment Process
+
+1. **Developer pushes code** to `Backend/server/**` directory
+2. **GitHub Actions workflow triggers** automatically
+3. **Docker image is built** from `Backend/server/Dockerfile`
+4. **Image is pushed** to GHCR with `latest` and `{commit-sha}` tags
+5. **Azure App Service pulls** the new image from GHCR
+6. **Container restarts** with the new image
+7. **Health checks** ensure the application is running correctly
+
+### Alternative: Azure Container Registry (ACR)
+
+The workflow also supports Azure Container Registry (ACR) as an alternative to GHCR:
+- Set `AZURE_CONTAINER_REGISTRY` environment variable in the workflow
+- Configure `AZURE_CONTAINER_REGISTRY` and `AZURE_CONTAINER_REGISTRY_PASSWORD` GitHub Secrets
+- Set `USE_GITHUB_REGISTRY: false` in the workflow
+
+**Note**: ACR requires a paid Azure subscription, while GHCR is free for public repositories.
+
+### Troubleshooting
+
+- **Build failures**: Check `Dockerfile` syntax and `pyproject.toml` dependencies
+- **Deployment failures**: Verify `AZURE_WEBAPP_NAME` matches your App Service name and Service Principal has "Contributor" role
+- **Container startup issues**: Check environment variables in Azure App Service and review logs in Azure Portal → Log stream
+
 ## License
 
 This project is licensed under the MIT License.
