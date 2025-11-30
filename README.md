@@ -5,19 +5,36 @@ A comprehensive Learning Management System built with React and TypeScript for t
 ## Project Structure
 
 ```
-BTL/
-├── Backend/          # Backend API Server (Flask + Python)
-│   └── server/       # Flask application
-│       ├── app.py    # Main application file
-│       ├── config/   # Database configuration
-│       ├── routes/   # API routes
-│       ├── procedures/ # SQL stored procedures
-│       └── deploy_procedures.py # Procedure deployment script
+lms-db/
+├── Backend/                # Backend API Server (Flask + Python)
+│   └── server/             # Flask application
+│       ├── app.py          # Main application file
+│       ├── config/         # Database configuration
+│       ├── routes/         # API routes
+│       ├── utils/          # Utility functions (JWT, Azure Storage)
+│       ├── Dockerfile      # Docker image for production
+│       ├── pyproject.toml  # Poetry dependencies
 │
-└── Frontend/         # Frontend Application (React + TypeScript)
-    ├── src/          # Source code
-    ├── public/       # Static assets
-    └── package.json
+├── Frontend/           # Frontend Application (React + TypeScript)
+│   ├── src/            # Source code
+│   │   ├── components/ # React components
+│   │   ├── pages/      # Page components
+│   │   ├── lib/        # Utilities and API clients
+│   │   ├── store/      # State management (Zustand)
+│   │   ├── i18n/       # Internationalization
+│   │   └── types/      # TypeScript type definitions
+│   ├── public/         # Static assets
+│   ├── Dockerfile      # Production Docker image
+│   ├── Dockerfile.dev  # Development Docker image
+│   ├── package.json    # Node.js dependencies
+│   └── vercel.json     # Vercel deployment configuration
+│
+├── docker-compose.yml          # Production Docker Compose configuration
+├── docker-compose.dev.yml      # Development Docker Compose configuration
+├── .github/                    # GitHub Actions workflows and documentation
+│   └── workflows/
+│       └── deploy-backend.yml  # CI/CD pipeline for backend deployment
+└── README.md                   # Project documentation
 ```
 
 ## Quick Start
