@@ -1,4 +1,5 @@
-version: '3.8'
+# Production docker-compose
+# Usage: docker-compose up
 
 services:
   backend:
@@ -8,15 +9,6 @@ services:
     container_name: lms-backend
     ports:
       - "3001:3001"
-    environment:
-      - PORT=3001
-      - DB_SERVER=${DB_SERVER:-localhost}
-      - DB_PORT=${DB_PORT:-1433}
-      - DB_DATABASE=${DB_DATABASE:-lms_system}
-      - DB_USER=${DB_USER:-sa}
-      - DB_PASSWORD=${DB_PASSWORD:-}
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-this-in-production}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
     env_file:
       - ./Backend/server/.env
     restart: unless-stopped
