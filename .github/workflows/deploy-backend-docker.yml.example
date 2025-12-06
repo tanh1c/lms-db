@@ -1,7 +1,3 @@
-# Workflow này dành cho deployment bằng Docker Container
-# Đổi tên file thành deploy-backend-docker.yml nếu muốn dùng
-# Cần có Azure Container Registry (ACR)
-
 name: Deploy Backend to Azure App Service (Docker)
 
 on:

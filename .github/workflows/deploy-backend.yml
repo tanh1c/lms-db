@@ -11,12 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: hcmut-lms-deploy  # ⚠️ Thay bằng tên Azure App Service của bạn
-  # Chọn 1 trong 2 cách:
-  # Cách 1: Dùng Azure Container Registry (ACR) - nhập tên ACR
-  AZURE_CONTAINER_REGISTRY: your-acr-name  # Ví dụ: myregistry (không cần .azurecr.io)
-  # Cách 2: Dùng GitHub Container Registry (miễn phí) - để trống AZURE_CONTAINER_REGISTRY và dùng GITHUB_REGISTRY: true
-  USE_GITHUB_REGISTRY: true  # Đặt true nếu muốn dùng GitHub Container Registry
+  AZURE_WEBAPP_NAME: hcmut-lms-deploy 
 
 jobs:
   build-and-deploy:
@@ -31,40 +26,27 @@ jobs:
 
     # Convert repository owner to lowercase (Docker requires lowercase)
     - name: Set lowercase repository owner
-      if: env.USE_GITHUB_REGISTRY == 'true'
       run: |
         echo "REPO_OWNER_LOWER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-    # Login vào GitHub Container Registry (nếu dùng)
+    # Login to GitHub Container Registry
     - name: Login to GitHub Container Registry
-      if: env.USE_GITHUB_REGISTRY == 'true'
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    # Login vào Azure Container Registry (nếu dùng ACR)
-    - name: Login to Azure Container Registry
-      if: env.AZURE_CONTAINER_REGISTRY != '' && env.AZURE_CONTAINER_REGISTRY != 'your-acr-name'
-      uses: azure/docker-login@v2
-      with:
-        login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
-        username: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-        password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
-
-    # Build và push Docker image từ Dockerfile
+    # Build and push Docker image to GitHub Container Registry
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./Backend/server
         file: ./Backend/server/Dockerfile
-        push: ${{ env.USE_GITHUB_REGISTRY == 'true' || (env.AZURE_CONTAINER_REGISTRY != '' && env.AZURE_CONTAINER_REGISTRY != 'your-acr-name') }}
+        push: true
         tags: |
-          ${{ env.USE_GITHUB_REGISTRY == 'true' && format('ghcr.io/{0}/lms-backend:{1}', env.REPO_OWNER_LOWER, github.sha) || '' }}
-          ${{ env.USE_GITHUB_REGISTRY == 'true' && format('ghcr.io/{0}/lms-backend:latest', env.REPO_OWNER_LOWER) || '' }}
-          ${{ env.AZURE_CONTAINER_REGISTRY != '' && env.AZURE_CONTAINER_REGISTRY != 'your-acr-name' && format('{0}.azurecr.io/lms-backend:{1}', env.AZURE_CONTAINER_REGISTRY, github.sha) || '' }}
-          ${{ env.AZURE_CONTAINER_REGISTRY != '' && env.AZURE_CONTAINER_REGISTRY != 'your-acr-name' && format('{0}.azurecr.io/lms-backend:latest', env.AZURE_CONTAINER_REGISTRY) || '' }}
+          ghcr.io/${{ env.REPO_OWNER_LOWER }}/lms-backend:${{ github.sha }}
+          ghcr.io/${{ env.REPO_OWNER_LOWER }}/lms-backend:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -73,26 +55,9 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    # Deploy Docker image lên Azure App Service từ ACR
-    - name: Deploy to Azure Web App (from ACR)
-      if: env.AZURE_CONTAINER_REGISTRY != '' && env.AZURE_CONTAINER_REGISTRY != 'your-acr-name'
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        images: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/lms-backend:${{ github.sha }}
-
-    # Deploy Docker image lên Azure App Service từ GitHub Container Registry
-    - name: Deploy to Azure Web App (from GHCR)
-      if: env.USE_GITHUB_REGISTRY == 'true'
+    # Deploy Docker image to Azure App Service from GitHub Container Registry
+    - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         images: ghcr.io/${{ env.REPO_OWNER_LOWER }}/lms-backend:${{ github.sha }}
-
-    - name: Deploy to Azure Web App (Source)
-      if: (env.AZURE_CONTAINER_REGISTRY == '' || env.AZURE_CONTAINER_REGISTRY == 'your-acr-name') && env.USE_GITHUB_REGISTRY != 'true'
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        package: ./Backend/server
-        startup-command: 'poetry config virtualenvs.create false && poetry install --only=main --no-interaction --no-ansi && poetry run python app.py'
