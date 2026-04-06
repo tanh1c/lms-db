@@ -24,9 +24,18 @@ function getUserRole(universityId: number): UserRole {
 }
 
 // Fallback login using mock data
-function fallbackLogin(universityId: string): LoginResult {
+function fallbackLogin(universityId: string, password: string): LoginResult {
+  // Validate password format: user{universityId}
+  const expectedPassword = `user${universityId}`
+  if (password !== expectedPassword) {
+    return {
+      success: false,
+      error: 'Mật khẩu không đúng',
+    }
+  }
+
   const id = parseInt(universityId, 10)
-  
+
   // Check if it's one of the default IDs
   const defaultIds = [100001, 200001, 3000001]
   if (!defaultIds.includes(id)) {
@@ -128,7 +137,7 @@ export const authService = {
       if (isNetworkError) {
         console.warn('Backend unavailable, using fallback login')
         // Fallback to mock data
-        return fallbackLogin(universityId)
+        return fallbackLogin(universityId, password)
       }
       
       // Other API errors
