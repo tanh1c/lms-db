@@ -3,14 +3,19 @@
 A comprehensive Learning Management System built with React and TypeScript for the frontend, and Flask with Python for the backend, integrated with Azure SQL Database.
 
 ## Take a glane at our website
-[LMS system](https://lms-db-alpha.vercel.app)
+[student.hcmut.online](https://student.hcmut.online/login)
 ```
-Warning: Our deployment had broken down due to Student Plan of Azure expired =((((((
 Note: Microsoft, please collab with us!!!
 ```
 ## Project Demo
 ![Alt Text](image/video_demo.gif)
 
+```
+Demo Account:
+You can login to my lms-system by typing:
+- username: 2352344
+- Password: user2352344
+```
 
 ## Project Structure
 
@@ -217,12 +222,6 @@ Users authenticate using their University_ID and password. The system provides f
 - Student: University_ID `100001` / Password: `user<your_university_id>`
 - Tutor: University_ID `200001` / Password: `user<your_university_id>`
 - Admin: University_ID `3000001` / Password: `user<your_university_id>`
-```
-Example:
-You can login to my lms-system by typing:
-- username: 2352344
-- Password: user2352344
-```
 
 **Production Note:** When the backend is connected to the database, authentication uses actual user accounts stored in the database.
 

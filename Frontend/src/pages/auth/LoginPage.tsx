@@ -327,6 +327,37 @@ export default function LoginPage() {
             </Button>
           </form>
         </Card>
+
+        <Card className={cn(
+          "p-4",
+          neoBrutalismMode
+            ? "border-4 border-[#1a1a1a] dark:border-[#FFFBEB] bg-[#FFF7D6] dark:bg-[#2a2a2a] rounded-none shadow-[6px_6px_0px_0px_rgba(26,26,26,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,251,235,1)]"
+            : glassmorphismMode
+            ? getGlassmorphismCardClasses(glassmorphismMode, "p-4")
+            : "border border-[#e5e7e7] dark:border-[#333] bg-[#f8fafc] dark:bg-[#161616] rounded-2xl shadow-md"
+        )}>
+          <p className={cn(
+            "text-sm font-bold mb-2",
+            neoBrutalismMode
+              ? "text-[#1a1a1a] dark:text-[#FFFBEB]"
+              : glassmorphismMode
+              ? "text-white drop-shadow-md"
+              : "text-[#211c37] dark:text-white"
+          )}>
+            Demo account:
+          </p>
+          <div className={cn(
+            "space-y-1 text-sm",
+            neoBrutalismMode
+              ? "text-[#1a1a1a] dark:text-[#FFFBEB] font-semibold"
+              : glassmorphismMode
+              ? "text-white/90"
+              : "text-[#676767] dark:text-gray-300"
+          )}>
+            <p>Username: 2353280</p>
+            <p>Password: user2353280</p>
+          </div>
+        </Card>
       </div>
     </div>
   )
